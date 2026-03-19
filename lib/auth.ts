@@ -1,0 +1,75 @@
+import { getAuthMode } from "@/lib/runtimeMode"
+import * as local from "@/lib/authLocal"
+import * as supabase from "@/lib/authSupabase"
+
+export type AuthRecord = supabase.AuthRecord
+
+function impl() {
+  return getAuthMode() === "local" ? local : supabase
+}
+
+export function getActiveUserId() {
+  return impl().getActiveUserId()
+}
+
+export function setActiveUserId(userId: string | null) {
+  return impl().setActiveUserId(userId)
+}
+
+export function getLastUserId() {
+  return impl().getLastUserId()
+}
+
+export function restoreLastSessionIfNeeded() {
+  return impl().restoreLastSessionIfNeeded()
+}
+
+export function getActiveAuthRecord(): AuthRecord | null {
+  return impl().getActiveAuthRecord() as any
+}
+
+export async function signUp(email: string, password: string) {
+  return impl().signUp(email, password) as any
+}
+
+export async function signIn(email: string, password: string) {
+  return impl().signIn(email, password) as any
+}
+
+export async function signInWithOtp(email: string, opts?: { shouldCreateUser?: boolean }) {
+  return impl().signInWithOtp(email, opts) as any
+}
+
+export async function verifyEmailOtp(email: string, token: string, type: "signup" | "email") {
+  return impl().verifyEmailOtp(email, token, type) as any
+}
+
+export async function signInWithProvider(provider: "google" | "apple") {
+  return impl().signInWithProvider(provider as any) as any
+}
+
+export async function signOut() {
+  return impl().signOut()
+}
+
+export async function updateCredentials(params: {
+  userId: string
+  currentPassword: string
+  newEmail?: string
+  newPassword?: string
+}) {
+  return impl().updateCredentials(params as any) as any
+}
+
+export async function updatePasswordAfterOtp(newPassword: string) {
+  return impl().updatePasswordAfterOtp(newPassword) as any
+}
+
+export async function requestEmailChangeOtp(params: { currentPassword: string; newEmail: string }) {
+  return impl().requestEmailChangeOtp(params as any) as any
+}
+
+export async function verifyEmailChangeOtp(newEmail: string, token: string) {
+  return impl().verifyEmailChangeOtp(newEmail, token) as any
+}
+
