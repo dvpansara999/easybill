@@ -352,6 +352,7 @@ business,
 templateId,
 fontFamily,
 fontSize,
+renderContext = "screen",
 subtotal,
 totalCGST,
 totalSGST,
@@ -373,7 +374,7 @@ return(
 className="w-full p-8 text-gray-800"
 style={{
     backgroundColor: theme.paper,
-    ...invoiceTemplateRootTypographyStyle(fontFamily, fontSize),
+    ...invoiceTemplateRootTypographyStyle(fontFamily, fontSize, renderContext),
   }}
 >
 <ClassicHeader invoice={invoice} businessInfo={businessInfo} formatDate={formatDate} dateFormat={dateFormat} theme={theme} visibility={visibility}/>

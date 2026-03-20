@@ -13,6 +13,8 @@ import A4InvoiceView from "@/components/invoiceView/A4InvoiceView"
 import html2canvas from "html2canvas"
 import jsPDF from "jspdf"
 
+import { appendCanvasToPdfPages, looksLikePdfBytes } from "@/lib/canvasRasterPdf"
+import { parsePdfApiErrorMessage } from "@/lib/pdfApiContract"
 import { templates } from "@/components/invoiceTemplates"
 
 /** Must match `A4InvoiceView` inner page width + padding for consistent capture vs on-screen layout. */
@@ -41,6 +43,7 @@ const [fontFamily,setFontFamily] = useState(getStoredTemplateTypography().fontFa
 const [fontSize,setFontSize] = useState(getStoredTemplateTypography().fontSize)
 const [downloadingPdf, setDownloadingPdf] = useState(false)
 const [downloadError, setDownloadError] = useState("")
+const [downloadNotice, setDownloadNotice] = useState("")
 
 let TemplateComponent = templates.default
 
@@ -110,34 +113,37 @@ async function downloadInvoiceFallback(){
       // ignore — not all browsers expose FontFaceSet
     }
 
-    const canvas = await html2canvas(element,{
-      scale:2,
-      useCORS:true,
-      backgroundColor:"#ffffff",
-      logging:false,
+    const dpr = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1
+    const rasterScale = Math.min(3, Math.max(2, dpr))
+
+    const canvas = await html2canvas(element, {
+      scale: rasterScale,
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: "#ffffff",
+      logging: false,
+      onclone: (_doc, cloned) => {
+        // Near-invisible nodes often rasterize as blank; fix on the clone only (no UI flash).
+        if (cloned instanceof HTMLElement) {
+          cloned.style.opacity = "1"
+          cloned.style.zIndex = "2147483646"
+          cloned.style.clipPath = "none"
+        }
+      },
     })
 
-    const pdf = new jsPDF({
-      orientation:"portrait",
-      unit:"mm",
-      format:"a4"
-    })
-
-    const pageWidth = pdf.internal.pageSize.getWidth()
-    const pageHeight = pdf.internal.pageSize.getHeight()
-
-    const imgWidth = pageWidth
-    const imgHeight = (canvas.height * imgWidth) / canvas.width
-
-    const imgData = canvas.toDataURL("image/png")
-
-    // Tile one tall image across A4 pages using negative Y offsets (previous loop produced wrong slices).
-    const pageCount = Math.max(1, Math.ceil(imgHeight / pageHeight))
-    for (let i = 0; i < pageCount; i++) {
-      if (i > 0) pdf.addPage()
-      pdf.addImage(imgData, "PNG", 0, -i * pageHeight, imgWidth, imgHeight)
+    if (canvas.width < 4 || canvas.height < 4) {
+      throw new Error("Invoice capture was empty")
     }
 
+    const pdf = new jsPDF({
+      orientation: "portrait",
+      unit: "mm",
+      format: "a4",
+    })
+
+    // Lossless slices — best quality for free raster fallback (larger than JPEG).
+    appendCanvasToPdfPages(pdf, canvas, { format: "PNG" })
     pdf.save(`Invoice-${invoice.invoiceNumber}.pdf`)
 
   } finally {
@@ -165,26 +171,48 @@ async function downloadInvoice(){
 
   setDownloadingPdf(true)
   setDownloadError("")
+  setDownloadNotice("")
+
+  const ac = new AbortController()
+  const abortTimer = window.setTimeout(() => ac.abort(), 90_000)
 
   try {
-    const response = await fetch("/api/invoice-pdf",{
-      method:"POST",
-      headers:{
-        "Content-Type":"application/json"
+    const response = await fetch("/api/invoice-pdf", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
       },
-      credentials:"include",
-      body:JSON.stringify({
+      credentials: "include",
+      signal: ac.signal,
+      body: JSON.stringify({
         invoiceId: String(id || invoice?.invoiceNumber || ""),
         mode: "download",
-      })
+      }),
     })
 
-    if(!response.ok){
-      throw new Error(`PDF export failed with status ${response.status}`)
+    if (!response.ok) {
+      setDownloadError(await parsePdfApiErrorMessage(response))
+      return
     }
 
     const blob = await response.blob()
-    const url = window.URL.createObjectURL(blob)
+    const fullBuf = await blob.arrayBuffer()
+    const prefix = new Uint8Array(fullBuf.slice(0, 5))
+    if (!looksLikePdfBytes(prefix)) {
+      const raw = new TextDecoder().decode(fullBuf)
+      let msg = "Server did not return a valid PDF. Try again in a moment."
+      try {
+        const j = JSON.parse(raw) as { error?: string }
+        if (typeof j.error === "string" && j.error.trim()) msg = j.error.trim()
+      } catch {
+        // not JSON — keep default msg
+      }
+      setDownloadError(msg)
+      return
+    }
+
+    const pdfBlob = new Blob([fullBuf], { type: "application/pdf" })
+    const url = window.URL.createObjectURL(pdfBlob)
     const anchor = document.createElement("a")
 
     anchor.href = url
@@ -196,14 +224,33 @@ async function downloadInvoice(){
 
     window.URL.revokeObjectURL(url)
 
+    if (response.headers.get("X-EasyBill-Pdf-Engine")?.includes("playwright")) {
+      setDownloadNotice("Saved as vector PDF (full quality).")
+      window.setTimeout(() => setDownloadNotice(""), 7000)
+    }
   } catch (primaryErr) {
-    console.warn("Server PDF export failed, using canvas fallback:", primaryErr)
+    const aborted =
+      primaryErr instanceof DOMException
+        ? primaryErr.name === "AbortError"
+        : primaryErr instanceof Error && primaryErr.name === "AbortError"
+    if (aborted) {
+      setDownloadError("Download timed out. Check your connection and try again.")
+      return
+    }
+    console.warn("Network or unexpected error — trying high-quality backup export:", primaryErr)
     try {
       await downloadInvoiceFallback()
+      setDownloadNotice("Saved using high-quality image backup (could not reach the print server).")
+      window.setTimeout(() => setDownloadNotice(""), 9000)
     } catch {
-      setDownloadError("Unable to download PDF right now. Please try again.")
+      setDownloadError(
+        primaryErr instanceof Error && primaryErr.message
+          ? primaryErr.message
+          : "Unable to download PDF right now. Please try again."
+      )
     }
   } finally {
+    window.clearTimeout(abortTimer)
     setDownloadingPdf(false)
   }
 
@@ -334,6 +381,9 @@ className={`px-4 py-2 rounded text-white transition ${
 </div>
 {downloadError ? (
   <p className="mb-4 text-right text-sm text-rose-600">{downloadError}</p>
+) : null}
+{downloadNotice ? (
+  <p className="mb-4 text-right text-sm text-emerald-700">{downloadNotice}</p>
 ) : null}
 
 

@@ -246,6 +246,7 @@ business,
 templateId,
 fontFamily,
 fontSize,
+renderContext = "screen",
 subtotal,
 totalCGST,
 totalSGST,
@@ -268,7 +269,7 @@ return(
 className="w-full bg-white text-gray-900"
 style={{
     backgroundColor: theme.tint,
-    ...invoiceTemplateRootTypographyStyle(fontFamily, fontSize),
+    ...invoiceTemplateRootTypographyStyle(fontFamily, fontSize, renderContext),
   }}
 >
 

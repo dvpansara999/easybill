@@ -76,6 +76,56 @@ How to use:
 - If user says exactly: `A4 preview/view/download replacement plan start v0.1`
 - Treat this as the restore target before starting the full replacement refactor.
 
+## SAFE_POINT: SaaS-style PDF pipeline v1.1
+
+Created: 2026-03-20
+
+Meaning of this checkpoint:
+- PDF API is **server-authoritative**: requires `invoiceId`, loads from `user_kv`, `normalizeInvoiceForPdf`, structured JSON errors (`lib/pdfApiContract.ts`).
+- Chromium pipeline lives in **`lib/server/generateInvoicePdfBuffer.ts`**; route is thin + `force-dynamic`.
+- Client shows API errors clearly; raster backup only for network/unexpected failures.
+
+How to use:
+- If user says exactly: `SaaS-style PDF pipeline v1.1`
+- Treat as restore target.
+
+## SAFE_POINT: PDF pipeline complete v1.0
+
+Created: 2026-03-20
+
+Meaning of this checkpoint:
+- Single-navigation Playwright (`addInitScript` + one `goto`); shared `buildInvoicePrintLocalStorageSeed`; response headers `X-EasyBill-Pdf-*`; 90s client abort + notices for vector vs raster fallback.
+- Legacy `/invoice-pdf` redirects to `/dashboard/invoices`; `docs/PDF-PIPELINE.md` documents the flow.
+
+How to use:
+- If user says exactly: `PDF pipeline complete v1.0`
+- Treat as restore target for the finished PDF system.
+
+## SAFE_POINT: Canonical PDF typography + high-quality fallback v0.3
+
+Created: 2026-03-20
+
+Meaning of this checkpoint:
+- `/invoice-print` uses `renderContext: "pdf"`: no transform on template root; `<html>` font-size scaled via `htmlFontSizePxForInvoicePdf` so rem matches screen scale at the same template font size.
+- Playwright uses `browser.newContext` with `deviceScaleFactor: 2`, font wait + short paint delay, success logging.
+- Client raster fallback: html2canvas scale up to 3× DPR (min 2), PNG slices in PDF (lossless vs JPEG).
+
+How to use:
+- If user says exactly: `Canonical PDF typography + high-quality fallback v0.3`
+- Treat this as the restore target for this PDF quality pass.
+
+## SAFE_POINT: Playwright + raster PDF fixes v0.2
+
+Created: 2026-03-20
+
+Meaning of this checkpoint:
+- Vercel: `@sparticuz/chromium` + `playwright-core` for `/api/invoice-pdf`; `maxDuration` 60; print CSS strips template `transform` for headless PDF.
+- Client fallback: html2canvas `onclone` fixes near-invisible capture node; JPEG slices per page (no duplicate full PNG embeds); validates `%PDF` before treating response as PDF.
+
+How to use:
+- If user says exactly: `Playwright + raster PDF fixes v0.2`
+- Treat this as the restore target for this PDF pipeline state.
+
 ## SAFE_POINT: Mobile font scaling + PDF fallback fixes v0.1
 
 Created: 2026-03-20

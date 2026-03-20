@@ -263,6 +263,7 @@ business,
 templateId,
 fontFamily,
 fontSize,
+renderContext = "screen",
 subtotal,
 totalCGST,
 totalSGST,
@@ -290,7 +291,7 @@ theme.mode === "boxed"
 return(
 <div
 className="w-full bg-white text-gray-800"
-style={invoiceTemplateRootTypographyStyle(fontFamily, fontSize)}
+style={invoiceTemplateRootTypographyStyle(fontFamily, fontSize, renderContext)}
 >
 <div className={shellClass} style={{ borderColor: theme.line, backgroundColor: theme.soft }}>
 <MinimalHeader invoice={invoice} businessInfo={businessInfo} formatDate={formatDate} dateFormat={dateFormat} theme={theme} visibility={visibility}/>

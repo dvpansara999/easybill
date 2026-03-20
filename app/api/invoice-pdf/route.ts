@@ -1,29 +1,15 @@
 import { NextResponse } from "next/server"
-import { chromium } from "playwright"
+import { buildInvoicePrintLocalStorageSeed } from "@/lib/invoicePdfLocalStorageSeed"
+import { parseJsonLoose, pdfError } from "@/lib/server/invoicePdfRouteHelpers"
+import { generateInvoicePdfBuffer } from "@/lib/server/generateInvoicePdfBuffer"
+import { normalizeInvoiceForPdf } from "@/lib/server/normalizeInvoiceForPdf"
 import { createSupabaseServerClient } from "@/lib/supabase/server"
 import { revealSensitiveDataFromStorage } from "@/lib/sensitiveData"
 
-type PdfRequestBody = {
-  invoiceId?: string
-  mode?: "print" | "download"
-  // Backward-compatible fallback during transition
-  invoice?: any
-  template?: string
-  settings?: any
-  businessProfile?: string
-  typography?: { fontId?: string; fontSize?: number }
-}
+/** Vercel serverless: allow enough time for Chromium boot + navigation. */
+export const maxDuration = 60
 
-function parseJsonLoose(raw: unknown): any {
-  if (raw == null) return null
-  if (typeof raw === "object") return raw
-  if (typeof raw !== "string") return null
-  try {
-    return JSON.parse(raw)
-  } catch {
-    return null
-  }
-}
+export const dynamic = "force-dynamic"
 
 function toRawString(value: unknown): string | null {
   if (value == null) return null
@@ -45,178 +31,129 @@ function deriveBaseUrl(req: Request) {
   return `${reqUrl.protocol}//${reqUrl.host}`
 }
 
+type PdfRequestBody = {
+  invoiceId?: string
+  mode?: "print" | "download"
+}
+
 export async function POST(req: Request) {
-  const body = (await req.json()) as PdfRequestBody
-  const mode = body.mode
+  const body = (await req.json().catch(() => ({}))) as PdfRequestBody
+  const mode = body.mode === "print" ? "print" : "download"
 
-  let invoiceData: any = null
-  let templateId = "classic-default"
-  let typographySettings: { fontId?: string; fontSize?: number } = {}
-  let businessDataRaw: string | null = null
-  let exportSettings: Record<string, any> = {}
-  let fileInvoiceNumber = "invoice"
-
-  // Preferred secure path: server-side ownership check + server-side data load.
-  if (body.invoiceId) {
-    const supabase = await createSupabaseServerClient()
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    const wantedKeys = [
-      "invoices",
-      "businessProfile",
-      "accountSetupBundle",
-      "invoiceTemplate",
-      "invoiceTemplateFontId",
-      "invoiceTemplateFontSize",
-      "dateFormat",
-      "amountFormat",
-      "showDecimals",
-      "currencySymbol",
-      "currencyPosition",
-      "invoiceVisibility",
-    ]
-
-    const { data: rows, error } = await supabase
-      .from("user_kv")
-      .select("key,value")
-      .eq("user_id", user.id)
-      .in("key", wantedKeys)
-
-    if (error) {
-      return NextResponse.json({ error: "Unable to load invoice data" }, { status: 500 })
-    }
-
-    const kv = new Map<string, unknown>()
-    for (const row of rows || []) {
-      kv.set(String((row as any).key), (row as any).value)
-    }
-    const bundle = parseJsonLoose(kv.get("accountSetupBundle")) || {}
-    const getKvOrBundle = (key: string) => {
-      const direct = kv.get(key)
-      if (direct != null) return direct
-      if (bundle && typeof bundle === "object" && key in bundle) return (bundle as any)[key]
-      return null
-    }
-
-    const invoicesRaw = toRawString(getKvOrBundle("invoices"))
-    const invoicesDecrypted = invoicesRaw ? revealSensitiveDataFromStorage("invoices", invoicesRaw) : null
-    const invoicesParsed = parseJsonLoose(invoicesDecrypted) || []
-    const found = Array.isArray(invoicesParsed)
-      ? invoicesParsed.find((inv: any) => String(inv?.invoiceNumber || "") === String(body.invoiceId))
-      : null
-
-    if (!found) {
-      return NextResponse.json({ error: "Invoice not found" }, { status: 404 })
-    }
-
-    invoiceData = found
-    fileInvoiceNumber = String(found?.invoiceNumber || "invoice")
-
-    const businessRaw = toRawString(getKvOrBundle("businessProfile"))
-    businessDataRaw = businessRaw ? revealSensitiveDataFromStorage("businessProfile", businessRaw) : null
-
-    templateId = String(getKvOrBundle("invoiceTemplate") || "classic-default")
-    typographySettings = {
-      fontId: String(getKvOrBundle("invoiceTemplateFontId") || "system"),
-      fontSize: Number(getKvOrBundle("invoiceTemplateFontSize") || 10),
-    }
-
-    const invoiceVisibilityRaw = toRawString(getKvOrBundle("invoiceVisibility"))
-    exportSettings = {
-      dateFormat: String(getKvOrBundle("dateFormat") || "YYYY-MM-DD"),
-      amountFormat: String(getKvOrBundle("amountFormat") || "indian"),
-      showDecimals: String(getKvOrBundle("showDecimals") || "true") === "true",
-      currencySymbol: String(getKvOrBundle("currencySymbol") || "₹"),
-      currencyPosition: String(getKvOrBundle("currencyPosition") || "before"),
-      invoiceVisibility: parseJsonLoose(invoiceVisibilityRaw) || undefined,
-    }
-  } else {
-    // Backward-compatible fallback path to avoid breaking in-flight clients.
-    invoiceData = body.invoice
-    templateId = body.template || "classic-default"
-    exportSettings = body.settings || {}
-    businessDataRaw = body.businessProfile || null
-    typographySettings = body.typography || {}
-    fileInvoiceNumber = String(body.invoice?.invoiceNumber || "invoice")
+  if (!body.invoiceId || String(body.invoiceId).trim() === "") {
+    return pdfError(
+      "Invoice id is required. PDFs are generated only from your saved account data.",
+      "INVOICE_ID_REQUIRED",
+      400
+    )
   }
 
-  if (!invoiceData) {
-    return NextResponse.json({ error: "Missing invoice data" }, { status: 400 })
+  const supabase = await createSupabaseServerClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return pdfError("Sign in to download invoices.", "UNAUTHORIZED", 401)
   }
 
-  // Use Playwright's bundled Chromium by default (works on Linux/Vercel).
-  // Optional: set PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH for a custom Chrome/Chromium binary (local dev).
-  const executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH?.trim()
-  const browser = await chromium.launch({
-    headless: true,
-    ...(executablePath ? { executablePath } : {}),
+  const wantedKeys = [
+    "invoices",
+    "businessProfile",
+    "accountSetupBundle",
+    "invoiceTemplate",
+    "invoiceTemplateFontId",
+    "invoiceTemplateFontSize",
+    "dateFormat",
+    "amountFormat",
+    "showDecimals",
+    "currencySymbol",
+    "currencyPosition",
+    "invoiceVisibility",
+  ]
+
+  const { data: rows, error } = await supabase
+    .from("user_kv")
+    .select("key,value")
+    .eq("user_id", user.id)
+    .in("key", wantedKeys)
+
+  if (error) {
+    return pdfError("Unable to load your account data.", "KV_ERROR", 500)
+  }
+
+  const kv = new Map<string, unknown>()
+  for (const row of rows || []) {
+    kv.set(String((row as { key: string }).key), (row as { value: unknown }).value)
+  }
+  const bundle = parseJsonLoose(kv.get("accountSetupBundle")) || {}
+  const getKvOrBundle = (key: string) => {
+    const direct = kv.get(key)
+    if (direct != null) return direct
+    if (bundle && typeof bundle === "object" && key in bundle) return (bundle as Record<string, unknown>)[key]
+    return null
+  }
+
+  const invoicesRaw = toRawString(getKvOrBundle("invoices"))
+  const invoicesDecrypted = invoicesRaw ? revealSensitiveDataFromStorage("invoices", invoicesRaw) : null
+  const invoicesParsed = parseJsonLoose(invoicesDecrypted) || []
+  const found = Array.isArray(invoicesParsed)
+    ? invoicesParsed.find((inv: { invoiceNumber?: string }) => String(inv?.invoiceNumber || "") === String(body.invoiceId))
+    : null
+
+  if (!found) {
+    return pdfError("Invoice not found.", "NOT_FOUND", 404)
+  }
+
+  let invoiceData = normalizeInvoiceForPdf(found as Record<string, unknown>)
+  const fileInvoiceNumber = String((invoiceData as { invoiceNumber?: string }).invoiceNumber || "invoice")
+
+  const businessRaw = toRawString(getKvOrBundle("businessProfile"))
+  const businessDataRaw = businessRaw ? revealSensitiveDataFromStorage("businessProfile", businessRaw) : null
+
+  const templateId = String(getKvOrBundle("invoiceTemplate") || "classic-default")
+  const typographySettings = {
+    fontId: String(getKvOrBundle("invoiceTemplateFontId") || "system"),
+    fontSize: Number(getKvOrBundle("invoiceTemplateFontSize") || 10),
+  }
+
+  const invoiceVisibilityRaw = toRawString(getKvOrBundle("invoiceVisibility"))
+  const exportSettings: Record<string, unknown> = {
+    dateFormat: String(getKvOrBundle("dateFormat") || "YYYY-MM-DD"),
+    amountFormat: String(getKvOrBundle("amountFormat") || "indian"),
+    showDecimals: String(getKvOrBundle("showDecimals") || "true") === "true",
+    currencySymbol: String(getKvOrBundle("currencySymbol") || "₹"),
+    currencyPosition: String(getKvOrBundle("currencyPosition") || "before"),
+    invoiceVisibility: parseJsonLoose(invoiceVisibilityRaw) || undefined,
+  }
+
+  const lsSeed = buildInvoicePrintLocalStorageSeed({
+    invoice: invoiceData,
+    templateId,
+    businessProfileRaw: businessDataRaw,
+    exportSettings,
+    typography: typographySettings,
+  })
+  const lsEntries = Object.entries(lsSeed) as [string, string][]
+
+  const baseUrl = deriveBaseUrl(req)
+  const result = await generateInvoicePdfBuffer({
+    baseUrl,
+    lsEntries,
+    fileInvoiceNumber,
   })
 
-  try {
-    const page = await browser.newPage()
-    const baseUrl = deriveBaseUrl(req)
-
-    await page.goto(`${baseUrl}/invoice-print`, { waitUntil: "domcontentloaded" })
-
-    await page.evaluate(
-      ({ invoice, template, settings, businessProfile, typography }) => {
-        localStorage.setItem("pdfInvoice", JSON.stringify(invoice))
-
-        if (template) localStorage.setItem("invoiceTemplate", template)
-        if (businessProfile) localStorage.setItem("businessProfile", businessProfile)
-
-        if (settings?.dateFormat) localStorage.setItem("dateFormat", settings.dateFormat)
-        if (settings?.amountFormat) localStorage.setItem("amountFormat", settings.amountFormat)
-        if (typeof settings?.showDecimals === "boolean") localStorage.setItem("showDecimals", String(settings.showDecimals))
-        if (settings?.currencySymbol) localStorage.setItem("currencySymbol", settings.currencySymbol)
-        if (settings?.currencyPosition) localStorage.setItem("currencyPosition", settings.currencyPosition)
-        if (settings?.invoiceVisibility) {
-          try {
-            localStorage.setItem("invoiceVisibility", JSON.stringify(settings.invoiceVisibility))
-          } catch {
-            // ignore
-          }
-        }
-
-        if (typography?.fontId) localStorage.setItem("invoiceTemplateFontId", typography.fontId)
-        if (typography?.fontSize) localStorage.setItem("invoiceTemplateFontSize", String(typography.fontSize))
-      },
-      {
-        invoice: invoiceData,
-        template: templateId,
-        settings: exportSettings,
-        businessProfile: businessDataRaw,
-        typography: typographySettings,
-      }
-    )
-
-    await page.reload({ waitUntil: "domcontentloaded" })
-
-    // Deterministic readiness flag from invoice-print page.
-    await page.waitForFunction(() => (window as any).__EASYBILL_PDF_READY === true, undefined, {
-      timeout: 30000,
-    })
-
-    const pdf = await page.pdf({
-      format: "A4",
-      printBackground: true,
-    })
-
-    const pdfBytes = new Uint8Array(pdf)
-    return new NextResponse(pdfBytes, {
-      headers: {
-        "Content-Type": "application/pdf",
-        "Content-Disposition": mode === "print" ? "inline" : `attachment; filename=Invoice-${fileInvoiceNumber}.pdf`,
-        "Cache-Control": "no-store",
-      },
-    })
-  } finally {
-    await browser.close()
+  if (!result.ok) {
+    return pdfError(result.message, result.code, result.httpStatus)
   }
+
+  return new NextResponse(Buffer.from(result.pdfBytes), {
+    headers: {
+      "Content-Type": "application/pdf",
+      "Content-Disposition": mode === "print" ? "inline" : `attachment; filename=Invoice-${fileInvoiceNumber}.pdf`,
+      "Cache-Control": "no-store, private",
+      "X-EasyBill-Pdf-Engine": "playwright-chromium",
+      "X-EasyBill-Pdf-Ms": String(result.elapsedMs),
+    },
+  })
 }

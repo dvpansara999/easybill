@@ -7,6 +7,7 @@ import { formatDate } from "@/lib/dateFormat"
 import { formatCurrency } from "@/lib/formatCurrency"
 import { getStoredBusinessRecord } from "@/lib/invoice"
 import { getStoredTemplateTypography } from "@/lib/templateTypography"
+import { htmlFontSizePxForInvoicePdf } from "@/lib/htmlRemForInvoicePdf"
 
 type InvoiceItem = {
   qty: number
@@ -92,6 +93,17 @@ export default function InvoicePrint() {
     }
   }, [])
 
+  // Deterministic rem scale for Tailwind typography (matches screen transform scale at same fontSize).
+  useEffect(() => {
+    if (!mounted || !invoice) return
+    const html = document.documentElement
+    const prev = html.style.fontSize
+    html.style.fontSize = htmlFontSizePxForInvoicePdf(fontSize)
+    return () => {
+      html.style.fontSize = prev
+    }
+  }, [mounted, invoice, fontSize])
+
   useEffect(() => {
     queueMicrotask(() => {
       setMounted(true)
@@ -129,8 +141,16 @@ export default function InvoicePrint() {
     }
 
     const run = async () => {
-      // Wait one frame so template markup (including logo <img>) is in DOM.
+      try {
+        await document.fonts.ready
+      } catch {
+        // ignore
+      }
+
+      // Let React commit + paint; headless PDF can be blank if we flag ready too early.
       await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+      await new Promise<void>((resolve) => setTimeout(resolve, 40))
       if (cancelled) return
 
       const root = document.getElementById("invoice-print-root")
@@ -140,22 +160,21 @@ export default function InvoicePrint() {
       }
 
       const images = Array.from(root.querySelectorAll("img"))
-      if (images.length === 0) {
-        markReadyIfNotCancelled()
-        return
+      if (images.length > 0) {
+        await Promise.all(
+          images.map(async (img) => {
+            if (img.complete) return
+            await new Promise<void>((resolve) => {
+              const done = () => resolve()
+              img.addEventListener("load", done, { once: true })
+              img.addEventListener("error", done, { once: true })
+            })
+          })
+        )
       }
 
-      await Promise.all(
-        images.map(async (img) => {
-          if (img.complete) return
-          await new Promise<void>((resolve) => {
-            const done = () => resolve()
-            img.addEventListener("load", done, { once: true })
-            img.addEventListener("error", done, { once: true })
-          })
-        })
-      )
-
+      // One more frame after images decode.
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
       markReadyIfNotCancelled()
     }
 
@@ -215,6 +234,8 @@ export default function InvoicePrint() {
     templateId: template,
     fontFamily,
     fontSize,
+    /** Vector PDF path: no CSS transform; rem scaled via <html> font-size above. */
+    renderContext: "pdf" as const,
     subtotal,
     totalCGST,
     totalSGST,
@@ -261,6 +282,12 @@ export default function InvoicePrint() {
             padding: 0 !important;
             margin: 0 !important;
             box-shadow: none !important;
+          }
+
+          /* Safety net for headless print (nested utilities, etc.) */
+          #invoice-print-root * {
+            transform: none !important;
+            filter: none !important;
           }
         }
       `}</style>

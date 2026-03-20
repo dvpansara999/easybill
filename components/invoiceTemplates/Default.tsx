@@ -25,6 +25,7 @@ invoice,
 business: businessProp,
 fontFamily,
 fontSize,
+renderContext = "screen",
 subtotal,
 totalCGST,
 totalSGST,
@@ -66,7 +67,7 @@ return(
 
 <div
 className="w-full bg-white p-6 leading-relaxed text-gray-800"
-style={invoiceTemplateRootTypographyStyle(fontFamily, fontSize)}
+style={invoiceTemplateRootTypographyStyle(fontFamily, fontSize, renderContext)}
 >
 
 {/* ================= HEADER ================= */}

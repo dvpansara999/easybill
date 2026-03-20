@@ -33,9 +33,11 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     /*
-      Only run on app routes (skip static/_next).
+      Session refresh is only needed for HTML navigations — not for API routes (PDF, etc.)
+      or static assets. Broad middleware was adding a Supabase round-trip to every API call
+      and slowing normal browsing on mobile/slow networks.
     */
-    "/((?!_next/static|_next/image|favicon.ico).*)",
+    "/((?!api/|_next/static|_next/image|favicon.ico).*)",
   ],
 }
 

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Sidebar from "@/components/sidebar"
 import EasyBillLogoMark from "@/components/brand/EasyBillLogoMark"
-import { createSupabaseBrowserClient } from "@/lib/supabase/browser"
+import { getSupabaseUser } from "@/lib/supabase/browser"
 import { enforceFreeRestrictions, getActivePlanId, type PlanId } from "@/lib/plans"
 import { getAuthMode } from "@/lib/runtimeMode"
 import { isActiveUserKvHydrated } from "@/lib/userStore"
@@ -22,9 +22,9 @@ export default function DashboardLayout({
   const [menuOpen, setMenuOpen] = useState(false)
 
   useEffect(() => {
-    const supabase = createSupabaseBrowserClient()
     async function guard() {
-      const { data } = await supabase.auth.getUser()
+      // Reuse single-flight getUser (same as SupabaseAuthSync) to avoid duplicate auth requests on first paint.
+      const { data } = await getSupabaseUser()
       if (!data.user) {
         router.replace("/")
         return

@@ -7,9 +7,12 @@ import { pullSupabaseKvToCache, pushLocalSeedIfSupabaseEmpty } from "@/lib/supab
 import { getAuthMode } from "@/lib/runtimeMode"
 import { clearUserKvCache, primeUserKvCache } from "@/lib/userStore"
 
+const FOCUS_KV_RESYNC_MIN_MS = 60_000
+
 export default function SupabaseAuthSync() {
   const ran = useRef(false)
   const lastUserId = useRef<string | null>(null)
+  const lastFocusSyncAt = useRef(0)
 
   useEffect(() => {
     if (ran.current) return
@@ -60,6 +63,10 @@ export default function SupabaseAuthSync() {
     function onFocus() {
       const id = lastUserId.current
       if (!id) return
+      const now = Date.now()
+      // Avoid a full user_kv pull on every tab/app focus (common on mobile) — that felt like global slowness.
+      if (now - lastFocusSyncAt.current < FOCUS_KV_RESYNC_MIN_MS) return
+      lastFocusSyncAt.current = now
       void sync(id)
     }
     window.addEventListener("focus", onFocus)
