@@ -51,12 +51,20 @@ const A4InvoiceView = forwardRef<HTMLDivElement, A4InvoiceViewProps>(function A4
     const el = wrapRef.current
     if (!el) return
 
-    const first = el.getBoundingClientRect().width || 0
-    setWrapWidth(first)
+    const measure = () => {
+      const next = wrapRef.current?.getBoundingClientRect().width || 0
+      if (next > 0) setWrapWidth(next)
+    }
+
+    // Measure now, then re-measure on the next paint cycles.
+    // This avoids staying on fallback scale on some mobile timing paths.
+    measure()
+    requestAnimationFrame(measure)
+    requestAnimationFrame(measure)
 
     const ro = new ResizeObserver((entries) => {
       const next = entries[0]?.contentRect?.width || 0
-      setWrapWidth(next)
+      if (next > 0) setWrapWidth(next)
     })
 
     ro.observe(el)

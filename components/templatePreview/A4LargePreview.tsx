@@ -43,12 +43,20 @@ export default function A4LargePreview({
     const el = wrapRef.current
     if (!el) return
 
-    const first = el.getBoundingClientRect().width || 0
-    setWrapWidth(first)
+    const measure = () => {
+      const next = wrapRef.current?.getBoundingClientRect().width || 0
+      if (next > 0) setWrapWidth(next)
+    }
+
+    // Measure now, then re-measure on next paint cycles.
+    // Some mobile browsers finalize layout a tick later, otherwise we'd stay on fallback scale.
+    measure()
+    requestAnimationFrame(measure)
+    requestAnimationFrame(measure)
 
     const ro = new ResizeObserver((entries) => {
       const next = entries[0]?.contentRect?.width || 0
-      setWrapWidth(next)
+      if (next > 0) setWrapWidth(next)
     })
     ro.observe(el)
     return () => ro.disconnect()
