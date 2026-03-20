@@ -83,13 +83,7 @@ export default function A4LargePreview({
   }, [template, fontFamily, fontSize])
 
   const scale = wrapWidth ? Math.min(1, wrapWidth / A4_WIDTH_PX) : 0.4
-  // Small epsilon prevents mobile font rendering/subpixel differences from incorrectly flipping
-  // from page 1 to page 2 at tight thresholds (e.g. 10px font size).
-  const PAGE_COUNT_EPS_PX = 2
-  const rawPages = useMemo(
-    () => Math.max(1, Math.ceil((contentHeight - PAGE_COUNT_EPS_PX) / A4_HEIGHT_PX)),
-    [contentHeight]
-  )
+  const rawPages = useMemo(() => Math.max(1, Math.ceil(contentHeight / A4_HEIGHT_PX)), [contentHeight])
   const overflowPages = Math.min(2, rawPages)
   const enableScroll = rawPages > 1
   const pageViewportHeight = Math.max(220, Math.round(A4_HEIGHT_PX * scale))

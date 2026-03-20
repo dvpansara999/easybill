@@ -85,11 +85,8 @@ const A4InvoiceView = forwardRef<HTMLDivElement, A4InvoiceViewProps>(function A4
   }, [TemplateComponent, templateData])
 
   const scale = wrapWidth ? Math.min(1, wrapWidth / A4_WIDTH_PX) : 0.9
-  // Small epsilon prevents mobile font rendering/subpixel differences from incorrectly
-  // flipping from page 1 to page 2 at tight thresholds (e.g. 10px font size).
-  const PAGE_COUNT_EPS_PX = 2
   const rawPages = useMemo(
-    () => Math.max(1, Math.ceil((contentHeight - PAGE_COUNT_EPS_PX) / A4_HEIGHT_PX)),
+    () => Math.max(1, Math.ceil(contentHeight / A4_HEIGHT_PX)),
     [contentHeight]
   )
   const overflowPages = Math.min(maxPages, rawPages)
@@ -101,11 +98,17 @@ const A4InvoiceView = forwardRef<HTMLDivElement, A4InvoiceViewProps>(function A4
 
   const outerOverflowClass = overflowPages > 1 ? "overflow-y-auto" : "overflow-hidden"
 
-  const captureHeightPx = overflowPages * A4_HEIGHT_PX + PAGE_GAP_PX * (overflowPages - 1)
-
   return (
     <div ref={setRefs} className="relative mx-auto w-full max-w-[794px]" style={{ height: viewportHeight }}>
       <div className={`relative ${outerOverflowClass}`} style={{ height: "100%" }}>
+        {/* Hidden measurer (unscaled, real A4 width).
+            Must be outside the scaled transform container to keep page-count deterministic across devices. */}
+        <div className="pointer-events-none absolute left-[-99999px] top-0 h-0 w-0 overflow-hidden">
+          <div ref={measureRef} style={{ width: A4_WIDTH_PX, padding: PAGE_PADDING_PX }}>
+            <TemplateComponent {...templateData} />
+          </div>
+        </div>
+
         <div
           className="origin-top-left will-change-transform"
           style={{
@@ -115,52 +118,10 @@ const A4InvoiceView = forwardRef<HTMLDivElement, A4InvoiceViewProps>(function A4
             transform: `scale(${scale})`,
           }}
         >
-          {/* Hidden measurer (unscaled, real A4 width) */}
-          <div className="pointer-events-none absolute left-[-99999px] top-0 h-0 w-0 overflow-hidden">
-            <div ref={measureRef} style={{ width: A4_WIDTH_PX, padding: PAGE_PADDING_PX }}>
-              <TemplateComponent {...templateData} />
-            </div>
-          </div>
-
           {Array.from({ length: overflowPages }, (_, pageIndex) => {
             const sliceTop = pageIndex * A4_HEIGHT_PX
             return (
               <div key={pageIndex} style={{ marginBottom: pageIndex === overflowPages - 1 ? 0 : PAGE_GAP_PX }}>
-                <div
-                  className="bg-white shadow-[0_18px_60px_rgba(15,23,42,0.10)] ring-1 ring-slate-200"
-                  style={{ width: A4_WIDTH_PX, height: A4_HEIGHT_PX, overflow: "hidden" }}
-                >
-                  <div style={{ transform: `translateY(-${sliceTop}px)` }}>
-                    <div style={{ width: A4_WIDTH_PX, padding: PAGE_PADDING_PX }}>
-                      <TemplateComponent {...templateData} />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      </div>
-
-      {/* HTML2Canvas fallback capture root (unscaled) */}
-      <div
-        data-html2canvas-capture
-        aria-hidden="true"
-        style={{
-          position: "absolute",
-          left: -99999,
-          top: 0,
-          width: A4_WIDTH_PX,
-          height: captureHeightPx,
-          overflow: "hidden",
-          pointerEvents: "none",
-        }}
-      >
-        <div style={{ display: "flex", flexDirection: "column", gap: PAGE_GAP_PX }}>
-          {Array.from({ length: overflowPages }, (_, pageIndex) => {
-            const sliceTop = pageIndex * A4_HEIGHT_PX
-            return (
-              <div key={pageIndex} style={{ height: A4_HEIGHT_PX, overflow: "hidden", width: A4_WIDTH_PX }}>
                 <div
                   className="bg-white shadow-[0_18px_60px_rgba(15,23,42,0.10)] ring-1 ring-slate-200"
                   style={{ width: A4_WIDTH_PX, height: A4_HEIGHT_PX, overflow: "hidden" }}

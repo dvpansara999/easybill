@@ -66,10 +66,7 @@ async function downloadInvoiceFallback(){
   const element = invoiceRef.current
   if(!element) return
 
-  // Capture an unscaled A4 DOM subtree to make html2canvas output stable across mobile/desktop.
-  const captureEl = (element.querySelector('[data-html2canvas-capture]') as HTMLElement | null) || element
-
-  const nodes = captureEl.querySelectorAll<HTMLElement>("*")
+  const nodes = element.querySelectorAll<HTMLElement>("*")
   const prev: Array<{
     el: HTMLElement
     color: string
@@ -102,7 +99,7 @@ async function downloadInvoiceFallback(){
 
   try {
 
-    const canvas = await html2canvas(captureEl,{
+    const canvas = await html2canvas(element,{
       scale:2,
       useCORS:true,
       backgroundColor:"#ffffff"
