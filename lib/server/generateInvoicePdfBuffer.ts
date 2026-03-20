@@ -105,12 +105,13 @@ export async function generateInvoicePdfBuffer(params: {
     const printUrl = `${params.baseUrl.replace(/\/$/, "")}/invoice-print`
 
     try {
-      await page.goto(printUrl, { waitUntil: "domcontentloaded", timeout: 45000 })
+      // `load` reduces race where React hydrates after `domcontentloaded` and never paints in time.
+      await page.goto(printUrl, { waitUntil: "load", timeout: 60000 })
     } catch {
       return {
         ok: false,
         code: "PDF_NAV_TIMEOUT",
-        message: "Invoice print page did not load in time.",
+        message: "Invoice print page did not load in time (network or script load too slow).",
         httpStatus: 504,
       }
     }
@@ -135,7 +136,10 @@ export async function generateInvoicePdfBuffer(params: {
 
     await page.evaluate(async () => {
       try {
-        await document.fonts.ready
+        await Promise.race([
+          document.fonts.ready,
+          new Promise<void>((r) => window.setTimeout(() => r(), 5000)),
+        ])
       } catch {
         // ignore
       }

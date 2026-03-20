@@ -40,6 +40,25 @@ const ClassicTemplate = templates.classic
 const ModernTemplate = templates.modern
 const MinimalTemplate = templates.minimal
 
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T | "timeout"> {
+  return new Promise((resolve) => {
+    const t = window.setTimeout(() => {
+      console.warn(`[invoice-print] ${label} timed out after ${ms}ms`)
+      resolve("timeout")
+    }, ms)
+    promise.then(
+      (v) => {
+        window.clearTimeout(t)
+        resolve(v)
+      },
+      () => {
+        window.clearTimeout(t)
+        resolve("timeout")
+      }
+    )
+  })
+}
+
 function getStoredInvoice() {
   if (typeof window === "undefined") {
     return null
@@ -141,8 +160,10 @@ export default function InvoicePrint() {
     }
 
     const run = async () => {
+      // Headless Chromium (Vercel PDF) can leave `document.fonts.ready` pending indefinitely
+      // when remote fonts stall. Never block PDF export on it.
       try {
-        await document.fonts.ready
+        await withTimeout(document.fonts.ready, 6000, "document.fonts.ready")
       } catch {
         // ignore
       }
@@ -161,13 +182,19 @@ export default function InvoicePrint() {
 
       const images = Array.from(root.querySelectorAll("img"))
       if (images.length > 0) {
+        const IMAGE_WAIT_MS = 12000
         await Promise.all(
           images.map(async (img) => {
             if (img.complete) return
             await new Promise<void>((resolve) => {
               const done = () => resolve()
-              img.addEventListener("load", done, { once: true })
-              img.addEventListener("error", done, { once: true })
+              const timer = window.setTimeout(done, IMAGE_WAIT_MS)
+              const finish = () => {
+                window.clearTimeout(timer)
+                done()
+              }
+              img.addEventListener("load", finish, { once: true })
+              img.addEventListener("error", finish, { once: true })
             })
           })
         )
