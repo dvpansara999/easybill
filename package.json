@@ -8,7 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "pdf:help": "node -e \"console.log('PDF pipeline: docs/PDF-PIPELINE.md')\""
+    "pdf:help": "node -e \"console.log('PDF: POST /api/invoice-pdf (Playwright setContent). See docs/PDF-PIPELINE.md')\""
   },
   "dependencies": {
     "@sparticuz/chromium": "^143.0.4",

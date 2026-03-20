@@ -8,7 +8,7 @@ import { isActiveUserKvHydrated } from "@/lib/userStore"
 function isPrintPdfBypassPath() {
   try {
     const pathname = window.location?.pathname || ""
-    return pathname.includes("/invoice-print") || pathname.includes("/invoice-pdf")
+    return pathname.includes("/invoice-pdf")
   } catch {
     return false
   }
@@ -17,8 +17,7 @@ function isPrintPdfBypassPath() {
 export default function KvHydrationGate({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false)
 
-  // Run before paint so `/invoice-print` mounts immediately on the client.
-  // `useEffect` runs too late and can interact badly with headless PDF polling.
+  // Run before paint so lightweight routes (e.g. legacy `/invoice-pdf`) are not blocked by KV gating.
   useLayoutEffect(() => {
     if (isPrintPdfBypassPath()) {
       setReady(true)
@@ -27,8 +26,7 @@ export default function KvHydrationGate({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // Important for PDF generation:
-    // `/api/invoice-pdf` uses Playwright to open `/invoice-print` and waits for the DOM.
-    // We should never let KV hydration gating delay or block that print page.
+    // Avoid delaying routes that do not need a hydrated KV cache.
     if (isPrintPdfBypassPath()) {
       setReady(true)
       return

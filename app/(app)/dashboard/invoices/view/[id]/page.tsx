@@ -14,13 +14,51 @@ import html2canvas from "html2canvas"
 import jsPDF from "jspdf"
 
 import { appendCanvasToPdfPages } from "@/lib/canvasRasterPdf"
-import { extractPdfBufferFromBytes } from "@/lib/extractPdfBuffer"
 import { parsePdfApiErrorMessage } from "@/lib/pdfApiContract"
 import { templates } from "@/components/invoiceTemplates"
 
 /** Must match `A4InvoiceView` inner page width + padding for consistent capture vs on-screen layout. */
 const A4_CAPTURE_WIDTH_PX = 794
 const A4_CAPTURE_PADDING_PX = 38
+
+function responseBodyLooksLikeHtml(u8: Uint8Array): boolean {
+  const head = new TextDecoder("utf-8", { fatal: false }).decode(
+    u8.slice(0, Math.min(256, u8.length))
+  ).trimStart()
+  const h = head.toLowerCase()
+  return h.startsWith("<!") || h.startsWith("<html") || h.startsWith("<head")
+}
+
+function extractPdfBufferFromResponse(raw: ArrayBuffer, contentType: string | null): ArrayBuffer | null {
+  const u8 = new Uint8Array(raw)
+  if (u8.length < 8) return null
+
+  const ct = (contentType || "").toLowerCase()
+  const claimsPdf = ct.includes("application/pdf")
+
+  const maxScan = Math.min(u8.length, 65536)
+  let i = 0
+  if (u8.length >= 3 && u8[0] === 0xef && u8[1] === 0xbb && u8[2] === 0xbf) i = 3
+  while (
+    i < maxScan &&
+    (u8[i] === 0x20 || u8[i] === 0x09 || u8[i] === 0x0a || u8[i] === 0x0d || u8[i] === 0x00)
+  ) {
+    i++
+  }
+  const headerAt = (at: number) =>
+    at + 3 < u8.length && u8[at] === 0x25 && u8[at + 1] === 0x50 && u8[at + 2] === 0x44 && u8[at + 3] === 0x46
+  if (headerAt(i)) return raw.slice(i)
+  for (let j = 0; j <= maxScan - 4; j++) {
+    if (headerAt(j)) return raw.slice(j)
+  }
+
+  // Some proxies strip/normalize bytes; trust declared PDF if body is not HTML.
+  if (claimsPdf && u8.length >= 64 && !responseBodyLooksLikeHtml(u8) && u8[0] !== 0x3c) {
+    return raw
+  }
+
+  return null
+}
 
 export default function ViewInvoice(){
 
@@ -200,7 +238,7 @@ async function downloadInvoice(){
 
     const blob = await response.blob()
     const fullBuf = await blob.arrayBuffer()
-    const pdfBuf = extractPdfBufferFromBytes(fullBuf)
+    const pdfBuf = extractPdfBufferFromResponse(fullBuf, response.headers.get("content-type"))
     if (!pdfBuf) {
       const raw = new TextDecoder().decode(new Uint8Array(fullBuf).slice(0, 2048))
       let msg = "Server did not return a valid PDF. Try again in a moment."
@@ -230,7 +268,7 @@ async function downloadInvoice(){
     window.URL.revokeObjectURL(url)
 
     if (response.headers.get("X-EasyBill-Pdf-Engine")?.includes("playwright")) {
-      setDownloadNotice("Saved as vector PDF (full quality).")
+      setDownloadNotice("Saved as vector PDF (server-rendered).")
       window.setTimeout(() => setDownloadNotice(""), 7000)
     }
   } catch (primaryErr) {

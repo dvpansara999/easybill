@@ -40,7 +40,7 @@ export function getStoredTemplateTypography() {
   let fontId = getActiveOrGlobalItem("invoiceTemplateFontId")
   let storedSizeRaw = getActiveOrGlobalItem("invoiceTemplateFontSize")
 
-  // Playwright PDF rendering has no authenticated user, so `userStore` can return null.
+  // Unauthenticated / edge reads: `userStore` can return null in Supabase mode.
   // Use localStorage fallback only when KV values are missing (do not override valid KV state).
   if (!fontId || !storedSizeRaw) {
     try {

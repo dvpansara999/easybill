@@ -5,7 +5,7 @@ export type InvoiceTemplateRenderContext = "screen" | "pdf"
 /**
  * Cross-browser typography scaling for invoice templates.
  * - `screen`: transform + width compensation (matches preview / mobile; rem from global html).
- * - `pdf`: no transform — use with `htmlFontSizePxForInvoicePdf` on `/invoice-print` so rem + root fontSize match screen scale.
+ * - `pdf`: reserved for future print paths; screen preview uses `screen`.
  */
 export function invoiceTemplateRootTypographyStyle(
   fontFamily: string,

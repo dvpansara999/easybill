@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server"
-import { buildInvoicePrintLocalStorageSeed } from "@/lib/invoicePdfLocalStorageSeed"
-import { parseJsonLoose, pdfError } from "@/lib/server/invoicePdfRouteHelpers"
+import { buildInvoicePdfHtml } from "@/lib/server/buildInvoicePdfHtml"
 import { generateInvoicePdfBuffer } from "@/lib/server/generateInvoicePdfBuffer"
+import { parseJsonLoose, pdfError } from "@/lib/server/invoicePdfRouteHelpers"
 import { normalizeInvoiceForPdf } from "@/lib/server/normalizeInvoiceForPdf"
 import { createSupabaseServerClient } from "@/lib/supabase/server"
 import { revealSensitiveDataFromStorage } from "@/lib/sensitiveData"
+import type { InvoiceVisibilitySettings } from "@/lib/invoiceVisibilityShared"
 
-/** Vercel serverless: allow enough time for Chromium boot + navigation. */
 export const maxDuration = 60
 
 export const dynamic = "force-dynamic"
@@ -21,22 +21,13 @@ function toRawString(value: unknown): string | null {
   }
 }
 
-function deriveBaseUrl(req: Request) {
-  const envUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.VERCEL_URL
-  if (envUrl) {
-    const normalized = envUrl.startsWith("http") ? envUrl : `https://${envUrl}`
-    return normalized.replace(/\/$/, "")
-  }
-  const reqUrl = new URL(req.url)
-  return `${reqUrl.protocol}//${reqUrl.host}`
-}
-
 type PdfRequestBody = {
   invoiceId?: string
   mode?: "print" | "download"
 }
 
 export async function POST(req: Request) {
+  const started = Date.now()
   const body = (await req.json().catch(() => ({}))) as PdfRequestBody
   const mode = body.mode === "print" ? "print" : "download"
 
@@ -62,8 +53,6 @@ export async function POST(req: Request) {
     "businessProfile",
     "accountSetupBundle",
     "invoiceTemplate",
-    "invoiceTemplateFontId",
-    "invoiceTemplateFontSize",
     "dateFormat",
     "amountFormat",
     "showDecimals",
@@ -105,55 +94,45 @@ export async function POST(req: Request) {
     return pdfError("Invoice not found.", "NOT_FOUND", 404)
   }
 
-  let invoiceData = normalizeInvoiceForPdf(found as Record<string, unknown>)
+  const invoiceData = normalizeInvoiceForPdf(found as Record<string, unknown>)
   const fileInvoiceNumber = String((invoiceData as { invoiceNumber?: string }).invoiceNumber || "invoice")
 
   const businessRaw = toRawString(getKvOrBundle("businessProfile"))
   const businessDataRaw = businessRaw ? revealSensitiveDataFromStorage("businessProfile", businessRaw) : null
-
-  const templateId = String(getKvOrBundle("invoiceTemplate") || "classic-default")
-  const typographySettings = {
-    fontId: String(getKvOrBundle("invoiceTemplateFontId") || "system"),
-    fontSize: Number(getKvOrBundle("invoiceTemplateFontSize") || 10),
-  }
+  const businessObj = businessDataRaw ? (parseJsonLoose(businessDataRaw) as Record<string, unknown> | null) : null
 
   const invoiceVisibilityRaw = toRawString(getKvOrBundle("invoiceVisibility"))
-  const exportSettings: Record<string, unknown> = {
+  const visibility = (parseJsonLoose(invoiceVisibilityRaw) || null) as Partial<InvoiceVisibilitySettings> | null
+  const templateId = String(getKvOrBundle("invoiceTemplate") || "classic-default")
+
+  const html = buildInvoicePdfHtml({
+    invoice: invoiceData as Record<string, unknown>,
+    business: businessObj,
+    visibility,
+    templateId,
     dateFormat: String(getKvOrBundle("dateFormat") || "YYYY-MM-DD"),
     amountFormat: String(getKvOrBundle("amountFormat") || "indian"),
     showDecimals: String(getKvOrBundle("showDecimals") || "true") === "true",
     currencySymbol: String(getKvOrBundle("currencySymbol") || "₹"),
-    currencyPosition: String(getKvOrBundle("currencyPosition") || "before"),
-    invoiceVisibility: parseJsonLoose(invoiceVisibilityRaw) || undefined,
-  }
-
-  const lsSeed = buildInvoicePrintLocalStorageSeed({
-    invoice: invoiceData,
-    templateId,
-    businessProfileRaw: businessDataRaw,
-    exportSettings,
-    typography: typographySettings,
+    currencyPosition: (String(getKvOrBundle("currencyPosition") || "before") === "after" ? "after" : "before") as
+      | "before"
+      | "after",
   })
-  const lsEntries = Object.entries(lsSeed) as [string, string][]
-
-  const baseUrl = deriveBaseUrl(req)
-  const result = await generateInvoicePdfBuffer({
-    baseUrl,
-    lsEntries,
-    fileInvoiceNumber,
-  })
+  const result = await generateInvoicePdfBuffer({ html })
 
   if (!result.ok) {
     return pdfError(result.message, result.code, result.httpStatus)
   }
+
+  const elapsedMs = Date.now() - started
 
   return new NextResponse(Buffer.from(result.pdfBytes), {
     headers: {
       "Content-Type": "application/pdf",
       "Content-Disposition": mode === "print" ? "inline" : `attachment; filename=Invoice-${fileInvoiceNumber}.pdf`,
       "Cache-Control": "no-store, private",
-      "X-EasyBill-Pdf-Engine": "playwright-chromium",
-      "X-EasyBill-Pdf-Ms": String(result.elapsedMs),
+      "X-EasyBill-Pdf-Engine": "playwright-setcontent",
+      "X-EasyBill-Pdf-Ms": String(elapsedMs),
     },
   })
 }

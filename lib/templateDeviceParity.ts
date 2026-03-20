@@ -9,8 +9,8 @@
  *   `max-w-[900px]`), with horizontal scroll — so line breaks match the desktop invoice page
  *   and html2canvas fallback PDF matches.
  *
- * **PDF API / Playwright path is unchanged** — downloads were already identical; typography
- * remains `invoiceTemplateFontId` / `invoiceTemplateFontSize` in KV.
+ * **Server PDF** uses Playwright + server HTML rendering; on-screen parity is for preview +
+ * html2canvas fallback.
  *
  * ### Revert
  * Set to `false` and save — mobile preview again scales to container width; invoice view

@@ -82,7 +82,7 @@ Created: 2026-03-20
 
 Meaning of this checkpoint:
 - PDF API is **server-authoritative**: requires `invoiceId`, loads from `user_kv`, `normalizeInvoiceForPdf`, structured JSON errors (`lib/pdfApiContract.ts`).
-- Chromium pipeline lives in **`lib/server/generateInvoicePdfBuffer.ts`**; route is thin + `force-dynamic`.
+- Vector PDFs via **Playwright setContent** (`buildInvoicePdfHtml` + `generateInvoicePdfBuffer`); route is thin + `force-dynamic`.
 - Client shows API errors clearly; raster backup only for network/unexpected failures.
 
 How to use:

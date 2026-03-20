@@ -119,9 +119,8 @@ export function getStoredBusinessRecord(): BusinessRecord | null {
   const { getActiveOrGlobalItem } = require("@/lib/userStore") as typeof import("@/lib/userStore")
   const stored = getActiveOrGlobalItem("businessProfile")
   if (!stored) {
-    // In Playwright PDF rendering, there's no authenticated user.
-    // `userStore` intentionally blocks reading global keys in Supabase mode,
-    // but `/api/invoice-pdf` *does* seed `localStorage.businessProfile`.
+    // No authenticated Supabase session (e.g. edge flows): `userStore` blocks global keys.
+    // Allow reading seeded `localStorage.businessProfile` when present.
     // So we fall back to localStorage directly when the KV/global read is null.
     try {
       const raw = localStorage.getItem("businessProfile")

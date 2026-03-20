@@ -13,6 +13,7 @@ export type PdfApiErrorBody = {
     | "PDF_NAV_TIMEOUT"
     | "PDF_READY_TIMEOUT"
     | "PDF_RENDER"
+    | "PDF_BUILD"
     | "INTERNAL"
 }
 
