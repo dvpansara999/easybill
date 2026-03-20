@@ -1,25 +1,37 @@
 "use client"
 
-import { useEffect, useState, type ReactNode } from "react"
+import { useEffect, useLayoutEffect, useState, type ReactNode } from "react"
 import { getActiveUserId } from "@/lib/auth"
 import { getAuthMode } from "@/lib/runtimeMode"
 import { isActiveUserKvHydrated } from "@/lib/userStore"
 
+function isPrintPdfBypassPath() {
+  try {
+    const pathname = window.location?.pathname || ""
+    return pathname.includes("/invoice-print") || pathname.includes("/invoice-pdf")
+  } catch {
+    return false
+  }
+}
+
 export default function KvHydrationGate({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false)
+
+  // Run before paint so `/invoice-print` mounts immediately on the client.
+  // `useEffect` runs too late and can interact badly with headless PDF polling.
+  useLayoutEffect(() => {
+    if (isPrintPdfBypassPath()) {
+      setReady(true)
+    }
+  }, [])
 
   useEffect(() => {
     // Important for PDF generation:
     // `/api/invoice-pdf` uses Playwright to open `/invoice-print` and waits for the DOM.
     // We should never let KV hydration gating delay or block that print page.
-    try {
-      const pathname = window.location?.pathname || ""
-      if (pathname.includes("/invoice-print") || pathname.includes("/invoice-pdf")) {
-        setReady(true)
-        return
-      }
-    } catch {
-      // ignore
+    if (isPrintPdfBypassPath()) {
+      setReady(true)
+      return
     }
 
     const mode = getAuthMode()

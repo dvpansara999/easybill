@@ -59,13 +59,21 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
   })
 }
 
-function getStoredInvoice() {
+function getStoredInvoice(): Invoice | null {
   if (typeof window === "undefined") {
     return null
   }
 
   const data = localStorage.getItem("pdfInvoice")
-  return data ? (JSON.parse(data) as Invoice) : null
+  if (!data || !data.trim()) return null
+  try {
+    const parsed = JSON.parse(data) as Partial<Invoice>
+    if (!parsed || typeof parsed !== "object") return null
+    const items = Array.isArray(parsed.items) ? parsed.items : []
+    return { ...parsed, items } as Invoice
+  } catch {
+    return null
+  }
 }
 
 function getStoredTemplate() {
@@ -168,10 +176,10 @@ export default function InvoicePrint() {
         // ignore
       }
 
-      // Let React commit + paint; headless PDF can be blank if we flag ready too early.
-      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
-      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
-      await new Promise<void>((resolve) => setTimeout(resolve, 40))
+      // `requestAnimationFrame` can stall in headless Chromium; timers are reliable for PDF.
+      await new Promise<void>((resolve) => setTimeout(resolve, 0))
+      await new Promise<void>((resolve) => setTimeout(resolve, 48))
+      await new Promise<void>((resolve) => setTimeout(resolve, 48))
       if (cancelled) return
 
       const root = document.getElementById("invoice-print-root")
@@ -200,8 +208,7 @@ export default function InvoicePrint() {
         )
       }
 
-      // One more frame after images decode.
-      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+      await new Promise<void>((resolve) => setTimeout(resolve, 32))
       markReadyIfNotCancelled()
     }
 
@@ -224,8 +231,9 @@ export default function InvoicePrint() {
   let totalSGST = 0
   let totalIGST = 0
 
-  invoice.items.forEach((item) => {
-    const base = item.qty * item.price
+  const lineItems = Array.isArray(invoice.items) ? invoice.items : []
+  lineItems.forEach((item) => {
+    const base = Number(item.qty) * Number(item.price)
 
     const cgst = item.cgst ? (base * Number(item.cgst)) / 100 : 0
     const sgst = item.sgst ? (base * Number(item.sgst)) / 100 : 0
@@ -256,7 +264,7 @@ export default function InvoicePrint() {
   }
 
   const templateProps = {
-    invoice,
+    invoice: { ...invoice, items: lineItems },
     business,
     templateId: template,
     fontFamily,

@@ -121,11 +121,37 @@ export async function generateInvoicePdfBuffer(params: {
         () => {
           const root = document.getElementById("invoice-print-root")
           const text = (root?.innerText || "").trim()
-          return (window as unknown as { __EASYBILL_PDF_READY?: boolean }).__EASYBILL_PDF_READY === true && text.length > 30
+          const pdfReady =
+            (window as unknown as { __EASYBILL_PDF_READY?: boolean }).__EASYBILL_PDF_READY === true
+          // Prefer explicit client signal; also accept long text so we don't depend on rAF/fonts
+          // if the page painted real invoice content.
+          if (text.length >= 50) return true
+          if (pdfReady && text.length >= 20) return true
+          return false
         },
-        { timeout: 45000 }
+        { timeout: 90_000 }
       )
     } catch {
+      const diag = await page
+        .evaluate(() => {
+          const root = document.getElementById("invoice-print-root")
+          let pdfInvoiceLen = 0
+          try {
+            pdfInvoiceLen = localStorage.getItem("pdfInvoice")?.length ?? 0
+          } catch {
+            // ignore
+          }
+          return {
+            hasRoot: Boolean(root),
+            pdfInvoiceLen,
+            pdfReady: Boolean((window as unknown as { __EASYBILL_PDF_READY?: boolean }).__EASYBILL_PDF_READY),
+            textLen: (root?.innerText || "").trim().length,
+            title: document.title,
+            bodyHead: (document.body?.innerText || "").trim().slice(0, 120),
+          }
+        })
+        .catch(() => null)
+      console.error("[invoice-pdf] PDF_READY_TIMEOUT diagnostic:", diag)
       return {
         ok: false,
         code: "PDF_READY_TIMEOUT",
