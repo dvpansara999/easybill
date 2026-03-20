@@ -1,6 +1,6 @@
 "use client"
 
-import { forwardRef, useEffect, useMemo, useRef, useState } from "react"
+import { forwardRef, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 
 const A4_WIDTH_PX = 794
 const A4_HEIGHT_PX = 1123
@@ -46,9 +46,13 @@ const A4InvoiceView = forwardRef<HTMLDivElement, A4InvoiceViewProps>(function A4
     setSupportsZoom(supports)
   }, [])
 
-  useEffect(() => {
+  // Measure wrap width before first paint to avoid a temporary fallback scale.
+  useLayoutEffect(() => {
     const el = wrapRef.current
     if (!el) return
+
+    const first = el.getBoundingClientRect().width || 0
+    setWrapWidth(first)
 
     const ro = new ResizeObserver((entries) => {
       const next = entries[0]?.contentRect?.width || 0

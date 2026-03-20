@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { templates as templateEngines } from "@/components/invoiceTemplates"
 import { previewTemplateProps } from "@/lib/templatePreviewData"
 
@@ -37,9 +37,15 @@ export default function A4LargePreview({
   const [contentHeight, setContentHeight] = useState<number>(A4_HEIGHT_PX)
   const [supportsZoom, setSupportsZoom] = useState(false)
 
-  useEffect(() => {
-    if (!wrapRef.current) return
+  // Measure wrap width before the first paint to avoid a temporary "fallback scale"
+  // that can look like a shrunken A4 on real mobile devices.
+  useLayoutEffect(() => {
     const el = wrapRef.current
+    if (!el) return
+
+    const first = el.getBoundingClientRect().width || 0
+    setWrapWidth(first)
+
     const ro = new ResizeObserver((entries) => {
       const next = entries[0]?.contentRect?.width || 0
       setWrapWidth(next)
