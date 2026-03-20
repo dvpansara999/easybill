@@ -2,7 +2,7 @@
 
 import "react-easy-crop/react-easy-crop.css"
 
-import Image from "next/image"
+import NextImage from "next/image"
 import { type Area, type Point } from "react-easy-crop"
 import Cropper from "react-easy-crop"
 import { type ChangeEvent, useEffect, useState } from "react"
@@ -220,7 +220,7 @@ export default function SetupProfileLogoPage() {
                     }`}
                   >
                     {previewSource ? (
-                      <Image src={previewSource} alt="" fill unoptimized className="object-cover" />
+                      <NextImage src={previewSource} alt="" fill unoptimized className="object-cover" />
                     ) : (
                       <ImagePlus className="h-6 w-6 text-white/60" />
                     )}

@@ -2,7 +2,7 @@
 
 import "react-easy-crop/react-easy-crop.css"
 
-import Image from "next/image"
+import NextImage from "next/image"
 import { type Area, type Point } from "react-easy-crop"
 import Cropper from "react-easy-crop"
 import { type ChangeEvent, useEffect, useState } from "react"
@@ -312,7 +312,7 @@ export default function BusinessProfileClient() {
                   }`}
                 >
                   <div className="relative h-full w-full">
-                    <Image src={profile.logo} alt="" fill unoptimized className="object-cover" />
+                    <NextImage src={profile.logo} alt="" fill unoptimized className="object-cover" />
                   </div>
                 </div>
               </div>
