@@ -13,7 +13,8 @@ import A4InvoiceView from "@/components/invoiceView/A4InvoiceView"
 import html2canvas from "html2canvas"
 import jsPDF from "jspdf"
 
-import { appendCanvasToPdfPages, looksLikePdfBytes } from "@/lib/canvasRasterPdf"
+import { appendCanvasToPdfPages } from "@/lib/canvasRasterPdf"
+import { extractPdfBufferFromBytes } from "@/lib/extractPdfBuffer"
 import { parsePdfApiErrorMessage } from "@/lib/pdfApiContract"
 import { templates } from "@/components/invoiceTemplates"
 
@@ -181,8 +182,10 @@ async function downloadInvoice(){
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        Accept: "application/pdf, application/json;q=0.9, */*;q=0.8",
       },
       credentials: "include",
+      cache: "no-store",
       signal: ac.signal,
       body: JSON.stringify({
         invoiceId: String(id || invoice?.invoiceNumber || ""),
@@ -197,21 +200,23 @@ async function downloadInvoice(){
 
     const blob = await response.blob()
     const fullBuf = await blob.arrayBuffer()
-    const prefix = new Uint8Array(fullBuf.slice(0, 5))
-    if (!looksLikePdfBytes(prefix)) {
-      const raw = new TextDecoder().decode(fullBuf)
+    const pdfBuf = extractPdfBufferFromBytes(fullBuf)
+    if (!pdfBuf) {
+      const raw = new TextDecoder().decode(new Uint8Array(fullBuf).slice(0, 2048))
       let msg = "Server did not return a valid PDF. Try again in a moment."
       try {
-        const j = JSON.parse(raw) as { error?: string }
+        const j = JSON.parse(new TextDecoder().decode(fullBuf)) as { error?: string }
         if (typeof j.error === "string" && j.error.trim()) msg = j.error.trim()
       } catch {
-        // not JSON — keep default msg
+        if (raw.trimStart().startsWith("<!") || raw.trimStart().startsWith("<html")) {
+          msg = "Server returned an HTML page instead of a PDF. Check deployment logs for /api/invoice-pdf."
+        }
       }
       setDownloadError(msg)
       return
     }
 
-    const pdfBlob = new Blob([fullBuf], { type: "application/pdf" })
+    const pdfBlob = new Blob([pdfBuf], { type: "application/pdf" })
     const url = window.URL.createObjectURL(pdfBlob)
     const anchor = document.createElement("a")
 
