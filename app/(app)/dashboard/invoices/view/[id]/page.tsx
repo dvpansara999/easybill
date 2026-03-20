@@ -15,6 +15,10 @@ import jsPDF from "jspdf"
 
 import { templates } from "@/components/invoiceTemplates"
 
+/** Must match `A4InvoiceView` inner page width + padding for consistent capture vs on-screen layout. */
+const A4_CAPTURE_WIDTH_PX = 794
+const A4_CAPTURE_PADDING_PX = 38
+
 export default function ViewInvoice(){
 
 const {
@@ -56,14 +60,15 @@ if(template.startsWith("classic") && template !== "classic-default"){
   TemplateComponent = templates.classic
 }
 
-const invoiceRef = useRef<HTMLDivElement>(null)
+/** Single-column, un-paginated DOM for raster PDF fallback (avoids transform + page-slice bugs in html2canvas). */
+const captureRef = useRef<HTMLDivElement>(null)
 
 
 /* DOWNLOAD PDF */
 
 async function downloadInvoiceFallback(){
 
-  const element = invoiceRef.current
+  const element = captureRef.current
   if(!element) return
 
   const nodes = element.querySelectorAll<HTMLElement>("*")
@@ -99,10 +104,17 @@ async function downloadInvoiceFallback(){
 
   try {
 
+    try {
+      await document.fonts.ready
+    } catch {
+      // ignore — not all browsers expose FontFaceSet
+    }
+
     const canvas = await html2canvas(element,{
       scale:2,
       useCORS:true,
-      backgroundColor:"#ffffff"
+      backgroundColor:"#ffffff",
+      logging:false,
     })
 
     const pdf = new jsPDF({
@@ -117,19 +129,13 @@ async function downloadInvoiceFallback(){
     const imgWidth = pageWidth
     const imgHeight = (canvas.height * imgWidth) / canvas.width
 
-    let heightLeft = imgHeight
-    let position = 0
-
     const imgData = canvas.toDataURL("image/png")
 
-    pdf.addImage(imgData,"PNG",0,position,imgWidth,imgHeight)
-    heightLeft -= pageHeight
-
-    while(heightLeft > 0){
-      position = heightLeft - imgHeight
-      pdf.addPage()
-      pdf.addImage(imgData,"PNG",0,position,imgWidth,imgHeight)
-      heightLeft -= pageHeight
+    // Tile one tall image across A4 pages using negative Y offsets (previous loop produced wrong slices).
+    const pageCount = Math.max(1, Math.ceil(imgHeight / pageHeight))
+    for (let i = 0; i < pageCount; i++) {
+      if (i > 0) pdf.addPage()
+      pdf.addImage(imgData, "PNG", 0, -i * pageHeight, imgWidth, imgHeight)
     }
 
     pdf.save(`Invoice-${invoice.invoiceNumber}.pdf`)
@@ -190,7 +196,8 @@ async function downloadInvoice(){
 
     window.URL.revokeObjectURL(url)
 
-  } catch {
+  } catch (primaryErr) {
+    console.warn("Server PDF export failed, using canvas fallback:", primaryErr)
     try {
       await downloadInvoiceFallback()
     } catch {
@@ -330,8 +337,24 @@ className={`px-4 py-2 rounded text-white transition ${
 ) : null}
 
 
+{/* Hidden capture tree: same template + padding as A4 view, without pagination/transform wrappers. */}
+<div
+  ref={captureRef}
+  data-easybill-pdf-capture="true"
+  aria-hidden
+  className="pointer-events-none fixed top-0 left-0 -z-10 opacity-[0.01] [&_*]:pointer-events-none"
+  style={{
+    width: A4_CAPTURE_WIDTH_PX,
+    padding: A4_CAPTURE_PADDING_PX,
+    backgroundColor: "#ffffff",
+    boxSizing: "border-box",
+  }}
+>
+  <TemplateComponent {...templateData} />
+</div>
+
 {/* INVOICE: strict A4-only renderer on mobile & desktop */}
-<A4InvoiceView ref={invoiceRef} TemplateComponent={TemplateComponent} templateData={templateData} />
+<A4InvoiceView TemplateComponent={TemplateComponent} templateData={templateData} />
 
 </div>
 

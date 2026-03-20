@@ -150,9 +150,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Missing invoice data" }, { status: 400 })
   }
 
+  // Use Playwright's bundled Chromium by default (works on Linux/Vercel).
+  // Optional: set PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH for a custom Chrome/Chromium binary (local dev).
+  const executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH?.trim()
   const browser = await chromium.launch({
-    executablePath: "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
     headless: true,
+    ...(executablePath ? { executablePath } : {}),
   })
 
   try {

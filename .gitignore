@@ -39,3 +39,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Design / CorelDRAW / branding exports — not part of invoice-app source
+*.cdr
+*.cdrx

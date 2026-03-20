@@ -75,3 +75,16 @@ Meaning of this checkpoint:
 How to use:
 - If user says exactly: `A4 preview/view/download replacement plan start v0.1`
 - Treat this as the restore target before starting the full replacement refactor.
+
+## SAFE_POINT: Mobile font scaling + PDF fallback fixes v0.1
+
+Created: 2026-03-20
+
+Meaning of this checkpoint:
+- Invoice templates scale typography with `transform` + width compensation (Safari/iOS ignores CSS `zoom`).
+- `/api/invoice-pdf` uses Playwright’s bundled Chromium (no Windows-only hardcoded path); optional `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` for a custom binary.
+- Client PDF fallback captures a dedicated unpaginated DOM node and tiles pages in jsPDF with correct Y offsets.
+
+How to use:
+- If user says exactly: `Mobile font scaling + PDF fallback fixes v0.1`
+- Treat this as the restore target for these fixes.

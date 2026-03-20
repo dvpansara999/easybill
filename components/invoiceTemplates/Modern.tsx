@@ -1,4 +1,5 @@
 import { DEFAULT_INVOICE_VISIBILITY, type InvoiceVisibilitySettings } from "@/context/SettingsContext"
+import { invoiceTemplateRootTypographyStyle } from "@/lib/invoiceTemplateRootStyle"
 
 export const templateMeta = {
 id:"modern-default",
@@ -267,9 +268,7 @@ return(
 className="w-full bg-white text-gray-900"
 style={{
     backgroundColor: theme.tint,
-    fontFamily,
-    fontSize: `${fontSize || 14}px`,
-    zoom: (fontSize || 14) / 14,
+    ...invoiceTemplateRootTypographyStyle(fontFamily, fontSize),
   }}
 >
 

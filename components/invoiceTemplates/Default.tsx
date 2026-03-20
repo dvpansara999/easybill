@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { invoiceTemplateRootTypographyStyle } from "@/lib/invoiceTemplateRootStyle"
 import { previewBusiness } from "@/lib/templatePreviewData"
 import { getActiveOrGlobalItem } from "@/lib/userStore"
 import { DEFAULT_INVOICE_VISIBILITY, type InvoiceVisibilitySettings } from "@/context/SettingsContext"
@@ -65,11 +66,7 @@ return(
 
 <div
 className="w-full bg-white p-6 leading-relaxed text-gray-800"
-style={{
-    fontFamily,
-    fontSize: `${fontSize || 14}px`,
-    zoom: (fontSize || 14) / 14,
-  }}
+style={invoiceTemplateRootTypographyStyle(fontFamily, fontSize)}
 >
 
 {/* ================= HEADER ================= */}

@@ -1,4 +1,5 @@
 import { DEFAULT_INVOICE_VISIBILITY, type InvoiceVisibilitySettings } from "@/context/SettingsContext"
+import { invoiceTemplateRootTypographyStyle } from "@/lib/invoiceTemplateRootStyle"
 
 export const templateMeta = {
 id:"classic-ledger",
@@ -372,9 +373,7 @@ return(
 className="w-full p-8 text-gray-800"
 style={{
     backgroundColor: theme.paper,
-    fontFamily,
-    fontSize: `${fontSize || 14}px`,
-    zoom: (fontSize || 14) / 14,
+    ...invoiceTemplateRootTypographyStyle(fontFamily, fontSize),
   }}
 >
 <ClassicHeader invoice={invoice} businessInfo={businessInfo} formatDate={formatDate} dateFormat={dateFormat} theme={theme} visibility={visibility}/>

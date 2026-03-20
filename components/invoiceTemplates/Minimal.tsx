@@ -6,6 +6,7 @@ popular:true
 }
 
 import { DEFAULT_INVOICE_VISIBILITY, type InvoiceVisibilitySettings } from "@/context/SettingsContext"
+import { invoiceTemplateRootTypographyStyle } from "@/lib/invoiceTemplateRootStyle"
 
 const minimalThemes: Record<string, any> = {
 "minimal-light": { accent:"#111827", soft:"#f3f4f6", line:"#e5e7eb", mode:"plain", header:"stack", summary:"clean", info:"split", logo:false },
@@ -289,11 +290,7 @@ theme.mode === "boxed"
 return(
 <div
 className="w-full bg-white text-gray-800"
-style={{
-    fontFamily,
-    fontSize: `${fontSize || 14}px`,
-    zoom: (fontSize || 14) / 14,
-  }}
+style={invoiceTemplateRootTypographyStyle(fontFamily, fontSize)}
 >
 <div className={shellClass} style={{ borderColor: theme.line, backgroundColor: theme.soft }}>
 <MinimalHeader invoice={invoice} businessInfo={businessInfo} formatDate={formatDate} dateFormat={dateFormat} theme={theme} visibility={visibility}/>
