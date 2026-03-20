@@ -210,9 +210,9 @@ export default function BusinessProfileClient() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 pb-28 lg:space-y-8 lg:pb-0">
       {setupMode && (
-        <section className="rounded-[24px] border border-emerald-200 bg-emerald-50/80 p-5">
+        <section className="rounded-[24px] border border-emerald-200 bg-emerald-50/80 p-4 sm:p-5 lg:p-5">
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-emerald-700">Setup Step 1</p>
           <p className="mt-2 text-sm leading-7 text-slate-600">
             Start by saving your business profile. Once this is done, we’ll take you to settings so you can finalize invoice behavior like numbering, currency, and decimals.
@@ -226,34 +226,36 @@ export default function BusinessProfileClient() {
       <section className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
         <div>
           <p className="text-xs uppercase tracking-[0.34em] text-emerald-700">Business Profile</p>
-          <h1 className="font-display mt-3 text-4xl text-slate-950">Shape the identity that appears across your invoices.</h1>
+          <h1 className="font-display mt-3 text-3xl text-slate-950 sm:text-4xl lg:text-4xl">
+            Shape the identity that appears across your invoices.
+          </h1>
           <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-500">
-            Update business details, payment info, and terms — easyBILL will use these across templates, print, and PDF exports.
+            easyBiLL will use these below info for generating your invoices only.
           </p>
           <p className="mt-2 text-xs leading-6 text-slate-500">
-            Key sensitive fields, including bank details, are protected with encrypted storage handling.
+            Sensitive data including bank details, are end-to-end encrypted.
           </p>
         </div>
       </section>
 
       <div className="grid gap-6 xl:grid-cols-[0.85fr_1.15fr]">
-        <section className="soft-card rounded-[28px] p-6">
+        <section className="soft-card rounded-[24px] p-4 sm:p-6 lg:rounded-[28px] lg:p-6">
           <p className="text-xs uppercase tracking-[0.28em] text-slate-400">Brand Mark</p>
 
           <div className="mt-5 space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
               <div className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-400">Upload + crop</div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                 {(profile.logo || logoSource) && (
                   <button
                     type="button"
                     onClick={deleteLogo}
-                    className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 sm:w-auto"
                   >
                     Remove
                   </button>
                 )}
-                <label className="cursor-pointer rounded-2xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800">
+                <label className="w-full cursor-pointer rounded-2xl bg-slate-950 px-4 py-2 text-center text-sm font-semibold text-white transition hover:bg-slate-800 sm:w-auto">
                   {profile.logo ? "Replace Logo" : "Upload Logo"}
                   <input type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
                 </label>
@@ -262,7 +264,7 @@ export default function BusinessProfileClient() {
 
             {logoSource ? (
               <div className="rounded-[28px] border border-slate-200 bg-slate-50 p-4">
-                <div className="relative h-[300px] overflow-hidden rounded-[22px] bg-white">
+                <div className="relative h-[220px] overflow-hidden rounded-[22px] bg-white sm:h-[300px]">
                   <Cropper
                     image={logoSource}
                     crop={logoCrop}
@@ -294,7 +296,7 @@ export default function BusinessProfileClient() {
             ) : profile.logo ? (
               <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-slate-50 p-5">
                 <div
-                  className={`mx-auto flex h-48 w-full max-w-[320px] items-center justify-center overflow-hidden border border-slate-200 bg-white ${
+                  className={`mx-auto flex h-40 w-full max-w-[320px] items-center justify-center overflow-hidden border border-slate-200 bg-white sm:h-48 ${
                     profile.logoShape === "round" ? "rounded-full" : "rounded-[22px]"
                   }`}
                 >
@@ -302,7 +304,7 @@ export default function BusinessProfileClient() {
                 </div>
               </div>
             ) : (
-              <label className="flex min-h-[260px] cursor-pointer flex-col items-center justify-center rounded-[28px] border border-dashed border-slate-300 bg-slate-50 text-center">
+              <label className="flex min-h-[220px] cursor-pointer flex-col items-center justify-center rounded-[28px] border border-dashed border-slate-300 bg-slate-50 text-center sm:min-h-[260px]">
                 <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
                   <Upload className="h-6 w-6" />
                 </div>
@@ -350,7 +352,7 @@ export default function BusinessProfileClient() {
         </section>
 
         <section className="space-y-6">
-          <div className="soft-card rounded-[28px] p-6">
+          <div className="soft-card rounded-[24px] p-4 sm:rounded-[28px] sm:p-6 lg:rounded-[28px] lg:p-6">
             <div className="mb-6 flex items-center gap-3">
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
                 <Building2 className="h-5 w-5" />
@@ -361,7 +363,7 @@ export default function BusinessProfileClient() {
               </div>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-3 md:grid-cols-2 sm:gap-4">
               <input
                 placeholder="Business Name"
                 className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
@@ -399,7 +401,7 @@ export default function BusinessProfileClient() {
             />
           </div>
 
-          <div className="soft-card rounded-[28px] p-6">
+          <div className="soft-card rounded-[24px] p-4 sm:rounded-[28px] sm:p-6 lg:rounded-[28px] lg:p-6">
             <div className="mb-6 flex items-center gap-3">
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-sky-50 text-sky-700">
                 <Landmark className="h-5 w-5" />
@@ -412,7 +414,7 @@ export default function BusinessProfileClient() {
               </div>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-3 md:grid-cols-2 sm:gap-4">
               <input
                 placeholder="Bank Name"
                 className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
@@ -440,7 +442,7 @@ export default function BusinessProfileClient() {
             </div>
           </div>
 
-          <div className="soft-card rounded-[28px] p-6">
+          <div className="soft-card rounded-[24px] p-4 sm:rounded-[28px] sm:p-6 lg:rounded-[28px] lg:p-6">
             <div className="mb-6 flex items-center gap-3">
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-amber-50 text-amber-700">
                 <ScrollText className="h-5 w-5" />
@@ -464,12 +466,25 @@ export default function BusinessProfileClient() {
       <button
         onClick={saveProfile}
         disabled={savingProfile}
-        className={`inline-flex items-center rounded-2xl px-6 py-3 text-sm font-semibold text-white transition ${
+        className={`hidden lg:inline-flex items-center rounded-2xl px-6 py-3 text-sm font-semibold text-white transition ${
           savingProfile ? "cursor-not-allowed bg-slate-400" : "bg-slate-950 hover:bg-slate-800"
         }`}
       >
         {savingProfile ? "Saving..." : setupMode ? "Save And Continue" : "Save Business Profile"}
       </button>
+
+      {/* Mobile sticky save */}
+      <div className="fixed inset-x-0 bottom-0 z-40 bg-white/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-12px_40px_rgba(15,23,42,0.08)] backdrop-blur-md lg:hidden">
+        <button
+          onClick={saveProfile}
+          disabled={savingProfile}
+          className={`inline-flex w-full items-center justify-center gap-2 rounded-2xl px-6 py-3 text-sm font-semibold text-white transition ${
+            savingProfile ? "cursor-not-allowed bg-slate-400" : "bg-slate-950 hover:bg-slate-800"
+          }`}
+        >
+          {savingProfile ? "Saving..." : setupMode ? "Save And Continue" : "Save Business Profile"}
+        </button>
+      </div>
     </div>
   )
 }

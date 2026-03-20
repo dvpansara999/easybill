@@ -75,10 +75,12 @@ export default function A4LargePreview({
   const pageViewportHeight = Math.max(220, Math.round(A4_HEIGHT_PX * scale))
   const viewportHeight = viewportMaxHeight ? Math.min(viewportMaxHeight, pageViewportHeight) : pageViewportHeight
 
+  const outerOverflowClass = enableScroll ? "overflow-y-auto overflow-x-hidden" : "overflow-y-hidden overflow-x-hidden"
+
   return (
     <div
       ref={wrapRef}
-      className={`rounded-[18px] border border-slate-200 bg-slate-100 ${enableScroll ? "overflow-y-auto" : "overflow-y-hidden"}`}
+      className={`rounded-[18px] border border-slate-200 bg-slate-100 ${outerOverflowClass}`}
       style={{ height: viewportHeight }}
     >
       <div className="relative mx-auto" style={{ width: A4_WIDTH_PX * scale }}>

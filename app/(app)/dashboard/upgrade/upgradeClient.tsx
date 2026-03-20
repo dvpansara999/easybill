@@ -25,17 +25,17 @@ export default function UpgradeClient() {
   }
 
   return (
-    <div className="space-y-8">
-      <section className="grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(360px,0.8fr)]">
+    <div className="space-y-6 pb-24 lg:space-y-8 lg:pb-0">
+      <section className="grid gap-4 sm:gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(360px,0.8fr)]">
         <div>
           <p className="text-xs uppercase tracking-[0.34em] text-emerald-700">Upgrade</p>
-          <h1 className="font-display mt-3 text-4xl text-slate-950">Unlock more room to grow with easyBILL.</h1>
+          <h1 className="font-display mt-3 text-3xl text-slate-950 sm:text-4xl">Unlock more room to grow with easyBILL.</h1>
           <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-500">
             Start on Free, then upgrade when you’re ready. Your data stays connected to your account ID.
           </p>
         </div>
 
-        <div className="soft-card rounded-[28px] p-6">
+        <div className="soft-card rounded-[24px] p-4 sm:rounded-[28px] sm:p-6">
           <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
             <Sparkles className="h-5 w-5" />
           </div>
@@ -58,20 +58,20 @@ export default function UpgradeClient() {
         </div>
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-2">
+      <section className="grid gap-4 sm:gap-6 lg:grid-cols-2">
         {plans.map((p) => {
           const selected = p.id === active
           return (
             <div
               key={p.id}
-              className={`soft-card rounded-[28px] p-6 transition ${
+              className={`soft-card rounded-[24px] p-4 sm:rounded-[28px] sm:p-6 transition ${
                 selected ? "ring-2 ring-emerald-300" : "hover:ring-2 hover:ring-slate-200"
               }`}
             >
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">{p.name}</p>
-                  <p className="mt-2 text-3xl font-semibold text-slate-950">
+                  <p className="mt-2 text-2xl font-semibold text-slate-950 sm:text-3xl">
                     {p.priceInr === 0 ? "₹0" : `₹${p.priceInr}`}
                     <span className="ml-2 text-sm font-medium text-slate-500">/month</span>
                   </p>
@@ -118,10 +118,10 @@ export default function UpgradeClient() {
         })}
       </section>
 
-      <div className="flex justify-end">
+      <div className="flex justify-center sm:justify-end">
         <button
           onClick={() => router.push("/dashboard")}
-          className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+          className="w-full rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 sm:w-auto"
         >
           Back to Dashboard
         </button>

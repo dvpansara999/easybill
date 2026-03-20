@@ -45,12 +45,12 @@ export default function SetupProfileContactPage() {
       onBack={() => router.push("/setup/profile")}
       aside={
         <>
-          <div className="rounded-[34px] border border-slate-200 bg-gradient-to-br from-slate-950 to-slate-900 p-7 text-white shadow-[0_30px_90px_rgba(15,23,42,0.22)]">
+          <div className="rounded-[34px] border border-slate-200 bg-gradient-to-br from-slate-950 to-slate-900 p-5 sm:p-7 text-white shadow-[0_30px_90px_rgba(15,23,42,0.22)]">
             <p className="text-xs font-semibold uppercase tracking-[0.32em] text-white/60">Used on invoices</p>
             <p className="mt-3 text-sm text-white/70">Clients use these details to contact you and verify your business.</p>
 
             <div className="mt-6 grid gap-3">
-              <div className="rounded-[26px] border border-white/10 bg-white/5 p-5">
+              <div className="rounded-[26px] border border-white/10 bg-white/5 p-4 sm:p-5">
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/10">
                     <Phone className="h-5 w-5" />
@@ -61,7 +61,7 @@ export default function SetupProfileContactPage() {
                   </div>
                 </div>
               </div>
-              <div className="rounded-[26px] border border-white/10 bg-white/5 p-5">
+              <div className="rounded-[26px] border border-white/10 bg-white/5 p-4 sm:p-5">
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/10">
                     <ReceiptText className="h-5 w-5" />
@@ -78,14 +78,14 @@ export default function SetupProfileContactPage() {
       }
     >
       <div className="overflow-hidden rounded-[34px] border border-slate-200 bg-white shadow-[0_30px_90px_rgba(15,23,42,0.08)]">
-        <div className="border-b border-slate-200 px-7 py-6">
+        <div className="border-b border-slate-200 px-4 py-5 sm:px-7 sm:py-6">
           <p className="text-sm font-semibold text-slate-900">Contact details</p>
           <p className="mt-1 text-sm leading-6 text-slate-500">
             If you’re unsure about GST/address right now, you can leave them blank and finish setup.
           </p>
         </div>
 
-        <div className="px-7 py-7 space-y-6">
+        <div className="px-4 py-6 sm:px-7 sm:py-7 space-y-6">
           <div className="grid gap-4 md:grid-cols-2">
             <div>
               <label className="mb-2 block text-sm font-medium text-slate-900">Phone</label>
@@ -121,16 +121,16 @@ export default function SetupProfileContactPage() {
           </div>
         </div>
 
-        <div className="flex flex-col-reverse gap-3 border-t border-slate-200 bg-slate-50/70 px-7 py-6 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col-reverse gap-3 border-t border-slate-200 bg-slate-50/70 px-4 py-5 sm:px-7 sm:py-6 sm:flex-row sm:items-center sm:justify-between">
           <button
             onClick={() => router.push("/setup/profile")}
-            className="rounded-2xl border border-slate-200 bg-white px-6 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 hover:text-slate-950"
+            className="w-full sm:w-auto rounded-2xl border border-slate-200 bg-white px-6 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 hover:text-slate-950 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-100"
           >
             Back
           </button>
           <button
             onClick={goNext}
-            className="rounded-2xl bg-slate-950 px-6 py-3 text-sm font-semibold text-white shadow-[0_18px_44px_rgba(15,23,42,0.18)] transition hover:bg-slate-800"
+            className="w-full sm:w-auto rounded-2xl bg-slate-950 px-6 py-3 text-sm font-semibold text-white shadow-[0_18px_44px_rgba(15,23,42,0.18)] transition hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-100"
           >
             Next
           </button>

@@ -8,6 +8,7 @@ import { formatCurrency } from "@/lib/formatCurrency"
 import { getStoredBusinessRecord } from "@/lib/invoice"
 import { getStoredTemplateTypography } from "@/lib/templateTypography"
 import { getActiveOrGlobalItem } from "@/lib/userStore"
+import A4InvoiceView from "@/components/invoiceView/A4InvoiceView"
 
 import html2canvas from "html2canvas"
 import jsPDF from "jspdf"
@@ -34,6 +35,8 @@ const [template,setTemplate] = useState("default")
 const [fontId,setFontId] = useState(getStoredTemplateTypography().fontId)
 const [fontFamily,setFontFamily] = useState(getStoredTemplateTypography().fontFamily)
 const [fontSize,setFontSize] = useState(getStoredTemplateTypography().fontSize)
+const [downloadingPdf, setDownloadingPdf] = useState(false)
+const [downloadError, setDownloadError] = useState("")
 
 let TemplateComponent = templates.default
 
@@ -64,19 +67,34 @@ async function downloadInvoiceFallback(){
   if(!element) return
 
   const nodes = element.querySelectorAll<HTMLElement>("*")
-  const prev: Array<{el:HTMLElement; color:string; bg:string; border:string}> = []
+  const prev: Array<{
+    el: HTMLElement
+    color: string
+    bg: string
+    border: string
+    boxShadow: string
+    filter: string
+    backdropFilter: string
+  }> = []
 
   nodes.forEach((el)=>{
     prev.push({
       el,
       color: el.style.color,
       bg: el.style.backgroundColor,
-      border: el.style.borderColor
+      border: el.style.borderColor,
+      boxShadow: el.style.boxShadow,
+      filter: el.style.filter,
+      backdropFilter: el.style.backdropFilter
     })
 
     el.style.color = "#000"
-    el.style.backgroundColor = el.style.backgroundColor || "#fff"
+    // Force safe inline colors (avoid unsupported computed CSS `lab(...)` in html2canvas).
+    el.style.backgroundColor = "#ffffff"
     el.style.borderColor = "#000"
+    el.style.boxShadow = "none"
+    el.style.filter = "none"
+    el.style.backdropFilter = "none"
   })
 
   try {
@@ -118,10 +136,13 @@ async function downloadInvoiceFallback(){
 
   } finally {
 
-    prev.forEach(({el,color,bg,border})=>{
+    prev.forEach(({el,color,bg,border,boxShadow,filter,backdropFilter})=>{
       el.style.color = color
       el.style.backgroundColor = bg
       el.style.borderColor = border
+      el.style.boxShadow = boxShadow
+      el.style.filter = filter
+      el.style.backdropFilter = backdropFilter
     })
 
   }
@@ -130,35 +151,24 @@ async function downloadInvoiceFallback(){
 
 async function downloadInvoice(){
 
+  if (downloadingPdf) return
+
   if(!invoice){
     return
   }
 
+  setDownloadingPdf(true)
+  setDownloadError("")
+
   try {
-
-    const businessProfile = getActiveOrGlobalItem("businessProfile")
-
     const response = await fetch("/api/invoice-pdf",{
       method:"POST",
       headers:{
         "Content-Type":"application/json"
       },
       body:JSON.stringify({
-        invoice,
-        template,
-        businessProfile,
-        typography:{
-          fontId,
-          fontSize
-        },
-        settings:{
-          dateFormat,
-          amountFormat,
-          showDecimals,
-          currencySymbol,
-          currencyPosition,
-          invoiceVisibility,
-        }
+        invoiceId: String(id || invoice?.invoiceNumber || ""),
+        mode: "download",
       })
     })
 
@@ -180,9 +190,13 @@ async function downloadInvoice(){
     window.URL.revokeObjectURL(url)
 
   } catch {
-
-    await downloadInvoiceFallback()
-
+    try {
+      await downloadInvoiceFallback()
+    } catch {
+      setDownloadError("Unable to download PDF right now. Please try again.")
+    }
+  } finally {
+    setDownloadingPdf(false)
   }
 
 }
@@ -299,21 +313,24 @@ return(
 
 <button
 onClick={downloadInvoice}
-className="bg-black text-white px-4 py-2 rounded"
+disabled={downloadingPdf}
+className={`px-4 py-2 rounded text-white transition ${
+  downloadingPdf
+    ? "bg-slate-400 cursor-not-allowed"
+    : "bg-black hover:bg-slate-800"
+}`}
 >
-Download PDF
+{downloadingPdf ? "Downloading..." : "Download PDF"}
 </button>
 
 </div>
+{downloadError ? (
+  <p className="mb-4 text-right text-sm text-rose-600">{downloadError}</p>
+) : null}
 
 
-{/* INVOICE */}
-
-<div ref={invoiceRef} className="bg-white p-6 max-w-[900px] mx-auto shadow-sm">
-
-<TemplateComponent {...templateData} />
-
-</div>
+{/* INVOICE: strict A4-only renderer on mobile & desktop */}
+<A4InvoiceView ref={invoiceRef} TemplateComponent={TemplateComponent} templateData={templateData} />
 
 </div>
 

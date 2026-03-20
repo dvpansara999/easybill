@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { memo, useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import InvoiceAnimeBackground from "@/components/backgrounds/InvoiceAnimeBackground"
 import EasyBillLogoMark from "@/components/brand/EasyBillLogoMark"
@@ -18,6 +18,8 @@ import {
   Stars,
   Wand2,
 } from "lucide-react"
+
+const MemoInvoiceAnimeBackground = memo(InvoiceAnimeBackground)
 
 export default function Home() {
   const router = useRouter()
@@ -481,7 +483,7 @@ export default function Home() {
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-[linear-gradient(to_bottom,_#fafaf9,_#f1f5f9)] px-4 py-6 sm:py-8 lg:px-8">
-      <InvoiceAnimeBackground />
+      <MemoInvoiceAnimeBackground />
 
       <div className="relative mx-auto w-full max-w-[1180px]">
         <div className="h-2 sm:h-4" />
@@ -593,7 +595,7 @@ export default function Home() {
           {/* RIGHT: auth card (mechanics unchanged) */}
           <section className="order-1 lg:order-2">
             <div className="mx-auto w-full max-w-[540px] overflow-hidden rounded-[28px] border border-slate-200 bg-white/80 text-left shadow-[0_30px_90px_rgba(15,23,42,0.10)] backdrop-blur sm:rounded-[34px]">
-              <div className="border-b border-slate-200 bg-white/60 px-7 py-6">
+              <div className="border-b border-slate-200 bg-white/60 px-5 py-5 sm:px-7 sm:py-6">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.32em] text-indigo-700">{panelCopy.eyebrow}</p>
@@ -621,14 +623,14 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className="px-7 py-7">
+              <div className="px-5 py-6 sm:px-7 sm:py-7">
                 <div className="grid gap-4">
                   <div className="mx-auto grid w-full max-w-sm gap-3">
                     <button
                       type="button"
                       onClick={() => startOAuth("google")}
                       disabled={oauthBusy}
-                      className="inline-flex w-full items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-800 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                      className="inline-flex w-full items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-800 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-100"
                     >
                       <svg
                         aria-hidden
@@ -846,7 +848,7 @@ export default function Home() {
                       type="button"
                       onClick={sendForgotOtp}
                       disabled={forgotBusy || !forgotEmail.trim()}
-                      className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white shadow-[0_18px_44px_rgba(15,23,42,0.18)] transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white shadow-[0_18px_44px_rgba(15,23,42,0.18)] transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-100"
                     >
                       {forgotBusy ? "Processing..." : "Get OTP"}
                     </button>
@@ -868,7 +870,7 @@ export default function Home() {
                       type="button"
                       onClick={verifyForgotOtp}
                       disabled={!forgotOtpSent || forgotOtpVerified || forgotBusy || forgotOtpCode.trim().length < 6}
-                      className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white shadow-[0_18px_44px_rgba(15,23,42,0.18)] transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white shadow-[0_18px_44px_rgba(15,23,42,0.18)] transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-100"
                     >
                       {forgotBusy ? "Processing..." : forgotOtpVerified ? "OTP Verified" : "Verify OTP"}
                     </button>
@@ -919,7 +921,7 @@ export default function Home() {
                       type="button"
                       onClick={updateForgotPassword}
                       disabled={!forgotOtpVerified || forgotBusy}
-                      className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white shadow-[0_18px_44px_rgba(15,23,42,0.18)] transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white shadow-[0_18px_44px_rgba(15,23,42,0.18)] transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-100"
                     >
                       {forgotBusy ? "Updating..." : "Update password"}
                     </button>
@@ -961,7 +963,7 @@ export default function Home() {
                     type="button"
                     onClick={verifyOtpNow}
                     disabled={otpBusy || otpToken.trim().length < 6}
-                    className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white shadow-[0_18px_44px_rgba(15,23,42,0.18)] transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white shadow-[0_18px_44px_rgba(15,23,42,0.18)] transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-100"
                   >
                     Verify & continue
                   </button>
@@ -973,7 +975,7 @@ export default function Home() {
                   <button
                     onClick={handlePrimaryAction}
                     disabled={primaryBusy || otpMode !== null || (mode === "create" && !createFormValid)}
-                    className={`inline-flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold transition ${
+                    className={`inline-flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-100 ${
                       mode === "create" && !createFormValid
                         ? "bg-slate-200 text-slate-500"
                         : "bg-slate-950 text-white shadow-[0_18px_44px_rgba(15,23,42,0.18)] hover:bg-slate-800"

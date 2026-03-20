@@ -37,8 +37,26 @@ export function getStoredTemplateTypography() {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { getActiveOrGlobalItem } = require("@/lib/userStore") as typeof import("@/lib/userStore")
 
-  const fontId = getActiveOrGlobalItem("invoiceTemplateFontId") || defaultTemplateTypography.fontId
-  const storedSize = Number(getActiveOrGlobalItem("invoiceTemplateFontSize") || defaultTemplateTypography.fontSize)
+  let fontId = getActiveOrGlobalItem("invoiceTemplateFontId")
+  let storedSizeRaw = getActiveOrGlobalItem("invoiceTemplateFontSize")
+
+  // Playwright PDF rendering has no authenticated user, so `userStore` can return null.
+  // Use localStorage fallback only when KV values are missing (do not override valid KV state).
+  if (!fontId || !storedSizeRaw) {
+    try {
+      const rawFontId = localStorage.getItem("invoiceTemplateFontId")
+      const rawFontSize = localStorage.getItem("invoiceTemplateFontSize")
+      if (!fontId && rawFontId) fontId = rawFontId
+      if (!storedSizeRaw && rawFontSize) storedSizeRaw = rawFontSize
+    } catch {
+      // ignore
+    }
+  }
+
+  fontId = fontId || defaultTemplateTypography.fontId
+  storedSizeRaw = storedSizeRaw || String(defaultTemplateTypography.fontSize)
+
+  const storedSize = Number(storedSizeRaw)
   const normalizedSize = Number.isFinite(storedSize)
     ? Math.max(7, Math.min(17, storedSize))
     : defaultTemplateTypography.fontSize

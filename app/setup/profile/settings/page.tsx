@@ -111,7 +111,7 @@ export default function SetupProfileSettingsPage() {
       onBack={() => router.push("/setup/profile/logo")}
     >
       <div className="grid gap-6 lg:grid-cols-2 lg:items-stretch">
-        <div className="lg:col-span-2 overflow-hidden rounded-[34px] border border-slate-200 bg-gradient-to-br from-slate-950 to-slate-900 px-7 py-6 text-white shadow-[0_30px_90px_rgba(15,23,42,0.22)]">
+        <div className="lg:col-span-2 overflow-hidden rounded-[34px] border border-slate-200 bg-gradient-to-br from-slate-950 to-slate-900 px-4 py-5 sm:px-7 sm:py-6 text-white shadow-[0_30px_90px_rgba(15,23,42,0.22)]">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.32em] text-white/60">Next invoice</p>
@@ -126,12 +126,12 @@ export default function SetupProfileSettingsPage() {
         </div>
 
         <section className="flex h-full flex-col overflow-hidden rounded-[34px] border border-slate-200 bg-white shadow-[0_30px_90px_rgba(15,23,42,0.08)]">
-          <div className="border-b border-slate-200 px-7 py-6">
+          <div className="border-b border-slate-200 px-4 py-5 sm:px-7 sm:py-6">
             <p className="text-sm font-semibold text-slate-900">Invoice numbering</p>
             <p className="mt-1 text-sm leading-6 text-slate-500">Set how invoice numbers look and where they start.</p>
           </div>
 
-          <div className="grid gap-5 px-7 py-7 md:grid-cols-2">
+          <div className="grid gap-5 px-4 py-6 sm:px-7 sm:py-7 md:grid-cols-2">
             <div>
               <p className="mb-2 text-sm font-medium text-slate-900">Invoice Prefix</p>
               <input value={draftInvoicePrefix} onChange={(e) => setDraftInvoicePrefix(e.target.value)} className={selectStyle} />
@@ -176,12 +176,12 @@ export default function SetupProfileSettingsPage() {
         </section>
 
         <section className="flex h-full flex-col overflow-hidden rounded-[34px] border border-slate-200 bg-white shadow-[0_30px_90px_rgba(15,23,42,0.08)]">
-          <div className="border-b border-slate-200 px-7 py-6">
+          <div className="border-b border-slate-200 px-4 py-5 sm:px-7 sm:py-6">
             <p className="text-sm font-semibold text-slate-900">Display preferences</p>
             <p className="mt-1 text-sm leading-6 text-slate-500">Control how dates and amounts appear throughout the app.</p>
           </div>
 
-          <div className="grid gap-5 px-7 py-7 md:grid-cols-2">
+          <div className="grid gap-5 px-4 py-6 sm:px-7 sm:py-7 md:grid-cols-2">
             <div>
               <p className="mb-2 text-sm font-medium text-slate-900">Date Format</p>
               <SelectMenu
@@ -223,7 +223,7 @@ export default function SetupProfileSettingsPage() {
                 value={draftCurrencySymbol}
                 onChange={setDraftCurrencySymbol}
                 options={[
-                  { value: "Rs", label: "Rs Indian Rupee" },
+                  { value: "₹", label: "₹ Indian Rupee" },
                   { value: "$", label: "$ US Dollar" },
                   { value: "EUR", label: "EUR Euro" },
                   { value: "GBP", label: "GBP Pound" },
@@ -236,8 +236,8 @@ export default function SetupProfileSettingsPage() {
                 value={draftCurrencyPosition}
                 onChange={(v) => setDraftCurrencyPosition(v as "before" | "after")}
                 options={[
-                  { value: "before", label: "Rs 1,250" },
-                  { value: "after", label: "1,250 Rs" },
+                  { value: "before", label: "₹ 1,250" },
+                  { value: "after", label: "1,250 ₹" },
                 ]}
               />
               <p className="mt-2 text-xs leading-5 text-slate-500">Choose what looks most natural to your customers.</p>
@@ -246,17 +246,17 @@ export default function SetupProfileSettingsPage() {
         </section>
       </div>
 
-      <div className="mt-6 flex flex-col-reverse gap-3 rounded-[34px] border border-slate-200 bg-slate-50/70 px-7 py-6 shadow-[0_18px_44px_rgba(15,23,42,0.05)] sm:flex-row sm:items-center sm:justify-between">
+      <div className="mt-6 flex flex-col-reverse gap-3 rounded-[34px] border border-slate-200 bg-slate-50/70 px-4 py-5 sm:px-7 sm:py-6 shadow-[0_18px_44px_rgba(15,23,42,0.05)] sm:flex-row sm:items-center sm:justify-between">
         <button
           onClick={() => router.push("/setup/profile/logo")}
-          className="rounded-2xl border border-slate-200 bg-white px-6 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 hover:text-slate-950"
+          className="w-full sm:w-auto rounded-2xl border border-slate-200 bg-white px-6 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 hover:text-slate-950 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-100"
         >
           Back
         </button>
         <button
           onClick={finishSetup}
           disabled={finishing}
-          className="rounded-2xl bg-slate-950 px-6 py-3 text-sm font-semibold text-white shadow-[0_18px_44px_rgba(15,23,42,0.18)] transition hover:bg-slate-800"
+          className="w-full sm:w-auto rounded-2xl bg-slate-950 px-6 py-3 text-sm font-semibold text-white shadow-[0_18px_44px_rgba(15,23,42,0.18)] transition hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-100"
         >
           {finishing ? "Finishing..." : "Finish Setup"}
         </button>

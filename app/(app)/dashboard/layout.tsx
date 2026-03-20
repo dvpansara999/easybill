@@ -9,7 +9,7 @@ import { enforceFreeRestrictions, getActivePlanId, type PlanId } from "@/lib/pla
 import { getAuthMode } from "@/lib/runtimeMode"
 import { isActiveUserKvHydrated } from "@/lib/userStore"
 import { Menu } from "lucide-react"
-import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
 
 export default function DashboardLayout({
   children,
@@ -77,9 +77,9 @@ export default function DashboardLayout({
         <Sidebar />
       </div>
       <main className="min-w-0 flex-1 overflow-y-auto">
-        <div className="px-4 py-4 lg:px-2">
-          <div className="glass-card mx-auto my-2 w-full max-w-[1180px] min-h-[calc(100vh-1rem)] rounded-[28px] px-4 py-4 sm:px-6 sm:py-6 lg:mx-4 lg:my-4 lg:min-h-[calc(100vh-2rem)] lg:rounded-[32px] lg:px-8 lg:py-8">
-            <div className="mb-5 flex flex-wrap items-center justify-between gap-3 sm:mb-7">
+        <div className="px-3 py-3 sm:px-4 sm:py-4 lg:px-2">
+          <div className="glass-card mx-auto my-2 w-full max-w-[1180px] min-h-[calc(100vh-1rem)] rounded-[24px] px-3 py-3 sm:px-5 sm:py-5 lg:mx-4 lg:my-4 lg:min-h-[calc(100vh-2rem)] lg:rounded-[32px] lg:px-8 lg:py-8">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3 sm:mb-7">
               <div className="flex items-center gap-3">
                 <EasyBillLogoMark size={38} className="drop-shadow-sm" />
                 <div>
@@ -91,7 +91,7 @@ export default function DashboardLayout({
               <button
                 type="button"
                 onClick={() => setMenuOpen(true)}
-                className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white p-2.5 text-slate-700 transition hover:bg-slate-50 lg:hidden"
+                className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white p-2.5 text-slate-700 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-100 lg:hidden"
                 aria-label="Open menu"
               >
                 <Menu className="h-5 w-5" />
@@ -117,7 +117,9 @@ export default function DashboardLayout({
       </main>
 
       <Dialog open={menuOpen} onOpenChange={setMenuOpen}>
-        <DialogContent className="w-[calc(100%-1.5rem)] max-w-sm rounded-[28px] border border-slate-200 bg-white/90 p-3 shadow-[0_30px_90px_rgba(15,23,42,0.18)] backdrop-blur">
+        <DialogContent className="w-[calc(100%-1.5rem)] max-w-sm max-h-[85vh] overflow-hidden rounded-[28px] border border-slate-200 bg-white/90 p-4 shadow-[0_30px_90px_rgba(15,23,42,0.18)] backdrop-blur">
+          <DialogTitle className="sr-only">Dashboard menu</DialogTitle>
+          <DialogDescription className="sr-only">Navigation links for your dashboard.</DialogDescription>
           <Sidebar variant="drawer" onNavigate={() => setMenuOpen(false)} />
         </DialogContent>
       </Dialog>

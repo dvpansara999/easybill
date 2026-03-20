@@ -43,8 +43,13 @@ export default function Sidebar({
 
   const wrapClass =
     variant === "drawer"
-      ? "glass-card flex w-full max-w-sm flex-col overflow-hidden rounded-[28px]"
+      ? "glass-card flex w-full max-w-sm flex-col overflow-hidden rounded-[28px] max-h-[85vh]"
       : "glass-card sticky top-0 m-4 flex min-h-[calc(100vh-2rem)] w-72 flex-col overflow-hidden rounded-[28px]"
+
+  const navClass =
+    variant === "drawer"
+      ? "flex-1 space-y-2 overflow-y-auto px-3 py-4"
+      : "flex-1 space-y-2 px-4 py-5"
 
   return (
     <aside className={wrapClass}>
@@ -82,7 +87,7 @@ export default function Sidebar({
         </div>
       </div>
 
-      <nav className="flex-1 space-y-2 px-4 py-5">
+      <nav className={navClass}>
 
         {navItems.map((item)=>{
           const Icon = item.icon
@@ -98,7 +103,7 @@ export default function Sidebar({
                     onNavigate?.()
                   })
                 }}
-                className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm text-slate-600 transition hover:bg-white/85 hover:text-slate-950"
+                className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm text-slate-600 transition hover:bg-white/85 hover:text-slate-950 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-100"
               >
                 <Icon className="h-4 w-4 text-slate-400" />
                 {item.name}
@@ -111,7 +116,7 @@ export default function Sidebar({
               key={item.href}
               href={item.href}
               onClick={() => onNavigate?.()}
-              className={`flex items-center gap-3 rounded-2xl px-4 py-3 text-sm transition ${
+              className={`flex items-center gap-3 rounded-2xl px-4 py-3 text-sm transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-100 ${
                 active
                   ? "bg-slate-950 text-white shadow-lg shadow-slate-950/10"
                   : "text-slate-600 hover:bg-white/85 hover:text-slate-950"

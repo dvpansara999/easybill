@@ -390,7 +390,7 @@ export default function SettingsClient() {
   if (!ready) return null
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 pb-24 lg:space-y-8 lg:pb-0">
       {setupMode && (
         <section className="rounded-[24px] border border-emerald-200 bg-emerald-50/80 p-5">
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-emerald-700">Setup Step 2</p>
@@ -403,13 +403,13 @@ export default function SettingsClient() {
 
       <section>
         <p className="text-xs uppercase tracking-[0.34em] text-emerald-700">Settings</p>
-        <h1 className="font-display mt-3 text-4xl text-slate-950">Fine-tune how easyBILL formats your invoices.</h1>
+        <h1 className="font-display mt-3 text-3xl text-slate-950 sm:text-4xl">Fine-tune how easyBILL formats your invoices.</h1>
         <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-500">
           Control formatting, currency display, and numbering preferences — without changing your invoice workflow.
         </p>
       </section>
 
-      <div className="soft-card rounded-[28px] p-6">
+      <div className="soft-card rounded-[24px] p-4 sm:rounded-[28px] sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h2 className="section-title text-2xl">Account</h2>
@@ -688,7 +688,7 @@ export default function SettingsClient() {
         ) : null}
       </div>
 
-      <div className="soft-card rounded-[28px] p-6">
+      <div className="soft-card rounded-[24px] p-4 sm:rounded-[28px] sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h2 className="section-title text-2xl">Invoice visibility</h2>
@@ -699,7 +699,7 @@ export default function SettingsClient() {
           <button
             type="button"
             onClick={() => router.push("/dashboard/settings/invoice-visibility")}
-            className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+            className="w-full rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 sm:w-auto"
           >
             Manage invoice visibility
           </button>
@@ -707,7 +707,7 @@ export default function SettingsClient() {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-2">
-        <div className="soft-card rounded-[28px] p-6">
+        <div className="soft-card rounded-[24px] p-4 sm:rounded-[28px] sm:p-6">
           <h2 className="section-title text-2xl">Formatting</h2>
           <p className="mt-1 text-sm text-slate-500">How date and amount information appears across the app.</p>
 
@@ -752,7 +752,7 @@ export default function SettingsClient() {
           </div>
         </div>
 
-        <div className="soft-card rounded-[28px] p-6">
+        <div className="soft-card rounded-[24px] p-4 sm:rounded-[28px] sm:p-6">
           <h2 className="section-title text-2xl">Currency</h2>
           <p className="mt-1 text-sm text-slate-500">Choose how currency appears on every invoice.</p>
 
@@ -763,7 +763,7 @@ export default function SettingsClient() {
                 value={draftCurrencySymbol}
                 onChange={setDraftCurrencySymbol}
                 options={[
-                  { value: "Rs", label: "Rs Indian Rupee" },
+                  { value: "₹", label: "₹ Indian Rupee" },
                   { value: "$", label: "$ US Dollar" },
                   { value: "EUR", label: "EUR Euro" },
                   { value: "GBP", label: "GBP Pound" },
@@ -777,8 +777,8 @@ export default function SettingsClient() {
                 value={draftCurrencyPosition}
                 onChange={(v) => setDraftCurrencyPosition(v as "before" | "after")}
                 options={[
-                  { value: "before", label: "Rs 1,250" },
-                  { value: "after", label: "1,250 Rs" },
+                  { value: "before", label: "₹ 1,250" },
+                  { value: "after", label: "1,250 ₹" },
                 ]}
               />
             </div>
@@ -786,7 +786,7 @@ export default function SettingsClient() {
         </div>
       </div>
 
-      <div className="soft-card rounded-[28px] p-6">
+      <div className="soft-card rounded-[24px] p-4 sm:rounded-[28px] sm:p-6">
         <h2 className="section-title text-2xl">Invoice Numbering</h2>
         <p className="mt-1 text-sm text-slate-500">Define the structure of invoice numbers generated in your workspace.</p>
 
@@ -843,7 +843,7 @@ export default function SettingsClient() {
         </div>
       </div>
 
-      <div className="soft-card rounded-[28px] p-6">
+      <div className="soft-card rounded-[24px] p-4 sm:rounded-[28px] sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h2 className="section-title text-2xl">Report bug and feedback</h2>
@@ -860,14 +860,14 @@ export default function SettingsClient() {
           <button
             type="button"
             onClick={() => router.push("/dashboard/settings/report")}
-            className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+            className="w-full rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 sm:w-auto"
           >
             Report bug and feedback
           </button>
         </div>
       </div>
 
-      <div className="flex items-center justify-between rounded-[24px] border border-slate-200 bg-white px-5 py-4">
+      <div className="flex flex-col gap-4 rounded-[24px] border border-slate-200 bg-white px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-sm font-semibold text-slate-900">{hasPendingChanges ? "Unsaved changes" : "All changes saved"}</p>
           <p className="text-sm text-slate-500">

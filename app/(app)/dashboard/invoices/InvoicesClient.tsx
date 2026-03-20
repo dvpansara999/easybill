@@ -241,11 +241,11 @@ export default function InvoicesClient() {
   const returnTo = `/dashboard/invoices?year=${selectedYear}&month=${selectedMonth}&page=${currentPage}&search=${encodeURIComponent(searchQuery)}`
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 xl:space-y-8">
       <section className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
         <div>
           <p className="text-xs uppercase tracking-[0.34em] text-emerald-700">Invoices</p>
-          <h1 className="font-display mt-3 text-4xl text-slate-950">Invoices, organized and easy to manage.</h1>
+          <h1 className="font-display mt-2 text-2xl leading-tight text-slate-950 sm:text-3xl xl:mt-3 xl:text-4xl">Invoices, organized and easy to manage.</h1>
           <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-500">
             Filter by year/month, search by invoice number, and keep records tidy in your easyBILL workspace.
           </p>
@@ -253,16 +253,16 @@ export default function InvoicesClient() {
 
         <button
           onClick={() => router.push("/dashboard/invoices/create")}
-          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+          className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-slate-800 sm:w-auto"
         >
           <FilePlus2 className="h-4 w-4" />
           Create Invoice
         </button>
       </section>
 
-      <section className="soft-card rounded-[28px] p-6">
+      <section className="soft-card rounded-[24px] p-4 sm:p-6 xl:rounded-[28px]">
         <div className="grid gap-4 lg:grid-cols-[0.65fr_0.35fr] lg:items-end">
-          <div className="grid gap-4 lg:grid-cols-3">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 lg:gap-4">
             <label className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
               <span className="mb-2 block text-xs uppercase tracking-[0.28em] text-slate-400">Year</span>
               <div className="mt-1">
@@ -286,6 +286,7 @@ export default function InvoicesClient() {
                     setSelectedMonth(v === "all" ? "all" : Number(v))
                     setCurrentPage(1)
                   }}
+                  className="[&>button]:py-2.5 [&>button]:text-[13px] [&>button>span]:truncate [&>button>span]:whitespace-nowrap [&_[role='option']>span]:whitespace-nowrap"
                   options={[
                     { value: "all", label: "All Months" },
                     ...months.map((m) => ({ value: String(m.value), label: m.label })),
@@ -294,7 +295,7 @@ export default function InvoicesClient() {
               </div>
             </label>
 
-            <label className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+            <label className="col-span-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 lg:col-span-1">
               <span className="mb-2 block text-xs uppercase tracking-[0.28em] text-slate-400">Invoice No</span>
               <div className="flex items-center gap-2">
                 <Search className="h-4 w-4 text-slate-400" />
@@ -337,7 +338,7 @@ export default function InvoicesClient() {
           </div>
         </div>
 
-        <div className="mt-6 flex items-center justify-between text-sm text-slate-500">
+        <div className="mt-5 flex flex-col gap-2 text-sm text-slate-500 sm:mt-6 sm:flex-row sm:items-center sm:justify-between">
           <p>
             Total invoices shown: <span className="font-semibold text-slate-900">{totalShown}</span>
           </p>
@@ -347,7 +348,89 @@ export default function InvoicesClient() {
           </p>
         </div>
 
-        <div className="mt-6 overflow-hidden rounded-[24px] border border-slate-200/70">
+        {/* Mobile: cards */}
+        <div className="mt-6 space-y-3 lg:hidden">
+          {paginatedInvoices.length === 0 ? (
+            <div className="rounded-[24px] border border-slate-200/70 bg-white p-6 text-center text-sm text-slate-500">
+              No invoices in this range
+            </div>
+          ) : (
+            paginatedInvoices.map((inv: any) => {
+              const isLatestInvoice = inv.invoiceNumber === latestInvoiceNumber
+
+              return (
+                <div
+                  key={inv.invoiceNumber}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => router.push(`/dashboard/invoices/view/${inv.invoiceNumber}`)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      router.push(`/dashboard/invoices/view/${inv.invoiceNumber}`)
+                    }
+                  }}
+                  className="cursor-pointer rounded-[24px] border border-slate-200/70 bg-white p-4 transition hover:bg-slate-50/70 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-100"
+                >
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-slate-900">{inv.invoiceNumber}</p>
+                      <p className="mt-1 truncate text-sm text-slate-600">{inv.clientName}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="truncate text-sm font-semibold text-slate-950">{money(inv.grandTotal || 0)}</p>
+                      <p className="mt-1 text-xs text-slate-500">{String(inv.date || "").slice(2)}</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!canEditInvoices()) {
+                          showAlert({
+                            tone: "warning",
+                            title: "Editing is locked on the Free plan",
+                            message: "Upgrade to Plus to edit invoices.",
+                            primaryLabel: "Upgrade to Plus",
+                            secondaryLabel: "Not now",
+                            onPrimary: () => router.push("/dashboard/upgrade"),
+                          })
+                          return
+                        }
+                        router.push(`/dashboard/invoices/edit/${inv.invoiceNumber}?returnTo=${encodeURIComponent(returnTo)}`)
+                      }}
+                      className={`inline-flex h-9 w-9 items-center justify-center rounded-full border transition ${
+                        canEditInvoices()
+                          ? "border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-950"
+                          : "cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400"
+                      }`}
+                      disabled={!canEditInvoices()}
+                      aria-label="Edit invoice"
+                      title="Edit invoice"
+                    >
+                      <PencilLine className="h-3.5 w-3.5" />
+                    </button>
+
+                    {isLatestInvoice && (
+                      <button
+                        type="button"
+                        onClick={deleteLast}
+                        className="inline-flex items-center justify-center rounded-full border border-rose-200 bg-rose-50 p-2.5 text-rose-600 transition hover:bg-rose-100"
+                        aria-label="Delete latest invoice"
+                        title="Delete latest invoice"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )
+            })
+          )}
+        </div>
+
+        {/* Desktop: keep existing table */}
+        <div className="mt-6 hidden overflow-hidden rounded-[24px] border border-slate-200/70 lg:block">
           <table className="w-full text-sm">
             <thead className="bg-slate-50/80">
               <tr className="border-b border-slate-200 text-left text-slate-500">

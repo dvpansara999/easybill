@@ -4,7 +4,10 @@ import { useEffect,useState } from "react"
 import { useRouter } from "next/navigation"
 import { useSettings } from "@/context/SettingsContext"
 import { formatDate } from "@/lib/dateFormat"
+import { getActiveUserId } from "@/lib/auth"
 import { formatCurrency } from "@/lib/formatCurrency"
+import { getAuthMode } from "@/lib/runtimeMode"
+import { isActiveUserKvHydrated } from "@/lib/userStore"
 import {
   ArrowRight,
   BarChart3,
@@ -24,6 +27,8 @@ CartesianGrid,
 Tooltip,
 ResponsiveContainer
 } from "recharts"
+
+import AutoFitText from "@/components/ui/AutoFitText"
 
 export default function Dashboard(){
 
@@ -52,9 +57,24 @@ const [topCustomers,setTopCustomers] = useState<any[]>([])
 const [chartData,setChartData] = useState<any[]>([])
 
 const monthLabels=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
+const monthLabelsFullMap: Record<string, string> = {
+  Jan: "January",
+  Feb: "February",
+  Mar: "March",
+  Apr: "April",
+  May: "May",
+  Jun: "June",
+  Jul: "July",
+  Aug: "August",
+  Sep: "September",
+  Oct: "October",
+  Nov: "November",
+  Dec: "December",
+}
 
 useEffect(()=>{
 
+const loadDashboardData = () => {
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { getActiveOrGlobalItem } = require("@/lib/userStore") as typeof import("@/lib/userStore")
 const savedInvoices = getActiveOrGlobalItem("invoices")
@@ -235,7 +255,49 @@ const parsedProducts=JSON.parse(savedProducts)
 setProductsCount(parsedProducts.length)
 
 }
+}
 
+let initialLoaded = false
+
+const onCloudSync = () => {
+  initialLoaded = true
+  loadDashboardData()
+}
+
+window.addEventListener("easybill:cloud-sync", onCloudSync as EventListener)
+
+// Run once on mount, but only after KV hydration (prevents "0" values on refresh).
+const tryInitialLoad = () => {
+  if (initialLoaded) return
+
+  const userId = getActiveUserId()
+  const mode = getAuthMode()
+
+  if (mode === "supabase") {
+    if (!userId) return
+    if (!isActiveUserKvHydrated()) return
+  }
+
+  initialLoaded = true
+  loadDashboardData()
+}
+
+tryInitialLoad()
+let attempts = 0
+const intervalId = window.setInterval(() => {
+  if (initialLoaded) {
+    window.clearInterval(intervalId)
+    return
+  }
+  attempts++
+  tryInitialLoad()
+  if (attempts >= 20) window.clearInterval(intervalId) // ~3 seconds
+}, 150)
+
+return () => {
+  window.removeEventListener("easybill:cloud-sync", onCloudSync as EventListener)
+  window.clearInterval(intervalId)
+}
 },[])
 
 function money(value:number){
@@ -264,25 +326,25 @@ const rollingRevenue = chartData.reduce((sum,entry)=>sum + Number(entry.revenue 
 
 return(
 
-<div className="space-y-8">
+<div className="space-y-6 lg:space-y-8">
 
 <section className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-<div className="rounded-[30px] bg-slate-950 p-8 text-white shadow-[0_24px_60px_rgba(15,23,42,0.22)]">
+<div className="rounded-[30px] bg-slate-950 p-6 sm:p-8 lg:p-8 text-white shadow-[0_24px_60px_rgba(15,23,42,0.22)]">
 <p className="text-xs uppercase tracking-[0.34em] text-emerald-300/80">
 Business Overview
 </p>
-<h1 className="font-display mt-4 max-w-3xl text-4xl leading-tight lg:text-5xl">
+<h1 className="font-display mt-4 max-w-3xl text-3xl leading-tight sm:text-4xl lg:text-5xl">
 Your business pulse, recent work, and growth snapshot in one modern dashboard.
 </h1>
-<p className="mt-5 max-w-2xl text-sm leading-7 text-slate-300">
+<p className="mt-4 max-w-2xl text-sm leading-7 text-slate-300">
 Track invoices, revenue, GST, and customer momentum without changing any of the underlying invoice workflow you already rely on.
 </p>
 </div>
 
 <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-1">
-<div className="soft-card rounded-[28px] p-6">
+<div className="soft-card rounded-[28px] p-5 sm:p-6">
 <p className="text-xs uppercase tracking-[0.3em] text-slate-400">This Year Revenue</p>
-<p className="mt-3 text-3xl font-semibold text-slate-950">
+<p className="mt-3 text-2xl sm:text-3xl font-semibold text-slate-950">
 {revenueYear ? money(revenueYear) : "-"}
 </p>
 <p className="mt-2 text-sm text-slate-500">
@@ -290,9 +352,9 @@ Current annual revenue generated from stored invoices.
 </p>
 </div>
 
-<div className="soft-card rounded-[28px] border-emerald-100 bg-emerald-50/70 p-6">
+<div className="soft-card rounded-[28px] border-emerald-100 bg-emerald-50/70 p-5 sm:p-6">
 <p className="text-xs uppercase tracking-[0.3em] text-emerald-700">Growth This Month</p>
-<p className="mt-3 text-3xl font-semibold text-slate-950">
+<p className="mt-3 text-2xl sm:text-3xl font-semibold text-slate-950">
 {growthPercent!==null ? `${growthPercent > 0 ? "+" : ""}${growthPercent}%` : "-"}
 </p>
 <p className="mt-2 text-sm text-slate-600">
@@ -302,47 +364,55 @@ Current annual revenue generated from stored invoices.
 </div>
 </section>
 
-<section className="grid gap-5 md:grid-cols-2 2xl:grid-cols-4">
-<div className="soft-card rounded-[24px] p-6">
+<section className="grid gap-4 grid-cols-2 md:grid-cols-2 2xl:grid-cols-4">
+<div className="soft-card rounded-[24px] p-5 sm:p-6">
 <div className="mb-5 flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
 <FileText className="h-5 w-5" />
 </div>
 <p className="text-sm text-slate-500">This Month Invoices</p>
-<p className="mt-2 text-3xl font-semibold text-slate-950">{thisMonthCount}</p>
+<AutoFitText wrapperClassName="mt-2" spanClassName="text-xl sm:text-2xl font-semibold text-slate-950" minPx={14}>
+{thisMonthCount}
+</AutoFitText>
 </div>
 
 <div
 onClick={()=>router.push("/dashboard/products")}
-className="soft-card cursor-pointer rounded-[24px] p-6 transition hover:-translate-y-0.5 hover:shadow-xl"
+className="soft-card cursor-pointer rounded-[24px] p-5 sm:p-6 transition hover:-translate-y-0.5 hover:shadow-xl"
 >
 <div className="mb-5 flex h-11 w-11 items-center justify-center rounded-2xl bg-sky-50 text-sky-700">
 <Package2 className="h-5 w-5" />
 </div>
 <p className="text-sm text-slate-500">My Products</p>
-<p className="mt-2 text-3xl font-semibold text-slate-950">{productsCount}</p>
+<AutoFitText wrapperClassName="mt-2" spanClassName="text-xl sm:text-2xl font-semibold text-slate-950" minPx={14}>
+{productsCount}
+</AutoFitText>
 </div>
 
-<div className="soft-card rounded-[24px] p-6">
+<div className="soft-card rounded-[24px] p-5 sm:p-6">
 <div className="mb-5 flex h-11 w-11 items-center justify-center rounded-2xl bg-amber-50 text-amber-700">
 <ReceiptIndianRupee className="h-5 w-5" />
 </div>
 <p className="text-sm text-slate-500">GST This Month</p>
-<p className="mt-2 text-3xl font-semibold text-slate-950">{money(gstMonth)}</p>
+<AutoFitText wrapperClassName="mt-2" spanClassName="text-xl sm:text-2xl font-semibold text-slate-950" minPx={14}>
+{money(gstMonth)}
+</AutoFitText>
 </div>
 
-<div className="soft-card rounded-[24px] p-6">
+<div className="soft-card rounded-[24px] p-5 sm:p-6">
 <div className="mb-5 flex h-11 w-11 items-center justify-center rounded-2xl bg-violet-50 text-violet-700">
 <Users className="h-5 w-5" />
 </div>
 <p className="text-sm text-slate-500">Total Clients</p>
-<p className="mt-2 text-3xl font-semibold text-slate-950">{clientsCount}</p>
+<AutoFitText wrapperClassName="mt-2" spanClassName="text-xl sm:text-2xl font-semibold text-slate-950" minPx={14}>
+{clientsCount}
+</AutoFitText>
 </div>
 </section>
 
 <section className="soft-card rounded-[28px] p-6">
 <div className="mb-5 flex items-center justify-between gap-4">
 <div>
-<h2 className="section-title text-2xl">Recent Invoices</h2>
+<h2 className="section-title text-xl sm:text-2xl">Recent Invoices</h2>
 <p className="mt-1 text-sm text-slate-500">Open the latest entries and continue faster.</p>
 </div>
 <button
@@ -354,6 +424,42 @@ View all
 </button>
 </div>
 
+<div className="lg:hidden space-y-3">
+{recentInvoices.length === 0 ? (
+<div className="rounded-[24px] border border-slate-200/70 bg-white p-6 text-center text-sm text-slate-500">
+  No recent invoices
+</div>
+) : (
+recentInvoices.map((inv:any,index)=>(
+<button
+  key={`${inv.invoiceNumber}-${index}`}
+  type="button"
+  onClick={()=>router.push(`/dashboard/invoices/view/${inv.invoiceNumber}`)}
+  className="w-full rounded-[24px] border border-slate-200/70 bg-white p-4 text-left transition hover:bg-slate-50/70 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-100"
+>
+  <div className="flex items-start justify-between gap-4">
+    <div className="min-w-0">
+      <p className="truncate text-sm font-semibold text-slate-900">{inv.invoiceNumber}</p>
+      <p className="mt-1 truncate text-sm text-slate-600">{inv.clientName}</p>
+      <p className="mt-2 text-xs text-slate-500">Date: {formatDate(inv.date,dateFormat)}</p>
+    </div>
+    <div className="text-right">
+      <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">Amount</p>
+      <AutoFitText
+        wrapperClassName="mt-2"
+        spanClassName="text-sm font-semibold text-slate-950"
+        minPx={10}
+      >
+        {money(inv.grandTotal)}
+      </AutoFitText>
+    </div>
+  </div>
+</button>
+))
+)}
+</div>
+
+<div className="hidden lg:block">
 <div className="overflow-hidden rounded-[22px] border border-slate-200/70">
 <table className="w-full text-sm">
 <thead className="bg-slate-50/80">
@@ -367,9 +473,9 @@ View all
 <tbody>
 {recentInvoices.map((inv:any,index)=>(
 <tr
-key={`${inv.invoiceNumber}-${index}`}
-className="cursor-pointer border-b border-slate-100 transition hover:bg-slate-50/70"
-onClick={()=>router.push(`/dashboard/invoices/view/${inv.invoiceNumber}`)}
+  key={`${inv.invoiceNumber}-${index}`}
+  className="cursor-pointer border-b border-slate-100 transition hover:bg-slate-50/70"
+  onClick={()=>router.push(`/dashboard/invoices/view/${inv.invoiceNumber}`)}
 >
 <td className="px-4 py-4 font-medium text-slate-900">{inv.invoiceNumber}</td>
 <td className="px-4 py-4">{inv.clientName}</td>
@@ -380,21 +486,22 @@ onClick={()=>router.push(`/dashboard/invoices/view/${inv.invoiceNumber}`)}
 </tbody>
 </table>
 </div>
+</div>
 </section>
 
 <section className="grid gap-6 xl:grid-cols-4">
-<div className="soft-card rounded-[28px] p-6 xl:col-span-3">
+<div className="soft-card rounded-[28px] p-5 sm:p-6 xl:col-span-3">
 <div className="mb-5 flex items-center gap-3">
 <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-950 text-white">
 <BarChart3 className="h-5 w-5" />
 </div>
 <div>
-<h2 className="section-title text-2xl">Monthly Revenue</h2>
+<h2 className="section-title text-xl sm:text-2xl">Monthly Revenue</h2>
 <p className="text-sm text-slate-500">A rolling 12-month view of invoice totals.</p>
 </div>
 </div>
 
-<ResponsiveContainer width="100%" height={260}>
+<div className="h-44 sm:h-52 lg:h-[260px]"><ResponsiveContainer width="100%" height="100%">
 <AreaChart data={chartData}>
 <defs>
 <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
@@ -406,11 +513,31 @@ onClick={()=>router.push(`/dashboard/invoices/view/${inv.invoiceNumber}`)}
 <XAxis dataKey="month" stroke="#94a3b8"/>
 <YAxis
 stroke="#94a3b8"
+width={typeof window !== "undefined" && window.innerWidth < 1024 ? 56 : undefined}
 tickFormatter={(value)=>{
-if(value>=100000){
-return `${(value/100000).toFixed(1)}L`
-}
-return value
+  const n = Number(value)
+  if (!Number.isFinite(n)) return value
+
+  const stripTrailingZero = (s: string) => (s.endsWith(".0") ? s.slice(0, -2) : s)
+
+  // K range: clamp to show 1K..98K for values below 1 lakh.
+  if (n < 100000) {
+    if (n === 0) return 0
+    const k = Math.min(98, Math.max(1, Math.floor(n / 1000)))
+    return `${k}K`
+  }
+
+  // L for lakhs (>= 1e5 and < 1e7)
+  if (n < 10000000) {
+    const l = n / 100000
+    const asStr = l >= 10 ? String(Math.round(l)) : l.toFixed(1)
+    return `${stripTrailingZero(asStr)}L`
+  }
+
+  // Cr for crores (>= 1e7)
+  const cr = n / 10000000
+  const crStr = cr >= 10 ? String(Math.round(cr)) : cr.toFixed(1)
+  return `${stripTrailingZero(crStr)}Cr`
 }}
 />
 <Tooltip formatter={(value) => money(Number(value ?? 0))} />
@@ -423,24 +550,42 @@ fill="url(#colorRevenue)"
 dot={{r:4}}
 />
 </AreaChart>
-</ResponsiveContainer>
+</ResponsiveContainer></div>
 
 <div className="mt-6 grid gap-4 md:grid-cols-3">
 <div className="rounded-3xl bg-slate-50 p-4">
 <p className="text-xs uppercase tracking-[0.28em] text-slate-400">Best Month</p>
-<p className="mt-2 text-lg font-semibold text-slate-950">{bestMonth.month}</p>
+<AutoFitText
+  wrapperClassName="mt-2"
+  spanClassName="text-lg font-semibold text-slate-950"
+  minPx={10}
+>
+  {monthLabelsFullMap[bestMonth.month] ?? bestMonth.month}
+</AutoFitText>
 <p className="mt-1 text-sm text-slate-500">{money(bestMonth.revenue || 0)}</p>
 </div>
 
 <div className="rounded-3xl bg-slate-50 p-4">
 <p className="text-xs uppercase tracking-[0.28em] text-slate-400">12-Month Average</p>
-<p className="mt-2 text-lg font-semibold text-slate-950">{money(averageRevenue)}</p>
+<AutoFitText
+  wrapperClassName="mt-2"
+  spanClassName="text-lg font-semibold text-slate-950"
+  minPx={10}
+>
+  {money(averageRevenue)}
+</AutoFitText>
 <p className="mt-1 text-sm text-slate-500">Average billed revenue per month.</p>
 </div>
 
 <div className="rounded-3xl bg-slate-950 p-4 text-white">
 <p className="text-xs uppercase tracking-[0.28em] text-slate-400">Current Momentum</p>
-<p className="mt-2 text-lg font-semibold">{thisMonthCount} invoices</p>
+<AutoFitText
+  wrapperClassName="mt-2"
+  spanClassName="text-lg font-semibold"
+  minPx={10}
+>
+  {thisMonthCount} invoices
+</AutoFitText>
 <p className="mt-1 text-sm text-slate-300">
 {revenueThisMonth ? money(revenueThisMonth) : "-"} billed this month.
 </p>
@@ -451,7 +596,7 @@ dot={{r:4}}
 <div className="rounded-3xl border border-slate-200 bg-white p-4">
 <p className="text-xs uppercase tracking-[0.28em] text-slate-400">Lowest Month</p>
 <div className="mt-2 flex items-end justify-between gap-4">
-<p className="text-lg font-semibold text-slate-950">{lowestMonth.month}</p>
+<p className="text-lg font-semibold text-slate-950">{monthLabelsFullMap[lowestMonth.month] ?? lowestMonth.month}</p>
 <p className="text-sm font-medium text-slate-500">{money(lowestMonth.revenue || 0)}</p>
 </div>
 </div>
@@ -472,33 +617,45 @@ dot={{r:4}}
 <TrendingUp className="h-5 w-5" />
 </div>
 <div>
-<h2 className="section-title text-2xl">Quick Stats</h2>
+<h2 className="section-title text-xl sm:text-2xl">Quick Stats</h2>
 <p className="text-sm text-slate-500">Short-term signals worth watching.</p>
 </div>
 </div>
 
-<div className="grid gap-4">
+<div className="grid gap-4 grid-cols-2 lg:grid-cols-1">
 <div className="rounded-3xl bg-slate-50 p-4">
 <p className="text-xs uppercase tracking-[0.28em] text-slate-400">Last Month</p>
-<p className="mt-2 text-xl font-semibold text-slate-950">
-{revenueLastMonth ? money(revenueLastMonth) : "-"}
-</p>
+<AutoFitText
+  wrapperClassName="mt-2"
+  spanClassName="text-base sm:text-xl font-semibold text-slate-950"
+  minPx={12}
+>
+  {revenueLastMonth ? money(revenueLastMonth) : "-"}
+</AutoFitText>
 </div>
 
 <div className="rounded-3xl bg-slate-50 p-4">
 <p className="text-xs uppercase tracking-[0.28em] text-slate-400">This Month</p>
-<p className="mt-2 text-xl font-semibold text-slate-950">
-{revenueThisMonth ? money(revenueThisMonth) : "-"}
-</p>
+<AutoFitText
+  wrapperClassName="mt-2"
+  spanClassName="text-base sm:text-xl font-semibold text-slate-950"
+  minPx={12}
+>
+  {revenueThisMonth ? money(revenueThisMonth) : "-"}
+</AutoFitText>
 </div>
 
 {growthPercent!==null &&(
 <div className="rounded-3xl bg-emerald-50 p-4">
 <p className="text-xs uppercase tracking-[0.28em] text-emerald-700">Growth This Month</p>
-<p className="mt-2 text-xl font-semibold text-slate-950">
-{growthAmount && growthAmount>0 ? "+" : ""}
-{money(growthAmount || 0)}
-</p>
+<AutoFitText
+  wrapperClassName="mt-2"
+  spanClassName="text-base sm:text-xl font-semibold text-slate-950"
+  minPx={12}
+>
+  {growthAmount && growthAmount>0 ? "+" : ""}
+  {money(growthAmount || 0)}
+</AutoFitText>
 <p className={`text-sm ${growthPercent>=0 ? "text-emerald-700" : "text-rose-600"}`}>
 {growthPercent>=0 ? "Up" : "Down"} {growthPercent>0?"+":""}{growthPercent}%
 </p>
@@ -507,14 +664,24 @@ dot={{r:4}}
 
 <div className="rounded-3xl bg-slate-50 p-4">
 <p className="text-xs uppercase tracking-[0.28em] text-slate-400">GST This Year</p>
-<p className="mt-2 text-xl font-semibold text-slate-950">{money(gstYear)}</p>
+<AutoFitText
+  wrapperClassName="mt-2"
+  spanClassName="text-base sm:text-xl font-semibold text-slate-950"
+  minPx={12}
+>
+  {money(gstYear)}
+</AutoFitText>
 </div>
 
 <div className="rounded-3xl bg-slate-950 p-4 text-white">
 <p className="text-xs uppercase tracking-[0.28em] text-slate-400">This Year Revenue</p>
-<p className="mt-2 text-2xl font-semibold">
-{revenueYear ? money(revenueYear) : "-"}
-</p>
+<AutoFitText
+  wrapperClassName="mt-2"
+  spanClassName="text-xl sm:text-2xl font-semibold"
+  minPx={12}
+>
+  {revenueYear ? money(revenueYear) : "-"}
+</AutoFitText>
 </div>
 </div>
 </div>
@@ -522,6 +689,36 @@ dot={{r:4}}
 
 <section className="soft-card rounded-[28px] p-6">
 <h2 className="section-title mb-4 text-2xl">Top Customers</h2>
+<div className="lg:hidden space-y-3">
+{topCustomers.length === 0 ? (
+<div className="rounded-[24px] border border-slate-200/70 bg-white p-6 text-center text-sm text-slate-500">
+  No top customers yet
+</div>
+) : (
+topCustomers.map((cust:any,index)=>(
+<div key={`${cust.name}-${index}`} className="rounded-[24px] border border-slate-200/70 bg-white p-4">
+  <div className="flex items-start justify-between gap-4">
+    <div className="min-w-0">
+      <p className="truncate text-sm font-semibold text-slate-900">{cust.name}</p>
+      <p className="mt-1 text-sm text-slate-600">{cust.count} invoices</p>
+    </div>
+    <div className="text-right">
+      <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">Revenue</p>
+      <AutoFitText
+        wrapperClassName="mt-2"
+        spanClassName="text-sm font-semibold text-slate-950"
+        minPx={10}
+      >
+        {money(cust.revenue)}
+      </AutoFitText>
+    </div>
+  </div>
+</div>
+))
+)}
+</div>
+
+<div className="hidden lg:block">
 <div className="overflow-hidden rounded-[22px] border border-slate-200/70">
 <table className="w-full text-sm">
 <thead className="bg-slate-50/80">
@@ -541,6 +738,7 @@ dot={{r:4}}
 ))}
 </tbody>
 </table>
+</div>
 </div>
 </section>
 

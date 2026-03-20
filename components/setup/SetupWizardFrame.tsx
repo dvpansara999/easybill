@@ -39,7 +39,7 @@ export default function SetupWizardFrame({
             {onBack ? (
               <button
                 onClick={onBack}
-                className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-4 py-2 text-sm font-medium text-slate-700 shadow-sm backdrop-blur transition hover:bg-white hover:text-slate-950"
+                className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-4 py-2 text-sm font-medium text-slate-700 shadow-sm backdrop-blur transition hover:bg-white hover:text-slate-950 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-100"
               >
                 <ArrowLeft className="h-4 w-4" />
                 Back
@@ -76,14 +76,14 @@ export default function SetupWizardFrame({
 
         <header className="mt-10 grid gap-6 lg:grid-cols-[1.1fr_0.9fr] lg:items-end">
           <div>
-            <h1 className="font-display text-5xl leading-[1.02] text-slate-950">{title}</h1>
+            <h1 className="font-display text-3xl leading-[1.02] text-slate-950 sm:text-4xl lg:text-5xl">{title}</h1>
             {description ? (
               <p className="mt-4 max-w-2xl text-base leading-7 text-slate-600">{description}</p>
             ) : null}
           </div>
 
           {bullets.length > 0 ? (
-            <div className="rounded-[28px] border border-slate-200 bg-white/70 p-5 shadow-sm backdrop-blur">
+            <div className="rounded-[28px] border border-slate-200 bg-white/70 p-4 shadow-sm backdrop-blur sm:p-5">
               <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">Quick checklist</p>
               <div className="mt-4 space-y-3 text-sm text-slate-700">
                 {bullets.map((item) => (
@@ -99,11 +99,24 @@ export default function SetupWizardFrame({
           )}
         </header>
 
-        <div className={`mt-8 grid gap-6 ${aside ? "lg:grid-cols-[0.95fr_1.05fr]" : ""}`}>
+        <div className={`mt-8 grid gap-4 sm:gap-6 ${aside ? "lg:grid-cols-[0.95fr_1.05fr]" : ""}`}>
           {aside ? (
-            <aside className="order-2 space-y-6 lg:order-1 lg:sticky lg:top-8 lg:self-start">
-              {aside}
-            </aside>
+            <>
+              {/* Desktop: keep current aside behavior */}
+              <aside className="order-2 space-y-6 lg:order-1 lg:sticky lg:top-8 lg:self-start hidden lg:block">
+                {aside}
+              </aside>
+
+              {/* Mobile: collapse preview/aside so the step content stays primary */}
+              <div className="order-2 lg:hidden">
+                <details className="rounded-[28px] border border-slate-200 bg-white/70 p-4 shadow-sm backdrop-blur">
+                  <summary className="cursor-pointer list-none text-sm font-semibold text-slate-900">
+                    Preview & guidance
+                  </summary>
+                  <div className="mt-3 space-y-6">{aside}</div>
+                </details>
+              </div>
+            </>
           ) : null}
 
           <section className={aside ? "order-1 lg:order-2" : ""}>{children}</section>

@@ -184,7 +184,7 @@ export default function SetupProfileLogoPage() {
     >
       <div className="grid gap-6 lg:grid-cols-2 lg:items-stretch">
         <section className="overflow-hidden rounded-[34px] border border-slate-200 bg-white shadow-[0_30px_90px_rgba(15,23,42,0.08)]">
-          <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-200 px-7 py-6">
+          <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-200 px-4 py-5 sm:px-7 sm:py-6">
             <div>
               <p className="text-sm font-semibold text-slate-900">Upload + crop</p>
               <p className="mt-1 text-sm leading-6 text-slate-500">Pick a logo and crop it for the invoice header.</p>
@@ -194,19 +194,22 @@ export default function SetupProfileLogoPage() {
               {draft.logoSource && (
                 <button
                   onClick={deleteLogo}
-                  className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 hover:text-slate-950"
+                  className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 hover:text-slate-950 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-100"
                 >
                   Remove
                 </button>
               )}
-              <label className="cursor-pointer rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white shadow-[0_18px_44px_rgba(15,23,42,0.18)] transition hover:bg-slate-800">
+              <label
+                tabIndex={0}
+                className="cursor-pointer rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white shadow-[0_18px_44px_rgba(15,23,42,0.18)] transition hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-100 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+              >
                 {draft.logoSource ? "Replace Logo" : "Upload Logo"}
                 <input type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
               </label>
             </div>
           </div>
 
-          <div className="px-7 py-7 space-y-5">
+          <div className="px-4 py-6 sm:px-7 sm:py-7 space-y-5">
             <div className="rounded-[28px] border border-slate-200 bg-slate-950 p-5 text-white">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex items-start gap-4">
@@ -282,12 +285,12 @@ export default function SetupProfileLogoPage() {
         </section>
 
         <section className="overflow-hidden rounded-[34px] border border-slate-200 bg-white shadow-[0_30px_90px_rgba(15,23,42,0.08)]">
-          <div className="border-b border-slate-200 px-7 py-6">
+          <div className="border-b border-slate-200 px-4 py-5 sm:px-7 sm:py-6">
             <p className="text-sm font-semibold text-slate-900">Shape + guidance</p>
             <p className="mt-1 text-sm leading-6 text-slate-500">Choose how your logo is clipped on invoices.</p>
           </div>
 
-          <div className="px-7 py-7 space-y-5">
+          <div className="px-4 py-6 sm:px-7 sm:py-7 space-y-5">
             <div className="rounded-[28px] border border-slate-200 bg-slate-50 p-5">
               <p className="text-xs font-semibold uppercase tracking-[0.32em] text-slate-500">Tip</p>
               <p className="mt-3 text-sm leading-6 text-slate-700">
@@ -308,7 +311,7 @@ export default function SetupProfileLogoPage() {
                     key={option.value}
                     type="button"
                     onClick={() => setDraft((prev) => ({ ...prev, logoShape: option.value }))}
-                    className={`w-full rounded-[24px] border p-5 text-left transition ${
+                    className={`w-full rounded-[24px] border p-5 text-left transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-100 focus-visible:ring-offset-2 focus-visible:ring-offset-white ${
                       active
                         ? "border-indigo-300 bg-indigo-50/70 shadow-[0_12px_28px_rgba(99,102,241,0.10)]"
                         : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
@@ -340,16 +343,16 @@ export default function SetupProfileLogoPage() {
             </div>
           </div>
 
-          <div className="flex flex-col-reverse gap-3 border-t border-slate-200 bg-slate-50/70 px-7 py-6 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col-reverse gap-3 border-t border-slate-200 bg-slate-50/70 px-4 py-5 sm:px-7 sm:py-6 sm:flex-row sm:items-center sm:justify-between">
             <button
               onClick={() => router.push("/setup/profile/terms")}
-              className="rounded-2xl border border-slate-200 bg-white px-6 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 hover:text-slate-950"
+              className="w-full sm:w-auto rounded-2xl border border-slate-200 bg-white px-6 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 hover:text-slate-950 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-100"
             >
               Back
             </button>
             <button
               onClick={saveAndContinue}
-              className="rounded-2xl bg-slate-950 px-6 py-3 text-sm font-semibold text-white shadow-[0_18px_44px_rgba(15,23,42,0.18)] transition hover:bg-slate-800"
+              className="w-full sm:w-auto rounded-2xl bg-slate-950 px-6 py-3 text-sm font-semibold text-white shadow-[0_18px_44px_rgba(15,23,42,0.18)] transition hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-100"
             >
               Save and continue
             </button>

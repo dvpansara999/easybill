@@ -34,8 +34,13 @@ export default function SupabaseAuthSync() {
       lastUserId.current = user?.id || null
       setActiveUserId(user?.id || null)
 
-      if (!user) return
+      if (!user) {
+        window.dispatchEvent(new Event("easybill:auth-sync-initialized"))
+        return
+      }
+
       await sync(user.id)
+      window.dispatchEvent(new Event("easybill:auth-sync-initialized"))
     }
 
     const { data: sub } = supabase.auth.onAuthStateChange((_evt: string, session: any) => {

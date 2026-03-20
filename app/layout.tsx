@@ -4,6 +4,7 @@ import { SettingsProvider } from "@/context/SettingsContext"
 import { Manrope, Fraunces } from "next/font/google"
 import { AppAlertProvider } from "@/components/providers/AppAlertProvider"
 import SupabaseAuthSync from "@/components/providers/SupabaseAuthSync"
+import KvHydrationGate from "@/components/providers/KvHydrationGate"
 
 const manrope = Manrope({
   subsets: ["latin"],
@@ -25,10 +26,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body className={`${manrope.variable} ${fraunces.variable}`}>
         <AppAlertProvider>
-          <SettingsProvider>
-            <SupabaseAuthSync />
-            <BusinessProvider>{children}</BusinessProvider>
-          </SettingsProvider>
+          <SupabaseAuthSync />
+          <KvHydrationGate>
+            <SettingsProvider>
+              <BusinessProvider>{children}</BusinessProvider>
+            </SettingsProvider>
+          </KvHydrationGate>
         </AppAlertProvider>
       </body>
     </html>

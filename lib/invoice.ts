@@ -119,7 +119,31 @@ export function getStoredBusinessRecord(): BusinessRecord | null {
   const { getActiveOrGlobalItem } = require("@/lib/userStore") as typeof import("@/lib/userStore")
   const stored = getActiveOrGlobalItem("businessProfile")
   if (!stored) {
-    return null
+    // In Playwright PDF rendering, there's no authenticated user.
+    // `userStore` intentionally blocks reading global keys in Supabase mode,
+    // but `/api/invoice-pdf` *does* seed `localStorage.businessProfile`.
+    // So we fall back to localStorage directly when the KV/global read is null.
+    try {
+      const raw = localStorage.getItem("businessProfile")
+      if (!raw) return null
+      const parsed = JSON.parse(raw) as Partial<BusinessRecord>
+      return {
+        businessName: parsed.businessName?.trim() || "",
+        address: parsed.address?.trim() || "",
+        gst: parsed.gst?.trim() || "",
+        phone: parsed.phone?.trim() || "",
+        email: parsed.email?.trim() || "",
+        bankName: parsed.bankName?.trim() || "",
+        accountNumber: parsed.accountNumber?.trim() || "",
+        ifsc: parsed.ifsc?.trim() || "",
+        upi: parsed.upi?.trim() || "",
+        terms: parsed.terms?.trim() || "",
+        logo: parsed.logo || "",
+        logoShape: parsed.logoShape === "round" ? "round" : "square",
+      }
+    } catch {
+      return null
+    }
   }
 
   const parsed = JSON.parse(stored) as Partial<BusinessRecord>

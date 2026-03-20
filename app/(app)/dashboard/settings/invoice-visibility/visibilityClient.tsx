@@ -95,17 +95,17 @@ export default function InvoiceVisibilityClient() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 pb-24 lg:space-y-8 lg:pb-0">
       <section>
         <p className="text-xs uppercase tracking-[0.34em] text-emerald-700">Settings</p>
-        <h1 className="font-display mt-3 text-4xl text-slate-950">Invoice visibility</h1>
+        <h1 className="font-display mt-3 text-3xl text-slate-950 sm:text-4xl">Invoice visibility</h1>
         <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-500">
           Choose what information appears on your invoices. This applies everywhere: templates, invoice view, print, and PDF
           downloads.
         </p>
       </section>
 
-      <div className="soft-card rounded-[28px] p-6">
+      <div className="soft-card rounded-[24px] p-4 sm:rounded-[28px] sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 className="section-title text-2xl">Business information</h2>
@@ -114,7 +114,7 @@ export default function InvoiceVisibilityClient() {
           <button
             type="button"
             onClick={resetAllOn}
-            className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+            className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 sm:px-5"
           >
             Reset all ON
           </button>
@@ -133,7 +133,7 @@ export default function InvoiceVisibilityClient() {
         </div>
       </div>
 
-      <div className="soft-card rounded-[28px] p-6">
+      <div className="soft-card rounded-[24px] p-4 sm:rounded-[28px] sm:p-6">
         <div>
           <h2 className="section-title text-2xl">Client information</h2>
           <p className="mt-1 text-sm text-slate-500">Controls what the Bill To section shows.</p>
@@ -158,7 +158,7 @@ export default function InvoiceVisibilityClient() {
         <button
           type="button"
           onClick={() => router.push("/dashboard/settings")}
-          className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+          className="w-full rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 sm:w-auto"
         >
           Back to Settings
         </button>
@@ -168,7 +168,7 @@ export default function InvoiceVisibilityClient() {
             type="button"
             onClick={apply}
             disabled={!hasChanges}
-            className="rounded-2xl bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+            className="w-full rounded-2xl bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 sm:w-auto"
           >
             Apply
           </button>

@@ -115,26 +115,26 @@ export default function ReportBugFeedbackPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 pb-24 lg:space-y-8 lg:pb-0">
       <section className="flex flex-col gap-4">
         <button
           type="button"
           onClick={() => router.push("/dashboard/settings")}
-          className="inline-flex w-fit items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+          className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50 sm:w-fit sm:rounded-full sm:py-2"
         >
           <ArrowLeft className="h-4 w-4" />
           Back to Settings
         </button>
         <div>
           <p className="text-xs uppercase tracking-[0.34em] text-emerald-700">Settings</p>
-          <h1 className="font-display mt-3 text-4xl text-slate-950">Report bug and feedback</h1>
+          <h1 className="font-display mt-3 text-3xl text-slate-950 sm:text-4xl">Report bug and feedback</h1>
           <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-500">
             Share issues and ideas with full context so fixes and improvements can be shipped faster.
           </p>
         </div>
       </section>
 
-      <div className="soft-card rounded-[28px] p-6">
+      <div className="soft-card rounded-[24px] p-4 sm:rounded-[28px] sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h2 className="section-title text-2xl">Report details</h2>
@@ -204,7 +204,7 @@ export default function ReportBugFeedbackPage() {
           <p className="text-sm text-slate-500">
             Report includes account id, page URL, timestamp, and browser details for faster debugging.
           </p>
-          <div className="flex gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row">
             <button
               type="button"
               onClick={copyReport}

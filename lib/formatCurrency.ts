@@ -6,6 +6,10 @@ export function formatCurrency(
   amountFormat: string
 ) {
 
+  // Backwards compatibility: older saved preference used "Rs" for Indian Rupee.
+  // Normalize to the correct ₹ symbol so all places render consistently.
+  const normalizedSymbol = symbol === "Rs" ? "₹" : symbol
+
   const formattedNumber = new Intl.NumberFormat(
     amountFormat === "indian" ? "en-IN" : "en-US",
     {
@@ -15,9 +19,9 @@ export function formatCurrency(
   ).format(amount)
 
   if (position === "before") {
-    return `${symbol}${formattedNumber}`
+    return `${normalizedSymbol}${formattedNumber}`
   } else {
-    return `${formattedNumber} ${symbol}`
+    return `${formattedNumber} ${normalizedSymbol}`
   }
 
 }

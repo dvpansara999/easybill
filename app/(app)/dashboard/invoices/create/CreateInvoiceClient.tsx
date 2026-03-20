@@ -335,12 +335,12 @@ export default function CreateInvoiceClient() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 pb-24 xl:space-y-8 xl:pb-0">
       <section className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
         <div>
           <button
             onClick={goBackToInvoices}
-            className="mb-5 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50 hover:text-slate-950"
+            className="mb-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-600 transition hover:bg-slate-50 hover:text-slate-950 sm:mb-5 sm:w-auto sm:justify-start sm:rounded-full sm:py-2"
           >
             <ArrowLeft className="h-4 w-4" />
             Back
@@ -349,45 +349,45 @@ export default function CreateInvoiceClient() {
         </div>
       </section>
 
-      <section className="grid gap-4 xl:grid-cols-4">
-        <div className="soft-card rounded-[24px] px-5 py-4">
+      <section className="grid grid-cols-2 gap-3 xl:grid-cols-4 xl:gap-4">
+        <div className="soft-card rounded-[24px] px-4 py-3 sm:px-5 sm:py-4">
           <p className="text-xs uppercase tracking-[0.28em] text-slate-400">Invoice Number</p>
-          <p className="mt-2 text-2xl font-semibold text-slate-950">{invoiceNumber}</p>
+          <p className="mt-1.5 text-lg font-semibold text-slate-950 sm:mt-2 sm:text-2xl">{invoiceNumber}</p>
         </div>
 
-        <div className="soft-card rounded-[24px] px-5 py-4">
+        <div className="soft-card rounded-[24px] px-4 py-3 sm:px-5 sm:py-4">
           <p className="text-xs uppercase tracking-[0.28em] text-slate-400">Subtotal</p>
-          <p className="mt-2 text-2xl font-semibold text-slate-950">{money(subtotal)}</p>
+          <p className="mt-1.5 text-lg font-semibold text-slate-950 sm:mt-2 sm:text-2xl">{money(subtotal)}</p>
         </div>
 
-        <div className="soft-card rounded-[24px] px-5 py-4">
+        <div className="soft-card rounded-[24px] px-4 py-3 sm:px-5 sm:py-4">
           <p className="text-xs uppercase tracking-[0.28em] text-slate-400">Taxes</p>
-          <p className="mt-2 text-2xl font-semibold text-slate-950">{money(cgstTotal + sgstTotal + igstTotal)}</p>
+          <p className="mt-1.5 text-lg font-semibold text-slate-950 sm:mt-2 sm:text-2xl">{money(cgstTotal + sgstTotal + igstTotal)}</p>
         </div>
 
-        <div className="rounded-[24px] bg-slate-950 px-5 py-4 text-white">
+        <div className="rounded-[24px] bg-slate-950 px-4 py-3 text-white sm:px-5 sm:py-4">
           <p className="text-xs uppercase tracking-[0.28em] text-slate-400">Grand Total</p>
-          <p className="mt-2 text-2xl font-semibold">{money(grandTotal)}</p>
+          <p className="mt-1.5 text-lg font-semibold sm:mt-2 sm:text-2xl">{money(grandTotal)}</p>
         </div>
       </section>
 
-      <section className="soft-card rounded-[28px] p-6">
+      <section className="soft-card rounded-[24px] p-4 sm:p-6 xl:rounded-[28px]">
         <div className="mb-6 flex items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
             <UserRound className="h-5 w-5" />
           </div>
           <div>
-            <h2 className="section-title text-2xl">Client Details</h2>
-            <p className="text-sm text-slate-500">Search existing clients or enter fresh billing details.</p>
+            <h2 className="section-title text-xl sm:text-2xl">Client Details</h2>
+            <p className="text-xs text-slate-500 sm:text-sm">Search existing clients quickly or add fresh billing details.</p>
           </div>
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-[1.15fr_0.8fr_1.25fr_1fr_220px]">
+        <div className="grid gap-3 sm:gap-4 lg:grid-cols-2 xl:grid-cols-[1.15fr_0.8fr_1.25fr_1fr_220px]">
           <div className="relative">
             <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Client Name *</label>
             <input
               placeholder="Client Name"
-              className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+                className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
               value={clientName}
               onChange={(e) => searchClientName(e.target.value)}
             />
@@ -414,7 +414,7 @@ export default function CreateInvoiceClient() {
             <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Client Phone</label>
             <input
               placeholder="Client Phone"
-              className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+                className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
               value={clientPhone}
               onChange={(e) => searchClientPhone(e.target.value)}
             />
@@ -441,7 +441,7 @@ export default function CreateInvoiceClient() {
             <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Client Email</label>
             <input
               placeholder="Client Email"
-              className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+                className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
               value={clientEmail}
               onChange={(e) => setClientEmail(e.target.value)}
             />
@@ -451,7 +451,7 @@ export default function CreateInvoiceClient() {
             <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Client GSTIN</label>
             <input
               placeholder="Client GSTIN"
-              className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+                className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
               value={clientGST}
               onChange={(e) => setClientGST(e.target.value)}
             />
@@ -461,14 +461,14 @@ export default function CreateInvoiceClient() {
             <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Invoice Date *</label>
             <input
               type="date"
-              className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+                className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
               value={date}
               onChange={(e) => setDate(e.target.value)}
             />
           </div>
         </div>
 
-        <div className="mt-4 grid gap-4 xl:grid-cols-2">
+        <div className="mt-4 grid gap-3 sm:gap-4 xl:grid-cols-2">
           <div>
             <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Client Address</label>
             <div className="rounded-[24px] border border-slate-200 bg-white p-4">
@@ -484,11 +484,11 @@ export default function CreateInvoiceClient() {
           <div>
             <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Custom Details</label>
             <div className="rounded-[24px] border border-slate-200 bg-white p-4">
-              <div className="mb-3 flex items-center justify-between">
+              <div className="mb-3 flex flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-center">
                 <p className="text-sm text-slate-500">Optional details like project name or work type.</p>
                 <button
                   onClick={addCustomDetail}
-                  className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50 hover:text-slate-950"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50 hover:text-slate-950 sm:w-auto sm:rounded-full sm:py-2"
                 >
                   <CirclePlus className="h-4 w-4" />
                   Add Detail
@@ -534,28 +534,38 @@ export default function CreateInvoiceClient() {
         </div>
       </section>
 
-      <section className="soft-card rounded-[28px] p-6">
+      <section className="soft-card rounded-[24px] p-4 sm:p-6 xl:rounded-[28px]">
         <div className="mb-6 flex items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-sky-50 text-sky-700">
             <Package2 className="h-5 w-5" />
           </div>
           <div>
-            <h2 className="section-title text-2xl">Invoice Items</h2>
-            <p className="text-sm text-slate-500">Add products, HSN details, taxes, and line totals.</p>
+            <h2 className="section-title text-xl sm:text-2xl">Invoice Items</h2>
+            <p className="text-xs text-slate-500 sm:text-sm">Fast mobile entry for products, tax, and totals.</p>
           </div>
         </div>
 
         <div className="space-y-4">
           {items.map((item, index) => (
-            <div key={index} className="rounded-[26px] border border-slate-200 bg-white p-4">
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-[1.7fr_0.95fr_0.62fr_0.7fr_0.9fr_0.68fr_0.68fr_0.68fr_1fr_auto]">
-                <div className="relative">
+            <div key={index} className="rounded-[24px] border border-slate-200 bg-white p-3 sm:rounded-[26px] sm:p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Item {index + 1}</p>
+                <button
+                  onClick={() => removeProduct(index)}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-rose-200 bg-rose-50 text-rose-600 transition hover:bg-rose-100"
+                  aria-label={`Remove item ${index + 1}`}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="grid grid-cols-2 gap-2.5 sm:gap-3 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-[1.7fr_0.95fr_0.62fr_0.7fr_0.9fr_0.68fr_0.68fr_0.68fr_1fr_auto]">
+                <div className="relative col-span-2">
                   <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Product *</label>
                   <input
                     value={item.product}
                     onChange={(e) => searchProduct(index, e.target.value)}
                     placeholder="Product"
-                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
                   />
 
                   {activeRow === index && suggestions.length > 0 && (
@@ -576,13 +586,13 @@ export default function CreateInvoiceClient() {
                   )}
                 </div>
 
-                <div>
+                <div className="col-span-2 sm:col-span-1">
                   <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">HSN</label>
                   <input
                     value={item.hsn}
                     onChange={(e) => searchHSN(index, e.target.value)}
                     placeholder="HSN"
-                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
                   />
                 </div>
 
@@ -594,7 +604,7 @@ export default function CreateInvoiceClient() {
                     value={item.qty}
                     onChange={(e) => handleItemChange(index, "qty", e.target.value === "" ? "" : Number(e.target.value))}
                     placeholder="Qty"
-                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
                   />
                 </div>
 
@@ -604,7 +614,7 @@ export default function CreateInvoiceClient() {
                     value={item.unit}
                     onChange={(e) => handleItemChange(index, "unit", e.target.value)}
                     placeholder="Unit"
-                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
                   />
                 </div>
 
@@ -616,7 +626,7 @@ export default function CreateInvoiceClient() {
                     value={item.price}
                     onChange={(e) => handleItemChange(index, "price", e.target.value === "" ? "" : Number(e.target.value))}
                     placeholder="Price"
-                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
                   />
                 </div>
 
@@ -628,7 +638,7 @@ export default function CreateInvoiceClient() {
                     value={item.cgst}
                     onChange={(e) => handleItemChange(index, "cgst", e.target.value === "" ? "" : Number(e.target.value))}
                     placeholder="CGST"
-                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
                   />
                 </div>
 
@@ -640,7 +650,7 @@ export default function CreateInvoiceClient() {
                     value={item.sgst}
                     onChange={(e) => handleItemChange(index, "sgst", e.target.value === "" ? "" : Number(e.target.value))}
                     placeholder="SGST"
-                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
                   />
                 </div>
 
@@ -652,24 +662,15 @@ export default function CreateInvoiceClient() {
                     value={item.igst}
                     onChange={(e) => handleItemChange(index, "igst", e.target.value === "" ? "" : Number(e.target.value))}
                     placeholder="IGST"
-                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
                   />
                 </div>
 
-                <div>
+                <div className="col-span-2 sm:col-span-1">
                   <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Total</label>
                   <div className="flex items-center rounded-2xl bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-900">
                     {money(item.total)}
                   </div>
-                </div>
-
-                <div className="flex items-end">
-                  <button
-                    onClick={() => removeProduct(index)}
-                    className="inline-flex items-center justify-center rounded-2xl border border-rose-200 bg-rose-50 px-3 py-3 text-rose-600 transition hover:bg-rose-100"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
                 </div>
               </div>
             </div>
@@ -678,15 +679,15 @@ export default function CreateInvoiceClient() {
 
         <button
           onClick={addProduct}
-          className="mt-4 inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-600 transition hover:bg-slate-50 hover:text-slate-950"
+          className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-600 transition hover:bg-slate-50 hover:text-slate-950 sm:w-auto"
         >
           <Plus className="h-4 w-4" />
           Add Product
         </button>
       </section>
 
-      <section className="soft-card rounded-[28px] p-6">
-        <h2 className="section-title text-2xl">Invoice Summary</h2>
+      <section className="soft-card rounded-[24px] p-4 sm:p-6 xl:rounded-[28px]">
+        <h2 className="section-title text-xl sm:text-2xl">Invoice Summary</h2>
         <div className="mt-5 grid gap-4 lg:grid-cols-2">
           <div className="space-y-3 rounded-[24px] border border-slate-200 bg-white p-5 text-sm text-slate-600">
             <div className="flex justify-between">
@@ -709,18 +710,28 @@ export default function CreateInvoiceClient() {
 
           <div className="rounded-[24px] bg-slate-950 p-6 text-white">
             <p className="text-xs uppercase tracking-[0.28em] text-slate-400">Grand Total</p>
-            <p className="mt-3 text-4xl font-semibold">{money(grandTotal)}</p>
+            <p className="mt-3 text-3xl font-semibold sm:text-4xl">{money(grandTotal)}</p>
           </div>
         </div>
 
         <button
           onClick={saveInvoice}
-          className="mt-5 inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+          className="mt-5 hidden items-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 xl:inline-flex"
         >
           <Save className="h-4 w-4" />
           Save Invoice
         </button>
       </section>
+
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200/80 bg-white/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-12px_40px_rgba(15,23,42,0.08)] backdrop-blur-md xl:hidden">
+        <button
+          onClick={saveInvoice}
+          className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-slate-800"
+        >
+          <Save className="h-4 w-4" />
+          Save Invoice
+        </button>
+      </div>
     </div>
   )
 }

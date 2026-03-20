@@ -55,7 +55,17 @@ function getStoredTemplate() {
 
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { getActiveOrGlobalItem } = require("@/lib/userStore") as typeof import("@/lib/userStore")
-  return getActiveOrGlobalItem("invoiceTemplate") || "classic-default"
+  const fromKv = getActiveOrGlobalItem("invoiceTemplate")
+  if (fromKv) return fromKv
+
+  // Playwright PDF rendering has no authenticated user.
+  // `/api/invoice-pdf` seeds `localStorage.invoiceTemplate`, so fall back to it.
+  try {
+    const raw = localStorage.getItem("invoiceTemplate")
+    return raw || "classic-default"
+  } catch {
+    return "classic-default"
+  }
 }
 
 export default function InvoicePrint() {
@@ -73,6 +83,14 @@ export default function InvoicePrint() {
   const [template, setTemplate] = useState("default")
   const [fontFamily, setFontFamily] = useState(getStoredTemplateTypography().fontFamily)
   const [fontSize, setFontSize] = useState(getStoredTemplateTypography().fontSize)
+  const [assetsReady, setAssetsReady] = useState(false)
+
+  useEffect(() => {
+    ;(window as any).__EASYBILL_PDF_READY = false
+    return () => {
+      ;(window as any).__EASYBILL_PDF_READY = false
+    }
+  }, [])
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -95,6 +113,61 @@ export default function InvoicePrint() {
       }
     })
   }, [])
+
+  useEffect(() => {
+    if (!mounted || !invoice) {
+      setAssetsReady(false)
+      ;(window as any).__EASYBILL_PDF_READY = false
+      return
+    }
+
+    let cancelled = false
+    const markReadyIfNotCancelled = () => {
+      if (cancelled) return
+      setAssetsReady(true)
+      ;(window as any).__EASYBILL_PDF_READY = true
+    }
+
+    const run = async () => {
+      // Wait one frame so template markup (including logo <img>) is in DOM.
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+      if (cancelled) return
+
+      const root = document.getElementById("invoice-print-root")
+      if (!root) {
+        markReadyIfNotCancelled()
+        return
+      }
+
+      const images = Array.from(root.querySelectorAll("img"))
+      if (images.length === 0) {
+        markReadyIfNotCancelled()
+        return
+      }
+
+      await Promise.all(
+        images.map(async (img) => {
+          if (img.complete) return
+          await new Promise<void>((resolve) => {
+            const done = () => resolve()
+            img.addEventListener("load", done, { once: true })
+            img.addEventListener("error", done, { once: true })
+          })
+        })
+      )
+
+      markReadyIfNotCancelled()
+    }
+
+    ;(window as any).__EASYBILL_PDF_READY = false
+    setAssetsReady(false)
+    void run()
+
+    return () => {
+      cancelled = true
+      ;(window as any).__EASYBILL_PDF_READY = false
+    }
+  }, [mounted, invoice, business, template, fontFamily, fontSize])
 
   if (!mounted || !invoice) {
     return <div className="p-6 text-sm text-slate-500">Preparing invoice…</div>
@@ -194,7 +267,7 @@ export default function InvoicePrint() {
 
       <div
         id="invoice-print-root"
-        data-ready="true"
+        data-ready={assetsReady ? "true" : "false"}
         style={{ padding: "0", background: "white" }}
       >
         {template.startsWith("modern") ? (
