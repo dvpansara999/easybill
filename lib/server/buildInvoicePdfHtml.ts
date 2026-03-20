@@ -363,20 +363,29 @@ export function buildInvoicePdfHtml(input: BuildInvoicePdfHtmlInput): string {
 
     <script>
       (async function () {
-        const root = document.querySelector(".page");
-        const imgs = Array.from(document.querySelectorAll("img"));
-        await Promise.race([
-          Promise.all(imgs.map((img) => img.complete ? Promise.resolve() : new Promise((r) => {
-            const done = () => r();
-            img.addEventListener("load", done, { once: true });
-            img.addEventListener("error", done, { once: true });
-            setTimeout(done, 3000);
-          }))),
-          new Promise((r) => setTimeout(r, 3000)),
-        ]);
-        try { if (document.fonts?.ready) await Promise.race([document.fonts.ready, new Promise((r) => setTimeout(r, 2000))]); } catch {}
-        if (root && (root.textContent || "").trim().length > 20) {
-          document.getElementById("pdf-ready")?.setAttribute("data-ready", "1");
+        try {
+          const imgs = Array.from(document.querySelectorAll("img"));
+          await Promise.race([
+            Promise.all(imgs.map((img) => img.complete ? Promise.resolve() : new Promise((r) => {
+              const done = () => r();
+              img.addEventListener("load", done, { once: true });
+              img.addEventListener("error", done, { once: true });
+              setTimeout(done, 3000);
+            }))),
+            new Promise((r) => setTimeout(r, 3000)),
+          ]);
+          try {
+            if (document.fonts && document.fonts.ready) {
+              await Promise.race([
+                document.fonts.ready,
+                new Promise((r) => setTimeout(r, 2000))
+              ]);
+            }
+          } catch {}
+        } finally {
+          // Always emit readiness to avoid flaky timeouts from async image/font paths.
+          var ready = document.getElementById("pdf-ready");
+          if (ready) ready.setAttribute("data-ready", "1");
         }
       })();
     </script>

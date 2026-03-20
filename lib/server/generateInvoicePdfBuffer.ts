@@ -74,19 +74,33 @@ export async function generateInvoicePdfBuffer(params: { html: string }): Promis
       const diag = await page
         .evaluate(() => {
           const root = document.querySelector(".page")
+          const textLen = (root?.textContent || "").trim().length
+          const rowCount = document.querySelectorAll("tbody tr").length
+          const hasSummary = !!document.querySelector(".summary")
           return {
-            textLen: (root?.textContent || "").trim().length,
+            textLen,
+            rowCount,
+            hasSummary,
             hasReady: !!document.getElementById("pdf-ready"),
             readyAttr: document.getElementById("pdf-ready")?.getAttribute("data-ready"),
           }
         })
         .catch(() => null)
       console.error("[invoice-pdf] ready timeout diagnostics:", diag)
-      return {
-        ok: false,
-        code: "PDF_READY_TIMEOUT",
-        message: "Invoice layout did not become ready for PDF export.",
-        httpStatus: 504,
+
+      // Soft fallback: if core invoice DOM exists, continue PDF generation.
+      const looksRenderable =
+        !!diag &&
+        typeof (diag as { textLen?: unknown }).textLen === "number" &&
+        Number((diag as { textLen: number }).textLen) > 80 &&
+        Boolean((diag as { hasSummary?: unknown }).hasSummary)
+      if (!looksRenderable) {
+        return {
+          ok: false,
+          code: "PDF_READY_TIMEOUT",
+          message: "Invoice layout did not become ready for PDF export.",
+          httpStatus: 504,
+        }
       }
     }
 
