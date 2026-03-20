@@ -12,12 +12,12 @@
 1. **`app/api/invoice-pdf/route.ts`** — server-authoritative fetch from `user_kv` (invoice, business, settings, template).
 2. **`normalizeInvoiceForPdf`** — recompute line totals from qty/price/tax.
 3. **`buildInvoicePdfHtml`** — build standalone HTML (all styles inline, no app navigation).
-4. **`generateInvoicePdfBuffer`** — launch Playwright Chromium, `page.setContent(html)`, `waitForSelector("#pdf-ready[data-ready='1']")`, then `page.pdf(...)`.
+4. **`generateInvoicePdfBuffer`** — launch Playwright Chromium, `page.setContent(html, { waitUntil: "load" })`, short wait, then `page.pdf(...)`.
 
 ## Why this pipeline
 
 - No `/invoice-print` route hop.
-- Predictable PDF readiness (`#pdf-ready`) controlled inside the HTML template.
+- Deterministic static render: no readiness protocol, no DOM event signaling.
 - Lower runtime overhead than hydrating the full app route before print.
 
 ## Ops (Vercel)

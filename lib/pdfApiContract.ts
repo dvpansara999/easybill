@@ -11,7 +11,6 @@ export type PdfApiErrorBody = {
     | "KV_ERROR"
     | "PDF_ENGINE"
     | "PDF_NAV_TIMEOUT"
-    | "PDF_READY_TIMEOUT"
     | "PDF_RENDER"
     | "PDF_BUILD"
     | "INTERNAL"

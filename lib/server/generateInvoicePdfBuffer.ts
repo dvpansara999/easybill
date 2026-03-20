@@ -8,7 +8,7 @@ export type PdfGenSuccess = {
 
 export type PdfGenFailure = {
   ok: false
-  code: "PDF_ENGINE" | "PDF_NAV_TIMEOUT" | "PDF_READY_TIMEOUT" | "PDF_RENDER"
+  code: "PDF_ENGINE" | "PDF_NAV_TIMEOUT" | "PDF_RENDER"
   message: string
   httpStatus: number
 }
@@ -58,7 +58,7 @@ export async function generateInvoicePdfBuffer(params: { html: string }): Promis
     page.setDefaultNavigationTimeout(45_000)
 
     try {
-      await page.setContent(params.html, { waitUntil: "domcontentloaded", timeout: 45_000 })
+      await page.setContent(params.html, { waitUntil: "load", timeout: 45_000 })
     } catch {
       return {
         ok: false,
@@ -67,50 +67,12 @@ export async function generateInvoicePdfBuffer(params: { html: string }): Promis
         httpStatus: 504,
       }
     }
-
-    try {
-      await page.waitForSelector("#pdf-ready[data-ready='1']", { timeout: 45_000 })
-    } catch {
-      const diag = await page
-        .evaluate(() => {
-          const root = document.querySelector(".page")
-          const textLen = (root?.textContent || "").trim().length
-          const rowCount = document.querySelectorAll("tbody tr").length
-          const hasSummary = !!document.querySelector(".summary")
-          return {
-            textLen,
-            rowCount,
-            hasSummary,
-            hasReady: !!document.getElementById("pdf-ready"),
-            readyAttr: document.getElementById("pdf-ready")?.getAttribute("data-ready"),
-          }
-        })
-        .catch(() => null)
-      console.error("[invoice-pdf] ready timeout diagnostics:", diag)
-
-      // Soft fallback: if core invoice DOM exists, continue PDF generation.
-      const looksRenderable =
-        !!diag &&
-        typeof (diag as { textLen?: unknown }).textLen === "number" &&
-        Number((diag as { textLen: number }).textLen) > 80 &&
-        Boolean((diag as { hasSummary?: unknown }).hasSummary)
-      if (!looksRenderable) {
-        return {
-          ok: false,
-          code: "PDF_READY_TIMEOUT",
-          message: "Invoice layout did not become ready for PDF export.",
-          httpStatus: 504,
-        }
-      }
-    }
+    await page.waitForTimeout(100)
 
     try {
       const pdf = await page.pdf({
         format: "A4",
         printBackground: true,
-        margin: { top: "8mm", right: "8mm", bottom: "8mm", left: "8mm" },
-        preferCSSPageSize: false,
-        tagged: false,
       })
       const elapsedMs = Date.now() - started
       return { ok: true, pdfBytes: new Uint8Array(pdf), elapsedMs }
