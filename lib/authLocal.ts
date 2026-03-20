@@ -7,6 +7,16 @@ export type AuthRecord = {
   hash: string
 }
 
+type PublicAuthRecord = {
+  userId: string
+  email: string
+}
+
+type AuthResult = {
+  record: PublicAuthRecord | null
+  error: string
+}
+
 const AUTH_ACCOUNTS_KEY = "authAccounts:v2"
 const AUTH_ACTIVE_USER_ID_KEY = "authActiveUserId" // sessionStorage
 const AUTH_LAST_USER_ID_KEY = "authLastUserId" // localStorage
@@ -132,34 +142,39 @@ export async function signUp(email: string, password: string) {
   const accounts = readAccounts()
   const emailNorm = normalizeEmail(email)
   if (accounts.some((a) => normalizeEmail(a.email) === emailNorm)) {
-    return { record: null as any, error: "An account with this email already exists." }
+    return { record: null, error: "An account with this email already exists." } satisfies AuthResult
   }
   const rec = await createAuthRecord(email.trim(), password)
   writeAccounts([...accounts, rec])
   setActiveUserId(rec.userId)
-  return { record: { userId: rec.userId, email: rec.email }, error: "" }
+  return { record: { userId: rec.userId, email: rec.email }, error: "" } satisfies AuthResult
 }
 
 export async function signIn(email: string, password: string) {
   const accounts = readAccounts()
   const emailNorm = normalizeEmail(email)
   const rec = accounts.find((a) => normalizeEmail(a.email) === emailNorm)
-  if (!rec) return { record: null as any, error: "Incorrect email or password." }
+  if (!rec) return { record: null, error: "Incorrect email or password." } satisfies AuthResult
   const ok = await verifyPassword(rec, password)
-  if (!ok) return { record: null as any, error: "Incorrect email or password." }
+  if (!ok) return { record: null, error: "Incorrect email or password." } satisfies AuthResult
   setActiveUserId(rec.userId)
-  return { record: { userId: rec.userId, email: rec.email }, error: "" }
+  return { record: { userId: rec.userId, email: rec.email }, error: "" } satisfies AuthResult
 }
 
-export async function signInWithOtp(_: string, __opts?: { shouldCreateUser?: boolean }) {
+export async function signInWithOtp(email: string, options?: { shouldCreateUser?: boolean }) {
+  void email
+  void options
   return { error: "OTP sign-in is not available in localStorage safety mode." }
 }
 
-export async function verifyEmailOtp(_: string, __token: string) {
+export async function verifyEmailOtp(email: string, token: string) {
+  void email
+  void token
   return { error: "OTP verification is not available in localStorage safety mode." }
 }
 
-export async function signInWithProvider(_: "google" | "apple") {
+export async function signInWithProvider(provider: "google" | "apple") {
+  void provider
   return { url: "", error: "OAuth sign-in is not available in localStorage safety mode." }
 }
 
@@ -167,16 +182,20 @@ export async function signOut() {
   setActiveUserId(null)
 }
 
-export async function updatePasswordAfterOtp(_: string) {
-  return { record: null as any, error: "OTP password update is not available in localStorage safety mode." }
+export async function updatePasswordAfterOtp(password: string) {
+  void password
+  return { record: null, error: "OTP password update is not available in localStorage safety mode." } satisfies AuthResult
 }
 
-export async function requestEmailChangeOtp(_: { currentPassword: string; newEmail: string }) {
+export async function requestEmailChangeOtp(payload: { currentPassword: string; newEmail: string }) {
+  void payload
   return { error: "OTP email change is not available in localStorage safety mode." }
 }
 
-export async function verifyEmailChangeOtp(_: string, __: string) {
-  return { record: null as any, error: "OTP email change is not available in localStorage safety mode." }
+export async function verifyEmailChangeOtp(email: string, code: string) {
+  void email
+  void code
+  return { record: null, error: "OTP email change is not available in localStorage safety mode." } satisfies AuthResult
 }
 
 export async function updateCredentials(params: {
@@ -187,20 +206,19 @@ export async function updateCredentials(params: {
 }) {
   const accounts = readAccounts()
   const existing = accounts.find((a) => a.userId === params.userId)
-  if (!existing) return { record: null as any, error: "Account not found." }
+  if (!existing) return { record: null, error: "Account not found." } satisfies AuthResult
 
   const ok = await verifyPassword(existing, params.currentPassword)
-  if (!ok) return { record: null as any, error: "Current password is incorrect." }
+  if (!ok) return { record: null, error: "Current password is incorrect." } satisfies AuthResult
 
   const nextEmail = params.newEmail?.trim() ? params.newEmail.trim() : existing.email
   const emailNorm = normalizeEmail(nextEmail)
   const collision = accounts.find((a) => a.userId !== existing.userId && normalizeEmail(a.email) === emailNorm)
-  if (collision) return { record: null as any, error: "That email is already used by another account." }
+  if (collision) return { record: null, error: "That email is already used by another account." } satisfies AuthResult
 
   const nextPassword = params.newPassword ? params.newPassword : params.currentPassword
   const nextRecord = await createAuthRecord(nextEmail, nextPassword, existing.userId)
   writeAccounts(accounts.map((a) => (a.userId === existing.userId ? nextRecord : a)))
   setActiveUserId(existing.userId)
-  return { record: { userId: nextRecord.userId, email: nextRecord.email }, error: "" }
+  return { record: { userId: nextRecord.userId, email: nextRecord.email }, error: "" } satisfies AuthResult
 }
-

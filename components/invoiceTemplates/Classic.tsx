@@ -1,5 +1,16 @@
+import Image from "next/image"
 import { DEFAULT_INVOICE_VISIBILITY, type InvoiceVisibilitySettings } from "@/context/SettingsContext"
 import { invoiceTemplateRootTypographyStyle } from "@/lib/invoiceTemplateRootStyle"
+import type {
+  TemplateBusinessRecord,
+  TemplateComponentProps,
+  TemplateFooterProps,
+  TemplateHeaderProps,
+  TemplateInfoProps,
+  TemplateItemsProps,
+  TemplateSummaryProps,
+  TemplateTheme,
+} from "@/components/invoiceTemplates/templateTypes"
 
 export const templateMeta = {
 id:"classic-ledger",
@@ -8,7 +19,7 @@ category:"classic",
 popular:true
 }
 
-const classicThemes: Record<string, any> = {
+const classicThemes: Record<string, TemplateTheme> = {
 "classic-ledger": { accent:"#111827", paper:"#fffdf8", border:"#6b7280", header:"ledger", table:"ledger", serif:false, info:"split", logo:false },
 "classic-bold": { accent:"#111827", paper:"#ffffff", border:"#374151", header:"double", table:"heavy", serif:false, info:"stack", logo:false },
 "classic-office": { accent:"#1f2937", paper:"#ffffff", border:"#9ca3af", header:"office", table:"plain", serif:false, info:"detailsFirst", logo:true },
@@ -49,15 +60,19 @@ function classicFontClass(serif:boolean){
 return serif ? "font-serif" : ""
 }
 
-function renderClassicLogo(business:any, enabled:boolean){
+function renderClassicLogo(business: TemplateBusinessRecord, enabled:boolean){
 if(!enabled || !business?.logo) return null
 const frameClass = business?.logoShape === "round"
 ? "mb-4 h-14 w-14 rounded-full border border-gray-300 bg-white p-1 object-cover"
 : "mb-4 h-14 w-14 rounded-xl border border-gray-300 bg-white p-1 object-cover"
-return <img src={business.logo} alt="" className={frameClass} />
+return (
+<div className={`relative overflow-hidden ${frameClass}`}>
+<Image src={business.logo} alt="" fill unoptimized className="object-cover" />
+</div>
+)
 }
 
-function ClassicHeader({invoice,businessInfo,formatDate,dateFormat,theme,visibility}:any){
+function ClassicHeader({invoice,businessInfo,formatDate,dateFormat,theme,visibility}: TemplateHeaderProps){
 const fontClass = classicFontClass(theme.serif)
 const businessName = visibility.businessName ? businessInfo?.businessName || "BUSINESS NAME" : ""
 
@@ -174,7 +189,7 @@ return(
 </div>
 )}
 
-function ClassicBillTo({invoice,details,theme,visibility}:any){
+function ClassicBillTo({invoice,details,theme,visibility}: TemplateInfoProps){
 if(theme.info === "stack"){
 return(
 <div className={`space-y-6 ${classicFontClass(theme.serif)}`}>
@@ -193,7 +208,7 @@ return(
 <>
 <p className="font-semibold">Additional Details</p>
 <div className="mt-2 space-y-1 text-sm">
-{details.map((detail:any,index:number)=>(<p key={index}><b>{detail.label}:</b> {detail.value}</p>))}
+{details.map((detail, index:number)=>(<p key={index}><b>{detail.label}:</b> {detail.value}</p>))}
 </div>
 </>
 ) : (
@@ -212,7 +227,7 @@ return(
 <>
 <p className="font-semibold">Additional Details</p>
 <div className="mt-2 space-y-1 text-sm">
-{details.map((detail:any,index:number)=>(<p key={index}><b>{detail.label}:</b> {detail.value}</p>))}
+{details.map((detail, index:number)=>(<p key={index}><b>{detail.label}:</b> {detail.value}</p>))}
 </div>
 </>
 ) : (
@@ -247,7 +262,7 @@ return(
 <>
 <p className="font-semibold">Additional Details</p>
 <div className="mt-2 space-y-1 text-sm">
-{details.map((detail:any,index:number)=>(
+{details.map((detail, index:number)=>(
 <p key={index}><b>{detail.label}:</b> {detail.value}</p>
 ))}
 </div>
@@ -264,7 +279,7 @@ return(
 </div>
 )}
 
-function ClassicItems({invoice,money,gstDisplay,theme}:any){
+function ClassicItems({invoice,money,gstDisplay,theme}: TemplateItemsProps){
 const tableBorder = theme.table === "heavy" ? "2px" : "1px"
 const tableHeadBg = theme.table === "tax" ? theme.paper : "#f3f4f6"
 return(
@@ -282,7 +297,7 @@ return(
 </tr>
 </thead>
 <tbody>
-{invoice?.items?.map((item:any,index:number)=>{
+{invoice?.items?.map((item, index:number)=>{
 const base = Number(item.qty ?? 0) * Number(item.price ?? 0)
 const cgstAmount = item.cgst ? (base * Number(item.cgst)) / 100 : 0
 const sgstAmount = item.sgst ? (base * Number(item.sgst)) / 100 : 0
@@ -303,7 +318,7 @@ return(
 </table>
 )}
 
-function ClassicSummary({invoice,subtotal,totalCGST,totalSGST,totalIGST,money,theme}:any){
+function ClassicSummary({invoice,subtotal,totalCGST,totalSGST,totalIGST,money,theme}: TemplateSummaryProps){
 return(
 <div className={`w-[300px] border p-4 ${classicFontClass(theme.serif)}`} style={{ borderColor: theme.border }}>
 <div className="space-y-2 text-sm">
@@ -319,7 +334,7 @@ return(
 </div>
 )}
 
-function ClassicFooter({businessInfo,theme,visibility}:any){
+function ClassicFooter({businessInfo,theme,visibility}: TemplateFooterProps){
 return(
 <div className={`grid grid-cols-2 gap-8 border-t pt-6 ${classicFontClass(theme.serif)}`} style={{ borderColor: theme.border }}>
 <div>
@@ -362,7 +377,7 @@ gstDisplay,
 formatDate,
 dateFormat,
 invoiceVisibility
-}:any){
+}: TemplateComponentProps){
 
 const theme = classicThemes[templateId] || classicThemes["classic-ledger"]
 const details = invoice?.customDetails || []

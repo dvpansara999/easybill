@@ -1,3 +1,4 @@
+import Image from "next/image"
 export const templateMeta = {
 id:"minimal-light",
 name:"Minimal Light",
@@ -7,8 +8,20 @@ popular:true
 
 import { DEFAULT_INVOICE_VISIBILITY, type InvoiceVisibilitySettings } from "@/context/SettingsContext"
 import { invoiceTemplateRootTypographyStyle } from "@/lib/invoiceTemplateRootStyle"
+import type {
+  TemplateBusinessRecord,
+  TemplateComponentProps,
+  TemplateCustomDetail,
+  TemplateFooterProps,
+  TemplateHeaderProps,
+  TemplateInfoProps,
+  TemplateInvoiceRecord,
+  TemplateItemsProps,
+  TemplateSummaryProps,
+  TemplateTheme,
+} from "@/components/invoiceTemplates/templateTypes"
 
-const minimalThemes: Record<string, any> = {
+const minimalThemes: Record<string, TemplateTheme> = {
 "minimal-light": { accent:"#111827", soft:"#f3f4f6", line:"#e5e7eb", mode:"plain", header:"stack", summary:"clean", info:"split", logo:false },
 "minimal-dark": { accent:"#111827", soft:"#f5f5f5", line:"#d4d4d8", mode:"plain", header:"split", summary:"rule", info:"stack", logo:false },
 "minimal-white": { accent:"#374151", soft:"#ffffff", line:"#e5e7eb", mode:"open", header:"stack", summary:"clean", info:"detailsTop", logo:false },
@@ -46,15 +59,19 @@ const minimalThemes: Record<string, any> = {
 "minimal-summit": { accent:"#064e3b", soft:"#ecfdf5", line:"#a7f3d0", mode:"boxed", header:"stack", summary:"panel", info:"stack", logo:true }
 }
 
-function renderLogo(business:any, enabled:boolean){
+function renderLogo(business: TemplateBusinessRecord, enabled:boolean){
 if(!enabled || !business?.logo) return null
 const frameClass = business?.logoShape === "round"
 ? "mb-4 h-14 w-14 rounded-full border border-gray-200 bg-white p-1 object-cover"
 : "mb-4 h-14 w-14 rounded-2xl border border-gray-200 bg-white p-1 object-cover"
-return <img src={business.logo} alt="" className={frameClass} />
+return (
+<div className={`relative overflow-hidden ${frameClass}`}>
+<Image src={business.logo} alt="" fill unoptimized className="object-cover" />
+</div>
+)
 }
 
-function MinimalHeader({invoice,businessInfo,formatDate,dateFormat,theme,visibility}:any){
+function MinimalHeader({invoice,businessInfo,formatDate,dateFormat,theme,visibility}: TemplateHeaderProps){
 const businessName = visibility.businessName ? businessInfo?.businessName || "BUSINESS" : ""
 if(theme.header === "split"){
 return(
@@ -111,7 +128,7 @@ return(
 </div>
 )}
 
-function renderBillTo(invoice:any, visibility: InvoiceVisibilitySettings){
+function renderBillTo(invoice: TemplateInvoiceRecord | undefined, visibility: InvoiceVisibilitySettings){
 return(
 <div className="text-sm">
 <p className="font-medium text-gray-500">Bill To</p>
@@ -125,7 +142,7 @@ return(
 </div>
 )}
 
-function renderDetails(details:any[]){
+function renderDetails(details: TemplateCustomDetail[]){
 if(!details?.length){
 return <p className="text-sm text-gray-400">No additional details</p>
 }
@@ -134,7 +151,7 @@ return(
 <div className="text-sm">
 <p className="font-medium text-gray-500">Additional Details</p>
 <div className="mt-3 space-y-1 text-gray-700">
-{details.map((detail:any,index:number)=>(
+{details.map((detail, index:number)=>(
 <p key={index}>
 <span className="font-medium text-gray-900">{detail.label}:</span> {detail.value}
 </p>
@@ -144,7 +161,7 @@ return(
 )
 }
 
-function MinimalInfo({invoice,details,theme,visibility}:any){
+function MinimalInfo({invoice,details,theme,visibility}: TemplateInfoProps){
 if(theme.info === "stack"){
 return(
 <div className="mt-8 space-y-6">
@@ -176,7 +193,7 @@ return(
 </div>
 )}
 
-function MinimalItems({invoice,money,gstDisplay,theme}:any){
+function MinimalItems({invoice,money,gstDisplay,theme}: TemplateItemsProps){
 return(
 <table className="w-full text-sm">
 <thead>
@@ -192,7 +209,7 @@ return(
 </tr>
 </thead>
 <tbody>
-{invoice?.items?.map((item:any,index:number)=>{
+{invoice?.items?.map((item, index:number)=>{
 const base = Number(item.qty ?? 0) * Number(item.price ?? 0)
 const cgstAmount = item.cgst ? (base * Number(item.cgst)) / 100 : 0
 const sgstAmount = item.sgst ? (base * Number(item.sgst)) / 100 : 0
@@ -213,7 +230,7 @@ return(
 </table>
 )}
 
-function MinimalSummary({invoice,subtotal,totalCGST,totalSGST,totalIGST,money,theme}:any){
+function MinimalSummary({invoice,subtotal,totalCGST,totalSGST,totalIGST,money,theme}: TemplateSummaryProps){
 return(
 <div className={theme.summary === "panel" ? "rounded-xl p-5" : "p-0"} style={theme.summary === "panel" ? { backgroundColor: theme.soft } : undefined}>
 <div className="space-y-2 text-sm text-gray-700">
@@ -229,7 +246,7 @@ return(
 </div>
 )}
 
-function MinimalFooter({businessInfo,visibility}:any){
+function MinimalFooter({businessInfo,visibility}: TemplateFooterProps){
 return(
 <div className="grid grid-cols-2 gap-8 pt-6">
 <div className="text-sm text-gray-600">
@@ -273,7 +290,7 @@ gstDisplay,
 formatDate,
 dateFormat,
 invoiceVisibility
-}:any){
+}: TemplateComponentProps){
 const businessInfo = business || {}
 const details = invoice?.customDetails || []
 const theme = minimalThemes[templateId] || minimalThemes["minimal-light"]

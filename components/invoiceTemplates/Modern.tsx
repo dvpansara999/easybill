@@ -1,5 +1,13 @@
+import Image from "next/image"
 import { DEFAULT_INVOICE_VISIBILITY, type InvoiceVisibilitySettings } from "@/context/SettingsContext"
 import { invoiceTemplateRootTypographyStyle } from "@/lib/invoiceTemplateRootStyle"
+import type {
+  TemplateBusinessRecord,
+  TemplateComponentProps,
+  TemplateCustomDetail,
+  TemplateInvoiceRecord,
+  TemplateTheme,
+} from "@/components/invoiceTemplates/templateTypes"
 
 export const templateMeta = {
 id:"modern-default",
@@ -8,7 +16,7 @@ category:"modern",
 popular:true
 }
 
-const modernThemes: Record<string, any> = {
+const modernThemes: Record<string, TemplateTheme> = {
 "modern-default": { accent:"#0f172a", soft:"#e2e8f0", tint:"#f8fafc", mode:"banner", table:"lines", summary:"card", info:"split", logo:true },
 "modern-pro": { accent:"#1d4ed8", soft:"#dbeafe", tint:"#f8fbff", mode:"split", table:"zebra", summary:"card", info:"stack", logo:false },
 "modern-slate": { accent:"#334155", soft:"#cbd5e1", tint:"#f8fafc", mode:"banner", table:"grid", summary:"card", info:"cards", logo:true },
@@ -49,17 +57,21 @@ const modernThemes: Record<string, any> = {
 "modern-atelier": { accent:"#1f2937", soft:"#e5e7eb", tint:"#fcfcfd", mode:"folio", table:"lines", summary:"card", info:"split", logo:true }
 }
 
-function renderLogo(business:any, enabled:boolean, size:string){
+function renderLogo(business: TemplateBusinessRecord, enabled:boolean, size:string){
 if(!enabled || !business?.logo) return null
 
 const frameClass = business?.logoShape === "round"
 ? "rounded-full border border-white/50 bg-white/90 p-1 object-cover"
 : "rounded-2xl border border-white/50 bg-white/90 p-1 object-cover"
 
-return <img src={business.logo} alt="" className={`${size} ${frameClass}`} />
+return (
+<div className={`relative w-16 overflow-hidden ${size} ${frameClass}`}>
+<Image src={business.logo} alt="" fill unoptimized className="object-cover" />
+</div>
+)
 }
 
-function renderBusinessContact(business:any, dark:boolean, visibility: InvoiceVisibilitySettings){
+function renderBusinessContact(business: TemplateBusinessRecord, dark:boolean, visibility: InvoiceVisibilitySettings){
 const textClass = dark ? "text-white/85" : "text-gray-600"
 return(
 <div className={`space-y-1 text-sm ${textClass}`}>
@@ -71,7 +83,7 @@ return(
 )
 }
 
-function renderBillTo(invoice:any, visibility: InvoiceVisibilitySettings){
+function renderBillTo(invoice: TemplateInvoiceRecord | undefined, visibility: InvoiceVisibilitySettings){
 return(
 <div>
 <p className="text-xs uppercase tracking-[0.25em] text-gray-500">Bill To</p>
@@ -86,7 +98,7 @@ return(
 )
 }
 
-function renderDetails(details:any[]){
+function renderDetails(details: TemplateCustomDetail[]){
 if(!details?.length){
 return <p className="text-sm text-gray-400">No additional details</p>
 }
@@ -95,7 +107,7 @@ return(
 <div>
 <p className="text-xs uppercase tracking-[0.25em] text-gray-500">Additional Details</p>
 <div className="mt-2 space-y-1 text-sm text-gray-600">
-{details.map((detail:any,index:number)=>(
+{details.map((detail, index:number)=>(
 <p key={index}>
 <span className="font-semibold text-gray-800">{detail.label}:</span> {detail.value}
 </p>
@@ -105,7 +117,7 @@ return(
 )
 }
 
-function renderInfoBlocks(invoice:any, details:any[], theme:any, visibility: InvoiceVisibilitySettings){
+function renderInfoBlocks(invoice: TemplateInvoiceRecord | undefined, details: TemplateCustomDetail[], theme: TemplateTheme, visibility: InvoiceVisibilitySettings){
 if(theme.info === "stack"){
 return(
 <div className="mt-8 space-y-6">
@@ -137,7 +149,12 @@ return(
 </div>
 )}
 
-function renderItemsTable(invoice:any, money:any, gstDisplay:any, theme:any){
+function renderItemsTable(
+  invoice: TemplateInvoiceRecord | undefined,
+  money: TemplateComponentProps["money"],
+  gstDisplay: TemplateComponentProps["gstDisplay"],
+  theme: TemplateTheme
+){
 const rows = invoice?.items || []
 const tableClass = theme.table === "grid" ? "w-full text-sm border border-gray-200" : "w-full text-sm"
 const headerClass = theme.table === "airy"
@@ -160,7 +177,7 @@ return(
 </tr>
 </thead>
 <tbody>
-{rows.map((item:any,index:number)=>{
+{rows.map((item, index:number)=>{
 const rowTone = theme.table === "zebra" && index % 2 === 1 ? "bg-gray-50" : ""
 const base = Number(item.qty ?? 0) * Number(item.price ?? 0)
 const cgstAmount = item.cgst ? (base * Number(item.cgst)) / 100 : 0
@@ -186,7 +203,15 @@ return(
 )
 }
 
-function renderSummary(invoice:any, subtotal:number, totalCGST:number, totalSGST:number, totalIGST:number, money:any, theme:any){
+function renderSummary(
+  invoice: TemplateInvoiceRecord | undefined,
+  subtotal:number,
+  totalCGST:number,
+  totalSGST:number,
+  totalIGST:number,
+  money: TemplateComponentProps["money"],
+  theme: TemplateTheme
+){
 const wrapperClass =
 theme.summary === "glass"
 ? "rounded-2xl border border-white/60 bg-white/70 backdrop-blur p-5"
@@ -212,7 +237,7 @@ return(
 )
 }
 
-function renderFooter(business:any, visibility: InvoiceVisibilitySettings){
+function renderFooter(business: TemplateBusinessRecord, visibility: InvoiceVisibilitySettings){
 return(
 <div className="grid grid-cols-2 gap-8 border-t border-gray-200 pt-6">
 <div>
@@ -256,7 +281,7 @@ gstDisplay,
 formatDate,
 dateFormat,
 invoiceVisibility
-}:any){
+}: TemplateComponentProps){
 
 const details = invoice?.customDetails || []
 const businessInfo = business || {}

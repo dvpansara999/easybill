@@ -1,6 +1,6 @@
 import { getActiveUserId } from "@/lib/auth"
 import { createSupabaseBrowserClient, getSupabaseUser } from "@/lib/supabase/browser"
-import { deleteKvFromSupabase, pushKvToSupabase } from "@/lib/supabase/userKvSync"
+import { KV_KEYS, deleteKvFromSupabase, pushKvToSupabase, type KvKey } from "@/lib/supabase/userKvSync"
 import { getAuthMode } from "@/lib/runtimeMode"
 import { scopedKey } from "@/lib/scopedKey"
 import { protectSensitiveDataForStorage, revealSensitiveDataFromStorage } from "@/lib/sensitiveData"
@@ -29,6 +29,10 @@ const hydratedUsers = new Set<string>()
 
 function isSetupKey(key: string) {
   return key === "setupProfileDraft" || key === "setupResumePath"
+}
+
+function isCloudKvKey(key: string): key is KvKey {
+  return (KV_KEYS as readonly string[]).includes(key)
 }
 
 function cacheId(userId: string, key: string) {
@@ -305,7 +309,8 @@ function schedulePush(key: string, value: string) {
 
       try {
         // Only push keys we track in cloud KV.
-        await pushKvToSupabase(supabase, actualUserId, key as any, value)
+        if (!isCloudKvKey(key)) return
+        await pushKvToSupabase(supabase, actualUserId, key, value)
       } catch (e) {
         // Prevent unhandled promise rejections from breaking UX.
         console.error("KV push failed", { key, capturedUserId, actualUserId, e })
@@ -338,7 +343,8 @@ function scheduleDelete(key: string) {
       cloudCache.delete(cacheId(actualUserId, key))
 
       try {
-        await deleteKvFromSupabase(supabase, actualUserId, key as any)
+        if (!isCloudKvKey(key)) return
+        await deleteKvFromSupabase(supabase, actualUserId, key)
       } catch (e) {
         console.error("KV delete failed", { key, capturedUserId, actualUserId, e })
       }
@@ -359,6 +365,6 @@ export async function flushCloudKeyNow(key: string) {
 
   const value = cloudCache.get(cacheId(actualUserId, key)) ?? cloudCache.get(cacheId(activeUserId, key))
   if (value == null) return
-  await pushKvToSupabase(supabase, actualUserId, key as any, value)
+  if (!isCloudKvKey(key)) return
+  await pushKvToSupabase(supabase, actualUserId, key, value)
 }
-

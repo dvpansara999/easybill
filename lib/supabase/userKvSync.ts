@@ -1,11 +1,10 @@
 "use client"
 
 import type { SupabaseClient } from "@supabase/supabase-js"
-import { scopedKey } from "@/lib/scopedKey"
 
 const TABLE = "user_kv"
 
-const KV_KEYS = [
+export const KV_KEYS = [
   "accountSetupBundle",
   "businessProfile",
   "invoices",
@@ -31,16 +30,7 @@ const KV_KEYS = [
   "emailChangeAudit",
 ] as const
 
-type KvKey = (typeof KV_KEYS)[number]
-
-function readAnyLocal(key: string) {
-  if (typeof window === "undefined") return null
-  try {
-    return window.localStorage.getItem(key)
-  } catch {
-    return null
-  }
-}
+export type KvKey = (typeof KV_KEYS)[number]
 
 export async function pullSupabaseKvToCache(supabase: SupabaseClient, userId: string) {
   const { data, error } = await supabase
@@ -78,8 +68,9 @@ export async function deleteKvFromSupabase(supabase: SupabaseClient, userId: str
 }
 
 export async function pushLocalSeedIfSupabaseEmpty(supabase: SupabaseClient, userId: string) {
+  void supabase
+  void userId
   // Setup draft/resume are stored locally-only now (to avoid RLS issues and
   // cross-account leakage during onboarding). User KV seeding is therefore disabled.
   return
 }
-

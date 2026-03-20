@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import SetupWizardFrame from "@/components/setup/SetupWizardFrame"
 import { useBusiness } from "@/context/BusinessContext"
 import { useSettings } from "@/context/SettingsContext"
-import { emptySetupProfileDraft, getSetupProfileDraft } from "@/lib/setupProfileDraft"
+import { getSetupProfileDraft } from "@/lib/setupProfileDraft"
 import { generateInvoiceNumber } from "@/lib/invoiceNumber"
 import { getActiveOrGlobalItem, setActiveOrGlobalItem } from "@/lib/userStore"
 import SelectMenu from "@/components/ui/SelectMenu"
@@ -39,8 +39,11 @@ export default function SetupProfileSettingsPage() {
     updateCurrencyPosition,
   } = useSettings()
 
-  const [draftProfile, setDraftProfile] = useState(emptySetupProfileDraft)
-  const [invoiceHistory, setInvoiceHistory] = useState<InvoiceHistoryRecord[]>([])
+  const [draftProfile] = useState(() => getSetupProfileDraft())
+  const [invoiceHistory] = useState<InvoiceHistoryRecord[]>(() => {
+    const savedInvoices = getActiveOrGlobalItem("invoices")
+    return savedInvoices ? (JSON.parse(savedInvoices) as InvoiceHistoryRecord[]) : []
+  })
   const [draftDateFormat, setDraftDateFormat] = useState(dateFormat)
   const [draftAmountFormat, setDraftAmountFormat] = useState(amountFormat)
   const [draftShowDecimals, setDraftShowDecimals] = useState(showDecimals)
@@ -53,20 +56,8 @@ export default function SetupProfileSettingsPage() {
   const [finishing, setFinishing] = useState(false)
 
   useEffect(() => {
-    const storedDraft = getSetupProfileDraft()
-    if (!storedDraft.businessName || !storedDraft.email) {
-      router.push("/setup/profile")
-      return
-    }
-    setDraftProfile(storedDraft)
     setActiveOrGlobalItem("setupResumePath", "/setup/profile/settings")
-
-    const savedInvoices = getActiveOrGlobalItem("invoices")
-    setInvoiceHistory(savedInvoices ? (JSON.parse(savedInvoices) as InvoiceHistoryRecord[]) : [])
-  }, [router])
-
-  const selectStyle =
-    "w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+  }, [])
 
   const invoicePreview = useMemo(() => {
     return generateInvoiceNumber(
@@ -77,6 +68,14 @@ export default function SetupProfileSettingsPage() {
       draftResetYearly
     )
   }, [invoiceHistory, draftInvoicePadding, draftInvoicePrefix, draftInvoiceStartNumber, draftResetYearly])
+
+  if (!draftProfile.businessName || !draftProfile.email) {
+    router.push("/setup/profile")
+    return null
+  }
+ 
+  const selectStyle =
+    "w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
 
   function finishSetup() {
     if (finishing) return

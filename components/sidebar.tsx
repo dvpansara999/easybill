@@ -1,5 +1,6 @@
 "use client"
 
+import Image from "next/image"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { useBusiness } from "@/context/BusinessContext"
@@ -69,11 +70,15 @@ export default function Sidebar({
 
         <div className="mt-5 flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-3">
           {business?.logo ? (
-            <img
-              src={business.logo}
-              alt=""
-              className="h-11 w-11 rounded-2xl object-cover ring-1 ring-white/15"
-            />
+            <div className="relative h-11 w-11 overflow-hidden rounded-2xl ring-1 ring-white/15">
+              <Image
+                src={business.logo}
+                alt=""
+                fill
+                unoptimized
+                className="object-cover"
+              />
+            </div>
           ) : (
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/12 text-sm font-bold">
               {business?.businessName?.charAt(0) || "B"}

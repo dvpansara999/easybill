@@ -15,6 +15,7 @@ import {
 import { flushCloudKeyNow, setActiveOrGlobalItem } from "@/lib/userStore"
 import { getSupabaseUser } from "@/lib/supabase/browser"
 import SelectMenu from "@/components/ui/SelectMenu"
+import { normalizeInvoiceRecord, type InvoiceRecord } from "@/lib/invoice"
 
 type EmailChangePolicy = {
   canChange: boolean
@@ -61,7 +62,7 @@ export default function SettingsClient() {
   const [draftCurrencyPosition, setDraftCurrencyPosition] = useState(currencyPosition)
   const [ready, setReady] = useState(false)
   const [saveMessage, setSaveMessage] = useState("")
-  const [invoiceHistory, setInvoiceHistory] = useState<any[]>([])
+  const [invoiceHistory, setInvoiceHistory] = useState<InvoiceRecord[]>([])
   const [accountEmail, setAccountEmail] = useState("")
   const [accountUserId, setAccountUserId] = useState("")
   const [currentPassword, setCurrentPassword] = useState("")
@@ -118,7 +119,12 @@ export default function SettingsClient() {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { getActiveOrGlobalItem } = require("@/lib/userStore") as typeof import("@/lib/userStore")
     const savedInvoices = getActiveOrGlobalItem("invoices")
-    setInvoiceHistory(savedInvoices ? JSON.parse(savedInvoices) : [])
+    try {
+      const parsed = savedInvoices ? (JSON.parse(savedInvoices) as unknown) : []
+      setInvoiceHistory(Array.isArray(parsed) ? parsed.map((invoice) => normalizeInvoiceRecord(invoice as Partial<InvoiceRecord>)) : [])
+    } catch {
+      setInvoiceHistory([])
+    }
 
     const auth = getActiveAuthRecord()
     if (auth) {
@@ -888,4 +894,3 @@ export default function SettingsClient() {
     </div>
   )
 }
-

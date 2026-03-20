@@ -1,5 +1,18 @@
 # Project Safe Points
 
+## SAFE_POINT: before chaos
+
+Created: 2026-03-20
+
+Meaning of this checkpoint:
+- Baseline state immediately after full architecture study and lint health check.
+- No code changes have been applied yet in this cleanup/fix phase.
+- Use this as the exact restore target before any broad bug-fixing or refactor work begins.
+
+How to use:
+- If user says exactly: `before chaos`
+- Treat this as a restore target and bring code back to this checkpoint state.
+
 ## SAFE_POINT: everything is working with supabase except logo re-upload
 
 Created: 2026-03-19

@@ -1,38 +1,29 @@
-export function generateInvoiceNumber(
-  invoices:any[],
-  prefix:string,
-  padding:number,
-  startNumber:number,
-  resetYearly:boolean
-){
+type InvoiceNumberSource = {
+  invoiceNumber?: string
+  date?: string
+}
 
+export function generateInvoiceNumber(
+  invoices: InvoiceNumberSource[],
+  prefix: string,
+  padding: number,
+  startNumber: number,
+  resetYearly: boolean
+) {
   const currentYear = new Date().getFullYear()
 
-  let filtered = invoices
-
-  if(resetYearly){
-    filtered = invoices.filter((inv:any)=>{
-      const year = new Date(inv.date).getFullYear()
-      return year === currentYear
-    })
-  }
+  const filtered = resetYearly
+    ? invoices.filter((invoice) => new Date(invoice.date || "").getFullYear() === currentYear)
+    : invoices
 
   let maxNumber = startNumber - 1
 
-  filtered.forEach((inv:any)=>{
-
-    const num = Number(inv.invoiceNumber.replace(/\D/g,""))
-
-    if(num > maxNumber){
-      maxNumber = num
+  filtered.forEach((invoice) => {
+    const numericPart = Number(String(invoice.invoiceNumber || "").replace(/\D/g, ""))
+    if (numericPart > maxNumber) {
+      maxNumber = numericPart
     }
-
   })
 
-  const nextNumber = maxNumber + 1
-
-  const padded = String(nextNumber).padStart(padding,"0")
-
-  return `${prefix}${padded}`
-
+  return `${prefix}${String(maxNumber + 1).padStart(padding, "0")}`
 }

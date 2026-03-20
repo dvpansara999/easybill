@@ -3,25 +3,25 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import SetupWizardFrame from "@/components/setup/SetupWizardFrame"
-import { emptySetupProfileDraft, getSetupProfileDraft, saveSetupProfileDraft } from "@/lib/setupProfileDraft"
+import { getSetupProfileDraft, saveSetupProfileDraft } from "@/lib/setupProfileDraft"
 import { setActiveOrGlobalItem } from "@/lib/userStore"
 import { Landmark, QrCode } from "lucide-react"
 
 export default function SetupProfileBankPage() {
   const router = useRouter()
-  const [draft, setDraft] = useState(emptySetupProfileDraft)
+  const [draft, setDraft] = useState(() => getSetupProfileDraft())
+  const isMissingBasics = !draft.businessName || !draft.email
 
   useEffect(() => {
-    const storedDraft = getSetupProfileDraft()
-    if (!storedDraft.businessName || !storedDraft.email) {
+    if (isMissingBasics) {
       router.push("/setup/profile")
-      return
     }
-    setDraft(storedDraft)
     setActiveOrGlobalItem("setupResumePath", "/setup/profile/bank")
-  }, [router])
+  }, [isMissingBasics, router])
 
-  function handleChange(field: string, value: string) {
+  if (isMissingBasics) return null
+
+  function handleChange(field: "bankName" | "accountNumber" | "ifsc" | "upi", value: string) {
     setDraft((prev) => ({ ...prev, [field]: value }))
   }
 

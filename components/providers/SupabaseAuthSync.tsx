@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef } from "react"
+import type { Session } from "@supabase/supabase-js"
 import { createSupabaseBrowserClient, getSupabaseUser } from "@/lib/supabase/browser"
 import { setActiveUserId } from "@/lib/auth"
 import { pullSupabaseKvToCache, pushLocalSeedIfSupabaseEmpty } from "@/lib/supabase/userKvSync"
@@ -46,7 +47,7 @@ export default function SupabaseAuthSync() {
       window.dispatchEvent(new Event("easybill:auth-sync-initialized"))
     }
 
-    const { data: sub } = supabase.auth.onAuthStateChange((_evt: string, session: any) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((_evt: string, session: Session | null) => {
       const nextId = session?.user?.id || null
       const prevId = lastUserId.current
       lastUserId.current = nextId
@@ -81,4 +82,3 @@ export default function SupabaseAuthSync() {
 
   return null
 }
-

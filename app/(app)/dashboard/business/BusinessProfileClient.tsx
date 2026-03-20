@@ -2,15 +2,73 @@
 
 import "react-easy-crop/react-easy-crop.css"
 
+import Image from "next/image"
 import { type Area, type Point } from "react-easy-crop"
 import Cropper from "react-easy-crop"
 import { type ChangeEvent, useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useBusiness } from "@/context/BusinessContext"
-import { Building2, Check, Circle, ImagePlus, Landmark, ScrollText, Square, Upload } from "lucide-react"
+import { Building2, Check, Circle, Landmark, ScrollText, Square, Upload } from "lucide-react"
 import { getActiveOrGlobalItem, setActiveOrGlobalItem } from "@/lib/userStore"
 import { useAppAlert } from "@/components/providers/AppAlertProvider"
 import { MAX_LOGO_BYTES, uploadLogoToSupabase } from "@/lib/logoUpload"
+
+type BusinessProfile = {
+  businessName: string
+  address: string
+  gst: string
+  phone: string
+  email: string
+  bankName: string
+  accountNumber: string
+  ifsc: string
+  upi: string
+  terms: string
+  logo: string
+  logoShape: "square" | "round"
+}
+
+const emptyProfile: BusinessProfile = {
+  businessName: "",
+  address: "",
+  gst: "",
+  phone: "",
+  email: "",
+  bankName: "",
+  accountNumber: "",
+  ifsc: "",
+  upi: "",
+  terms: "",
+  logo: "",
+  logoShape: "square",
+}
+
+function readProfileFromStore(): BusinessProfile {
+  if (typeof window === "undefined") return emptyProfile
+
+  const saved = getActiveOrGlobalItem("businessProfile")
+  if (!saved) return emptyProfile
+
+  try {
+    const parsed = JSON.parse(saved) as Partial<BusinessProfile>
+    return {
+      businessName: parsed.businessName || "",
+      address: parsed.address || "",
+      gst: parsed.gst || "",
+      phone: parsed.phone || "",
+      email: parsed.email || "",
+      bankName: parsed.bankName || "",
+      accountNumber: parsed.accountNumber || "",
+      ifsc: parsed.ifsc || "",
+      upi: parsed.upi || "",
+      terms: parsed.terms || "",
+      logo: parsed.logo || "",
+      logoShape: parsed.logoShape === "round" ? "round" : "square",
+    }
+  } catch {
+    return emptyProfile
+  }
+}
 
 export default function BusinessProfileClient() {
   const { setBusiness } = useBusiness()
@@ -19,22 +77,7 @@ export default function BusinessProfileClient() {
   const setupMode = searchParams.get("setup") === "1"
   const { showAlert } = useAppAlert()
 
-  const emptyProfile = {
-    businessName: "",
-    address: "",
-    gst: "",
-    phone: "",
-    email: "",
-    bankName: "",
-    accountNumber: "",
-    ifsc: "",
-    upi: "",
-    terms: "",
-    logo: "",
-    logoShape: "square" as "square" | "round",
-  }
-
-  const [profile, setProfile] = useState(emptyProfile)
+  const [profile, setProfile] = useState<BusinessProfile>(() => readProfileFromStore())
   const [logoSource, setLogoSource] = useState("")
   const [logoCrop, setLogoCrop] = useState<Point>({ x: 0, y: 0 })
   const [logoZoom, setLogoZoom] = useState(1)
@@ -77,48 +120,16 @@ export default function BusinessProfileClient() {
     return canvas.toDataURL("image/webp", 0.82)
   }
 
-  function loadProfileFromStore() {
-    const saved = getActiveOrGlobalItem("businessProfile")
-
-    if (!saved) {
-      setProfile(emptyProfile)
-      return false
-    }
-
-    const parsed = JSON.parse(saved)
-
-    const loadedProfile = {
-      businessName: parsed.businessName || "",
-      address: parsed.address || "",
-      gst: parsed.gst || "",
-      phone: parsed.phone || "",
-      email: parsed.email || "",
-      bankName: parsed.bankName || "",
-      accountNumber: parsed.accountNumber || "",
-      ifsc: parsed.ifsc || "",
-      upi: parsed.upi || "",
-      terms: parsed.terms || "",
-      logo: parsed.logo || "",
-      logoShape: (parsed.logoShape === "round" ? "round" : "square") as "square" | "round",
-    }
-
-    setProfile(loadedProfile)
-    setBusiness(loadedProfile)
-    return true
-  }
-
   useEffect(() => {
-    loadProfileFromStore()
-
     function onCloudSync() {
-      loadProfileFromStore()
+      setProfile(readProfileFromStore())
     }
 
     window.addEventListener("easybill:cloud-sync", onCloudSync as EventListener)
     return () => window.removeEventListener("easybill:cloud-sync", onCloudSync as EventListener)
   }, [])
 
-  const handleChange = (field: string, value: string) => {
+  const handleChange = (field: keyof BusinessProfile, value: string) => {
     setProfile((prev) => ({
       ...prev,
       [field]: value,
@@ -300,7 +311,9 @@ export default function BusinessProfileClient() {
                     profile.logoShape === "round" ? "rounded-full" : "rounded-[22px]"
                   }`}
                 >
-                  <img src={profile.logo} alt="" className="h-full w-full object-cover" />
+                  <div className="relative h-full w-full">
+                    <Image src={profile.logo} alt="" fill unoptimized className="object-cover" />
+                  </div>
                 </div>
               </div>
             ) : (
@@ -488,4 +501,3 @@ export default function BusinessProfileClient() {
     </div>
   )
 }
-

@@ -1,71 +1,57 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import { useEffect, useRef, useState } from "react"
 
-export default function SoftSelect({
-value,
-options,
-onChange
-}:{
-value:any
-options:{label:string,value:any}[]
-onChange:(v:any)=>void
-}){
+type OptionValue = string | number
 
-const [open,setOpen] = useState(false)
-const ref = useRef<HTMLDivElement>(null)
-
-useEffect(()=>{
-
-function close(e:any){
-if(ref.current && !ref.current.contains(e.target)){
-setOpen(false)
-}
+type SoftSelectProps<T extends OptionValue> = {
+  value: T
+  options: Array<{ label: string; value: T }>
+  onChange: (value: T) => void
 }
 
-document.addEventListener("mousedown",close)
-return ()=>document.removeEventListener("mousedown",close)
+export default function SoftSelect<T extends OptionValue>({ value, options, onChange }: SoftSelectProps<T>) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
 
-},[])
+  useEffect(() => {
+    function close(event: MouseEvent) {
+      if (ref.current && !ref.current.contains(event.target as Node)) {
+        setOpen(false)
+      }
+    }
 
-const current = options.find(o=>o.value===value)
+    document.addEventListener("mousedown", close)
+    return () => document.removeEventListener("mousedown", close)
+  }, [])
 
-return(
+  const current = options.find((option) => option.value === value)
 
-<div className="relative w-44" ref={ref}>
+  return (
+    <div className="relative w-44" ref={ref}>
+      <button
+        onClick={() => setOpen((prev) => !prev)}
+        className="w-full rounded-lg border border-white/60 bg-white/70 px-3 py-2 text-left shadow-sm backdrop-blur transition hover:bg-white/90"
+      >
+        {current?.label}
+      </button>
 
-<button
-onClick={()=>setOpen(!open)}
-className="w-full text-left px-3 py-2 rounded-lg bg-white/70 backdrop-blur border border-white/60 shadow-sm hover:bg-white/90 transition"
->
-{current?.label}
-</button>
-
-{open && (
-
-<div className="absolute mt-2 w-full rounded-xl backdrop-blur-xl bg-white/80 border border-white/60 shadow-xl overflow-hidden animate-[fadeIn_.15s_ease]">
-
-{options.map(opt=>(
-
-<div
-key={opt.value}
-onClick={()=>{
-onChange(opt.value)
-setOpen(false)
-}}
-className="px-3 py-2 hover:bg-white/60 cursor-pointer transition"
->
-{opt.label}
-</div>
-
-))}
-
-</div>
-
-)}
-
-</div>
-
-)
-
+      {open ? (
+        <div className="absolute mt-2 w-full overflow-hidden rounded-xl border border-white/60 bg-white/80 shadow-xl backdrop-blur-xl animate-[fadeIn_.15s_ease]">
+          {options.map((option) => (
+            <div
+              key={String(option.value)}
+              onClick={() => {
+                onChange(option.value)
+                setOpen(false)
+              }}
+              className="cursor-pointer px-3 py-2 transition hover:bg-white/60"
+            >
+              {option.label}
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  )
 }

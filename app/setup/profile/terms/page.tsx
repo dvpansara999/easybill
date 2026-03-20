@@ -3,23 +3,22 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import SetupWizardFrame from "@/components/setup/SetupWizardFrame"
-import { emptySetupProfileDraft, getSetupProfileDraft, saveSetupProfileDraft } from "@/lib/setupProfileDraft"
+import { getSetupProfileDraft, saveSetupProfileDraft } from "@/lib/setupProfileDraft"
 import { setActiveOrGlobalItem } from "@/lib/userStore"
 import { ScrollText } from "lucide-react"
 
 export default function SetupProfileTermsPage() {
   const router = useRouter()
-  const [draft, setDraft] = useState(emptySetupProfileDraft)
+  const [draft, setDraft] = useState(() => getSetupProfileDraft())
 
   useEffect(() => {
-    const storedDraft = getSetupProfileDraft()
-    if (!storedDraft.businessName || !storedDraft.email) {
-      router.push("/setup/profile")
-      return
-    }
-    setDraft(storedDraft)
     setActiveOrGlobalItem("setupResumePath", "/setup/profile/terms")
-  }, [router])
+  }, [])
+
+  if (!draft.businessName || !draft.email) {
+    router.push("/setup/profile")
+    return null
+  }
 
   function goNext() {
     saveSetupProfileDraft(draft)

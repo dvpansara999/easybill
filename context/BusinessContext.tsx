@@ -1,107 +1,107 @@
 "use client"
 
-import { createContext, useContext, useEffect, useState } from "react"
+import { createContext, useContext, useEffect, useMemo, useState } from "react"
 import { getActiveOrGlobalItem, setActiveOrGlobalItem } from "@/lib/userStore"
 
-type BusinessType = {
-  businessName:string
-  phone:string
-  email:string
-  gst:string
-  address:string
-  bankName:string
-  accountNumber:string
-  ifsc:string
-  upi:string
-  logo:string
-  logoShape:"square" | "round"
+export type BusinessType = {
+  businessName: string
+  phone: string
+  email: string
+  gst: string
+  address: string
+  bankName: string
+  accountNumber: string
+  ifsc: string
+  upi: string
+  logo: string
+  logoShape: "square" | "round"
 }
 
-const BusinessContext = createContext<any>(null)
+type BusinessContextType = {
+  business: BusinessType
+  setBusiness: (data: BusinessType) => void
+}
 
-export function BusinessProvider({children}:{children:React.ReactNode}){
+const emptyBusiness: BusinessType = {
+  businessName: "",
+  phone: "",
+  email: "",
+  gst: "",
+  address: "",
+  bankName: "",
+  accountNumber: "",
+  ifsc: "",
+  upi: "",
+  logo: "",
+  logoShape: "square",
+}
 
-const [business,setBusinessState] = useState<BusinessType>({
-  businessName:"",
-  phone:"",
-  email:"",
-  gst:"",
-  address:"",
-  bankName:"",
-  accountNumber:"",
-  ifsc:"",
-  upi:"",
-  logo:"",
-  logoShape:"square"
-})
+const BusinessContext = createContext<BusinessContextType | undefined>(undefined)
 
-/* LOAD FROM LOCAL STORAGE */
+function normalizeBusiness(value: unknown): BusinessType {
+  const parsed = typeof value === "object" && value !== null ? (value as Partial<BusinessType>) : {}
 
-function loadBusiness() {
+  return {
+    businessName: parsed.businessName || "",
+    phone: parsed.phone || "",
+    email: parsed.email || "",
+    gst: parsed.gst || "",
+    address: parsed.address || "",
+    bankName: parsed.bankName || "",
+    accountNumber: parsed.accountNumber || "",
+    ifsc: parsed.ifsc || "",
+    upi: parsed.upi || "",
+    logo: parsed.logo || "",
+    logoShape: parsed.logoShape === "round" ? "round" : "square",
+  }
+}
+
+function readBusinessFromStore() {
+  if (typeof window === "undefined") return emptyBusiness
+
   const stored = getActiveOrGlobalItem("businessProfile")
-  if (!stored) return
+  if (!stored) return emptyBusiness
+
   try {
-    const parsed = JSON.parse(stored)
-    setBusinessState({
-      businessName: parsed.businessName || "",
-      phone: parsed.phone || "",
-      email: parsed.email || "",
-      gst: parsed.gst || "",
-      address: parsed.address || "",
-      bankName: parsed.bankName || "",
-      accountNumber: parsed.accountNumber || "",
-      ifsc: parsed.ifsc || "",
-      upi: parsed.upi || "",
-      logo: parsed.logo || "",
-      logoShape: (parsed.logoShape === "round" ? "round" : "square") as "square" | "round",
-    })
+    return normalizeBusiness(JSON.parse(stored))
   } catch {
-    // ignore invalid
+    return emptyBusiness
   }
 }
 
-useEffect(()=>{
-  loadBusiness()
-  function onCloud() {
-    loadBusiness()
+export function BusinessProvider({ children }: { children: React.ReactNode }) {
+  const [business, setBusinessState] = useState<BusinessType>(() => readBusinessFromStore())
+
+  useEffect(() => {
+    function onCloud() {
+      setBusinessState(readBusinessFromStore())
+    }
+
+    window.addEventListener("easybill:cloud-sync", onCloud as EventListener)
+    return () => window.removeEventListener("easybill:cloud-sync", onCloud as EventListener)
+  }, [])
+
+  const value = useMemo<BusinessContextType>(
+    () => ({
+      business,
+      setBusiness(data: BusinessType) {
+        const normalizedBusiness = normalizeBusiness(data)
+        setBusinessState(normalizedBusiness)
+        setActiveOrGlobalItem("businessProfile", JSON.stringify(normalizedBusiness))
+      },
+    }),
+    [business]
+  )
+
+  return <BusinessContext.Provider value={value}>{children}</BusinessContext.Provider>
+}
+
+export function useBusiness() {
+  const context = useContext(BusinessContext)
+
+  if (!context) {
+    throw new Error("useBusiness must be used inside BusinessProvider")
   }
-  window.addEventListener("easybill:cloud-sync", onCloud as EventListener)
-  return () => window.removeEventListener("easybill:cloud-sync", onCloud as EventListener)
-},[])
 
-/* SAVE FUNCTION */
-
-const setBusiness = (data:BusinessType)=>{
-
-const normalizedBusiness: BusinessType = {
-  ...data,
-  logoShape: (data.logoShape === "round" ? "round" : "square") as "square" | "round"
-}
-
-setBusinessState(normalizedBusiness)
-
-setActiveOrGlobalItem("businessProfile",JSON.stringify(normalizedBusiness))
-
-}
-
-return(
-
-<BusinessContext.Provider value={{business,setBusiness}}>
-{children}
-</BusinessContext.Provider>
-
-)
-
-}
-
-export function useBusiness(){
-
-const context = useContext(BusinessContext)
-
-if(!context){
-throw new Error("useBusiness must be used inside BusinessProvider")
-}
-
-return context
-
+  return context
 }

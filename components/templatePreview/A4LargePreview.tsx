@@ -1,8 +1,13 @@
 "use client"
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
+import { createElement, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { templates as templateEngines } from "@/components/invoiceTemplates"
 import { previewTemplateProps } from "@/lib/templatePreviewData"
+
+const A4_WIDTH_PX = 794
+const A4_HEIGHT_PX = 1123
+const PAGE_PADDING_PX = 38
+const PAGE_GAP_PX = 34
 
 function getTemplateEngine(id: string) {
   if (id.startsWith("modern")) return templateEngines.modern
@@ -23,62 +28,50 @@ export default function A4LargePreview({
   fontSize: number
   viewportMaxHeight?: number
 }) {
-  const Engine = getTemplateEngine(template)
-  if (!Engine) return null
-
-  const A4_WIDTH_PX = 794
-  const A4_HEIGHT_PX = 1123
-  const PAGE_PADDING_PX = 38 // ~10mm margin feel
-  const PAGE_GAP_PX = 34
-
   const wrapRef = useRef<HTMLDivElement | null>(null)
   const measureRef = useRef<HTMLDivElement | null>(null)
-  const [wrapWidth, setWrapWidth] = useState<number>(0)
-  const [contentHeight, setContentHeight] = useState<number>(A4_HEIGHT_PX)
-  const [supportsZoom, setSupportsZoom] = useState(false)
+  const [wrapWidth, setWrapWidth] = useState(0)
+  const [contentHeight, setContentHeight] = useState(A4_HEIGHT_PX)
 
-  // Measure wrap width before the first paint to avoid a temporary "fallback scale"
-  // that can look like a shrunken A4 on real mobile devices.
+  const Engine = getTemplateEngine(template)
+
   useLayoutEffect(() => {
     const el = wrapRef.current
     if (!el) return
 
-    const measure = () => {
-      const next = wrapRef.current?.getBoundingClientRect().width || 0
-      if (next > 0) setWrapWidth(next)
+    const updateWidth = () => {
+      const nextWidth = wrapRef.current?.getBoundingClientRect().width || 0
+      if (nextWidth > 0) setWrapWidth(nextWidth)
     }
 
-    // Measure now, then re-measure on next paint cycles.
-    // Some mobile browsers finalize layout a tick later, otherwise we'd stay on fallback scale.
-    measure()
-    requestAnimationFrame(measure)
-    requestAnimationFrame(measure)
+    updateWidth()
+    requestAnimationFrame(updateWidth)
+    requestAnimationFrame(updateWidth)
 
     const ro = new ResizeObserver((entries) => {
-      const next = entries[0]?.contentRect?.width || 0
-      if (next > 0) setWrapWidth(next)
+      const nextWidth = entries[0]?.contentRect?.width || 0
+      if (nextWidth > 0) setWrapWidth(nextWidth)
     })
+
     ro.observe(el)
     return () => ro.disconnect()
   }, [])
 
-  useEffect(() => {
-    try {
-      const style = document?.body?.style as any
-      setSupportsZoom(style && "zoom" in style)
-    } catch {
-      setSupportsZoom(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    if (!measureRef.current) return
+  useLayoutEffect(() => {
     const el = measureRef.current
-    const ro = new ResizeObserver(() => {
+    if (!el) return
+
+    const updateHeight = () => {
       setContentHeight(Math.max(A4_HEIGHT_PX, el.scrollHeight || el.offsetHeight || A4_HEIGHT_PX))
+    }
+
+    const ro = new ResizeObserver(() => {
+      requestAnimationFrame(updateHeight)
     })
+
     ro.observe(el)
-    setContentHeight(Math.max(A4_HEIGHT_PX, el.scrollHeight || el.offsetHeight || A4_HEIGHT_PX))
+    requestAnimationFrame(updateHeight)
+
     return () => ro.disconnect()
   }, [template, fontFamily, fontSize])
 
@@ -88,8 +81,16 @@ export default function A4LargePreview({
   const enableScroll = rawPages > 1
   const pageViewportHeight = Math.max(220, Math.round(A4_HEIGHT_PX * scale))
   const viewportHeight = viewportMaxHeight ? Math.min(viewportMaxHeight, pageViewportHeight) : pageViewportHeight
-
   const outerOverflowClass = enableScroll ? "overflow-y-auto overflow-x-hidden" : "overflow-y-hidden overflow-x-hidden"
+
+  const templateElement = (pageIndex?: number) =>
+    createElement(Engine, {
+      ...previewTemplateProps,
+      templateId: template,
+      fontFamily,
+      fontSize,
+      key: pageIndex ?? "measure",
+    })
 
   return (
     <div
@@ -98,42 +99,37 @@ export default function A4LargePreview({
       style={{ height: viewportHeight }}
     >
       <div className="relative mx-auto" style={{ width: A4_WIDTH_PX * scale }}>
-          {/* Hidden measurer (unscaled, real A4 width) */}
-          <div className="pointer-events-none absolute left-[-99999px] top-0 h-0 w-0 overflow-hidden">
-            <div ref={measureRef} style={{ width: A4_WIDTH_PX, padding: PAGE_PADDING_PX }}>
-              <Engine {...previewTemplateProps} templateId={template} fontFamily={fontFamily} fontSize={fontSize} />
-            </div>
+        <div className="pointer-events-none absolute left-[-99999px] top-0 h-0 w-0 overflow-hidden">
+          <div ref={measureRef} style={{ width: A4_WIDTH_PX, padding: PAGE_PADDING_PX }}>
+            {templateElement()}
           </div>
+        </div>
 
-          <div
-            className="origin-top-left will-change-transform"
-            style={{
-              width: A4_WIDTH_PX,
-              transformOrigin: "top left",
-              // Always use transform for consistent rendering across mobile browsers.
-              transform: `scale(${scale})`,
-            }}
-          >
-            {Array.from({ length: overflowPages }, (_, pageIndex) => {
-              const sliceTop = pageIndex * A4_HEIGHT_PX
-              return (
-                <div key={pageIndex} style={{ marginBottom: pageIndex === overflowPages - 1 ? 0 : PAGE_GAP_PX }}>
-                  <div
-                    className="bg-white shadow-[0_18px_60px_rgba(15,23,42,0.10)] ring-1 ring-slate-200"
-                    style={{ width: A4_WIDTH_PX, height: A4_HEIGHT_PX, overflow: "hidden" }}
-                  >
-                    <div style={{ transform: `translateY(-${sliceTop}px)` }}>
-                      <div style={{ width: A4_WIDTH_PX, padding: PAGE_PADDING_PX }}>
-                        <Engine {...previewTemplateProps} templateId={template} fontFamily={fontFamily} fontSize={fontSize} />
-                      </div>
-                    </div>
+        <div
+          className="origin-top-left will-change-transform"
+          style={{
+            width: A4_WIDTH_PX,
+            transformOrigin: "top left",
+            transform: `scale(${scale})`,
+          }}
+        >
+          {Array.from({ length: overflowPages }, (_, pageIndex) => {
+            const sliceTop = pageIndex * A4_HEIGHT_PX
+            return (
+              <div key={pageIndex} style={{ marginBottom: pageIndex === overflowPages - 1 ? 0 : PAGE_GAP_PX }}>
+                <div
+                  className="bg-white shadow-[0_18px_60px_rgba(15,23,42,0.10)] ring-1 ring-slate-200"
+                  style={{ width: A4_WIDTH_PX, height: A4_HEIGHT_PX, overflow: "hidden" }}
+                >
+                  <div style={{ transform: `translateY(-${sliceTop}px)` }}>
+                    <div style={{ width: A4_WIDTH_PX, padding: PAGE_PADDING_PX }}>{templateElement(pageIndex)}</div>
                   </div>
                 </div>
-              )
-            })}
-          </div>
+              </div>
+            )
+          })}
+        </div>
       </div>
     </div>
   )
 }
-

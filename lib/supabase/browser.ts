@@ -1,9 +1,10 @@
 "use client"
 
 import { createBrowserClient } from "@supabase/ssr"
+import type { UserResponse } from "@supabase/supabase-js"
 
 let browserClient: ReturnType<typeof createBrowserClient> | null = null
-let getUserInFlight: Promise<any> | null = null
+let getUserInFlight: Promise<UserResponse> | null = null
 
 export function createSupabaseBrowserClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -31,4 +32,3 @@ export async function getSupabaseUser() {
   }
   return getUserInFlight
 }
-

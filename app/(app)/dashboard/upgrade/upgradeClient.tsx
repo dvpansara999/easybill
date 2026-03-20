@@ -11,8 +11,8 @@ export default function UpgradeClient() {
   const [message, setMessage] = useState("")
 
   const plans = useMemo(() => PLANS, [])
-  const invoiceUsage = useMemo(() => getInvoiceUsageCount(), [active])
-  const allowance = useMemo(() => canCreateAnotherInvoice(), [active])
+  const invoiceUsage = useMemo(() => getInvoiceUsageCount(), [])
+  const allowance = useMemo(() => canCreateAnotherInvoice(), [])
 
   function choosePlan(id: PlanId) {
     setActive(id)
@@ -129,4 +129,3 @@ export default function UpgradeClient() {
     </div>
   )
 }
-

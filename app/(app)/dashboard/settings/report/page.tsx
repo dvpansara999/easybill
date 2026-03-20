@@ -6,10 +6,20 @@ import { ArrowLeft } from "lucide-react"
 import { getActiveAuthRecord } from "@/lib/auth"
 import { getSupabaseUser } from "@/lib/supabase/browser"
 
+function readInitialAccountState() {
+  const auth = getActiveAuthRecord()
+
+  return {
+    accountEmail: auth?.email || "",
+    accountUserId: auth?.userId || "",
+  }
+}
+
 export default function ReportBugFeedbackPage() {
   const router = useRouter()
-  const [accountEmail, setAccountEmail] = useState("")
-  const [accountUserId, setAccountUserId] = useState("")
+  const initialAccountState = readInitialAccountState()
+  const [accountEmail, setAccountEmail] = useState(initialAccountState.accountEmail)
+  const [accountUserId] = useState(initialAccountState.accountUserId)
   const [reportSubject, setReportSubject] = useState("")
   const [reportSeverity, setReportSeverity] = useState<"low" | "medium" | "high" | "critical">("medium")
   const [reportWhatHappened, setReportWhatHappened] = useState("")
@@ -19,10 +29,6 @@ export default function ReportBugFeedbackPage() {
   const [reportError, setReportError] = useState("")
 
   useEffect(() => {
-    const auth = getActiveAuthRecord()
-    if (!auth) return
-    setAccountEmail(auth.email || "")
-    setAccountUserId(auth.userId || "")
     void (async () => {
       try {
         const { data } = await getSupabaseUser()

@@ -1,12 +1,37 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useSettings } from "@/context/SettingsContext"
 import { formatCurrency } from "@/lib/formatCurrency"
 import { Box, PencilLine, Plus, Trash2 } from "lucide-react"
 import { getActiveOrGlobalItem, setActiveOrGlobalItem } from "@/lib/userStore"
 import { getMaxProducts } from "@/lib/plans"
 import { useAppAlert } from "@/components/providers/AppAlertProvider"
+
+type ProductRecord = {
+  name: string
+  hsn: string
+  unit: string
+  price: string
+  cgst: string
+  sgst: string
+  igst: string
+}
+
+function readProducts(): ProductRecord[] {
+  const saved = getActiveOrGlobalItem("products")
+  if (!saved) return []
+
+  try {
+    const parsed = JSON.parse(saved) as unknown
+    if (!Array.isArray(parsed)) return []
+    return parsed.filter((product): product is ProductRecord => {
+      return typeof product === "object" && product !== null && "name" in product
+    })
+  } catch {
+    return []
+  }
+}
 
 export default function ProductsPage() {
 
@@ -17,7 +42,7 @@ export default function ProductsPage() {
     currencyPosition
   } = useSettings()
 
-  const [products,setProducts] = useState<any[]>([])
+  const [products,setProducts] = useState<ProductRecord[]>(() => readProducts())
   const [name,setName] = useState("")
   const [hsn,setHsn] = useState("")
   const [unit,setUnit] = useState("")
@@ -27,16 +52,6 @@ export default function ProductsPage() {
   const [igst,setIgst] = useState("")
   const [editIndex,setEditIndex] = useState<number | null>(null)
   const { showAlert } = useAppAlert()
-
-  useEffect(()=>{
-
-    const saved = getActiveOrGlobalItem("products")
-
-    if(saved){
-      setProducts(JSON.parse(saved))
-    }
-
-  },[])
 
   const saveProduct = () => {
     const maxProducts = getMaxProducts()
@@ -50,7 +65,7 @@ export default function ProductsPage() {
       return
     }
 
-    const product = {
+    const product: ProductRecord = {
       name,
       hsn,
       unit,

@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState, useEffect, useRef } from "react"
+import { createElement, useMemo, useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { ChevronDown, Sparkles } from "lucide-react"
 import { templates as templateEngines } from "@/components/invoiceTemplates"
@@ -14,6 +14,15 @@ import SelectMenu from "@/components/ui/SelectMenu"
 import { useAppAlert } from "@/components/providers/AppAlertProvider"
 import { getAuthMode } from "@/lib/runtimeMode"
 import { TEMPLATE_CROSS_DEVICE_PARITY } from "@/lib/templateDeviceParity"
+import type { TemplateComponentProps } from "@/components/invoiceTemplates/templateTypes"
+
+type TemplateListItem = {
+  id: string
+  name: string
+  category: string
+  popular?: boolean
+  newest?: boolean
+}
 
 function getTemplateEngine(id: string) {
 
@@ -50,7 +59,7 @@ const leftColumnRef = useRef<HTMLDivElement | null>(null)
 const [leftColumnHeight,setLeftColumnHeight] = useState<number>(0)
 const [isXl, setIsXl] = useState(false)
 
-const templates = templateRegistry || []
+const templates: TemplateListItem[] = templateRegistry
 
 useEffect(() => {
   const mq = window.matchMedia("(min-width: 1280px)")
@@ -144,18 +153,13 @@ saveStoredTemplateTypography(fontId,nextFontSize)
 
 }
 
-function pickRandomTemplates(list:any[], count:number){
-  const copy = [...list]
-  for(let i = copy.length - 1; i > 0; i--){
-    const j = Math.floor(Math.random() * (i + 1))
-    ;[copy[i], copy[j]] = [copy[j], copy[i]]
-  }
-  return copy.slice(0, Math.min(count, copy.length))
+function pickTemplateSubset(list: TemplateListItem[], count:number){
+  return list.slice(0, Math.min(count, list.length))
 }
 
 const popular = useMemo(()=>{
-  const curated = templates.filter((t:any)=>t.popular)
-  return curated.length ? curated : pickRandomTemplates(templates, 10)
+  const curated = templates.filter((template) => template.popular)
+  return curated.length ? curated : pickTemplateSubset(templates, 10)
 },[templates])
 
 // Always show "newest" as the most recently added templates (registry order).
@@ -268,7 +272,7 @@ Browse styles, preview them instantly, and tune typography — all inside easyBI
 
 <div className="mt-4 overflow-x-auto pb-2 xl:mt-5 xl:pb-3">
 <div className="flex w-max snap-x snap-mandatory gap-3 pr-2 xl:gap-4 xl:pr-1">
-{popular.map((t:any)=>{
+{popular.map((t)=>{
 
 const isActive = activeTemplate===t.id
 const locked = !canUseTemplate(t.id)
@@ -312,7 +316,7 @@ previewTemplate===t.id
 
 <div className="mt-4 overflow-x-auto pb-2 xl:mt-5 xl:pb-3">
 <div className="flex w-max snap-x snap-mandatory gap-3 pr-2 xl:gap-4 xl:pr-1">
-{newest.map((t:any)=>{
+{newest.map((t)=>{
 
 const isActive = activeTemplate===t.id
 const locked = !canUseTemplate(t.id)
@@ -414,15 +418,20 @@ Currently Active
 
 function SmallPreview({template,fontFamily,fontSize}:{template:string; fontFamily:string; fontSize:number}){
 
-const Engine = getTemplateEngine(template)
+const engine = getTemplateEngine(template)
 
-if(!Engine) return null
+if(!engine) return null
 
 return(
 
 <div className="overflow-hidden rounded-[16px] border border-slate-200 bg-white aspect-[1/1.414]">
 <div className="origin-top-left scale-[0.14] w-[715%]">
-<Engine {...previewTemplateProps} templateId={template} fontFamily={fontFamily} fontSize={fontSize}/>
+{createElement(engine, {
+  ...(previewTemplateProps as TemplateComponentProps),
+  templateId: template,
+  fontFamily,
+  fontSize,
+})}
 </div>
 </div>
 

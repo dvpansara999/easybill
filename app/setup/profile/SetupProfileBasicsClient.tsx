@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { getSetupProfileDraft, saveSetupProfileDraft } from "@/lib/setupProfileDraft"
 import { setActiveOrGlobalItem } from "@/lib/userStore"
@@ -11,30 +11,26 @@ export default function SetupProfileBasicsClient() {
   const searchParams = useSearchParams()
   const initialBusinessName = searchParams.get("businessName") || ""
   const initialEmail = searchParams.get("email") || ""
+  const initialDraft = useMemo(() => {
+    const draft = getSetupProfileDraft()
+    const resolvedBusinessName = draft.businessName || initialBusinessName
+    const resolvedEmail = draft.email || initialEmail
 
-  const [businessName, setBusinessName] = useState(initialBusinessName)
-  const [email, setEmail] = useState(initialEmail)
-  const [confirmEmail, setConfirmEmail] = useState(initialEmail)
+    return {
+      businessName: resolvedBusinessName,
+      email: resolvedEmail,
+      confirmEmail: resolvedEmail,
+    }
+  }, [initialBusinessName, initialEmail])
+
+  const [businessName, setBusinessName] = useState(initialDraft.businessName)
+  const [email, setEmail] = useState(initialDraft.email)
+  const [confirmEmail, setConfirmEmail] = useState(initialDraft.confirmEmail)
   const [attemptedNext, setAttemptedNext] = useState(false)
 
   useEffect(() => {
     setActiveOrGlobalItem("setupResumePath", "/setup/profile")
-
-    const loadDraft = () => {
-      const draft = getSetupProfileDraft()
-      setBusinessName(draft.businessName || initialBusinessName)
-      setEmail(draft.email || initialEmail)
-      setConfirmEmail(draft.email || initialEmail)
-    }
-
-    loadDraft()
-
-    function onCloud() {
-      loadDraft()
-    }
-    window.addEventListener("easybill:cloud-sync", onCloud as EventListener)
-    return () => window.removeEventListener("easybill:cloud-sync", onCloud as EventListener)
-  }, [initialBusinessName, initialEmail])
+  }, [])
 
   const emailIsValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
   const businessNameError = !businessName.trim() ? "Business name is required." : ""
@@ -286,4 +282,3 @@ export default function SetupProfileBasicsClient() {
     </main>
   )
 }
-
