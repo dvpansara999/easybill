@@ -268,7 +268,7 @@ export default function InvoicePrint() {
       <div
         id="invoice-print-root"
         data-ready={assetsReady ? "true" : "false"}
-        style={{ padding: "0", background: "white" }}
+        style={{ padding: "0", background: "white", width: "794px", margin: "0 auto" }}
       >
         {template.startsWith("modern") ? (
           <ModernTemplate {...templateProps} />

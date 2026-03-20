@@ -370,7 +370,12 @@ const visibility: InvoiceVisibilitySettings = invoiceVisibility || DEFAULT_INVOI
 return(
 <div
 className="w-full p-8 text-gray-800"
-style={{ backgroundColor: theme.paper, fontFamily, fontSize: `${fontSize || 14}px`, zoom: (fontSize || 14) / 14 }}
+style={{
+    backgroundColor: theme.paper,
+    fontFamily,
+    fontSize: `${fontSize || 14}px`,
+    zoom: (fontSize || 14) / 14,
+  }}
 >
 <ClassicHeader invoice={invoice} businessInfo={businessInfo} formatDate={formatDate} dateFormat={dateFormat} theme={theme} visibility={visibility}/>
 <div className="mt-6">

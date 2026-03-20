@@ -265,7 +265,12 @@ const businessName = visibility.businessName ? businessInfo?.businessName || "BU
 return(
 <div
 className="w-full bg-white text-gray-900"
-style={{ backgroundColor: theme.tint, fontFamily, fontSize: `${fontSize || 14}px`, zoom: (fontSize || 14) / 14 }}
+style={{
+    backgroundColor: theme.tint,
+    fontFamily,
+    fontSize: `${fontSize || 14}px`,
+    zoom: (fontSize || 14) / 14,
+  }}
 >
 
 {theme.mode === "banner" && (

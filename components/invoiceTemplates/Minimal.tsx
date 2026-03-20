@@ -289,7 +289,11 @@ theme.mode === "boxed"
 return(
 <div
 className="w-full bg-white text-gray-800"
-style={{ fontFamily, fontSize: `${fontSize || 14}px`, zoom: (fontSize || 14) / 14 }}
+style={{
+    fontFamily,
+    fontSize: `${fontSize || 14}px`,
+    zoom: (fontSize || 14) / 14,
+  }}
 >
 <div className={shellClass} style={{ borderColor: theme.line, backgroundColor: theme.soft }}>
 <MinimalHeader invoice={invoice} businessInfo={businessInfo} formatDate={formatDate} dateFormat={dateFormat} theme={theme} visibility={visibility}/>

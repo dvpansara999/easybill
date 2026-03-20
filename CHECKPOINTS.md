@@ -63,3 +63,15 @@ How to revert mobile behavior only:
 How to use:
 - If user says exactly: `template cross-device parity ON`
 - Treat as restore target for this parity behavior.
+
+## SAFE_POINT: A4 preview/view/download replacement plan start v0.1
+
+Created: 2026-03-20
+
+Meaning of this checkpoint:
+- Baseline state before we refactor the Templates long preview, Invoice view, and PDF/download pipeline into one deterministic A4 ecosystem.
+- Playwright may fail silently on some real mobile browsers; HTML2Canvas fallback is fragile and still needs replacement.
+
+How to use:
+- If user says exactly: `A4 preview/view/download replacement plan start v0.1`
+- Treat this as the restore target before starting the full replacement refactor.

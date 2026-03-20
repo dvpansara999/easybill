@@ -166,6 +166,7 @@ async function downloadInvoice(){
       headers:{
         "Content-Type":"application/json"
       },
+      credentials:"include",
       body:JSON.stringify({
         invoiceId: String(id || invoice?.invoiceNumber || ""),
         mode: "download",

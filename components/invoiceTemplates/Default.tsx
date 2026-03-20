@@ -65,7 +65,11 @@ return(
 
 <div
 className="w-full bg-white p-6 leading-relaxed text-gray-800"
-style={{ fontFamily, fontSize: `${fontSize || 14}px`, zoom: (fontSize || 14) / 14 }}
+style={{
+    fontFamily,
+    fontSize: `${fontSize || 14}px`,
+    zoom: (fontSize || 14) / 14,
+  }}
 >
 
 {/* ================= HEADER ================= */}
