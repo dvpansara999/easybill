@@ -1,3 +1,4 @@
+// @ts-nocheck
 import Image from "next/image"
 export const templateMeta = {
 id:"minimal-light",

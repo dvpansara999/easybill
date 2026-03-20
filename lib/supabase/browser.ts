@@ -1,7 +1,7 @@
 "use client"
 
 import { createBrowserClient } from "@supabase/ssr"
-import type { UserResponse } from "@supabase/supabase-js"
+import type { AuthError, User, UserResponse } from "@supabase/supabase-js"
 
 let browserClient: ReturnType<typeof createBrowserClient> | null = null
 let getUserInFlight: Promise<UserResponse> | null = null
@@ -26,9 +26,12 @@ export function createSupabaseBrowserClient() {
 export async function getSupabaseUser() {
   const supabase = createSupabaseBrowserClient()
   if (!getUserInFlight) {
-    getUserInFlight = supabase.auth.getUser().finally(() => {
-      getUserInFlight = null
-    })
+    getUserInFlight = supabase.auth
+      .getUser()
+      .then((response: UserResponse | null) => response ?? ({ data: { user: null }, error: null } as { data: { user: User | null }; error: AuthError | null }))
+      .finally(() => {
+        getUserInFlight = null
+      }) as Promise<UserResponse>
   }
   return getUserInFlight
 }

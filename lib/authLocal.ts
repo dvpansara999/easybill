@@ -167,9 +167,10 @@ export async function signInWithOtp(email: string, options?: { shouldCreateUser?
   return { error: "OTP sign-in is not available in localStorage safety mode." }
 }
 
-export async function verifyEmailOtp(email: string, token: string) {
+export async function verifyEmailOtp(email: string, token: string, type?: "signup" | "email") {
   void email
   void token
+  void type
   return { error: "OTP verification is not available in localStorage safety mode." }
 }
 

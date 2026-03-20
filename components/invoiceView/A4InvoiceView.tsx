@@ -1,6 +1,7 @@
 "use client"
 
 import { createElement, forwardRef, useLayoutEffect, useMemo, useRef, useState } from "react"
+import type { TemplateComponentProps } from "@/components/invoiceTemplates/templateTypes"
 
 const A4_WIDTH_PX = 794
 const A4_HEIGHT_PX = 1123
@@ -8,8 +9,8 @@ const PAGE_PADDING_PX = 38
 const PAGE_GAP_PX = 34
 
 type A4InvoiceViewProps = {
-  TemplateComponent: React.ComponentType<Record<string, unknown>>
-  templateData: Record<string, unknown>
+  TemplateComponent: React.ComponentType<TemplateComponentProps>
+  templateData: TemplateComponentProps
   viewportMaxHeightPx?: number
   maxPages?: number
 }

@@ -120,7 +120,7 @@ export default function ProductsPage() {
 
   }
 
-  function money(value:number){
+  function money(value:number | string){
 
     return formatCurrency(
       Number(value),

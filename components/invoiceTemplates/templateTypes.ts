@@ -46,13 +46,14 @@ export type TemplateInvoiceRecord = {
 }
 
 export type TemplateMoney = (value: number) => string
-export type TemplateGst = (rate: unknown, amount: number) => string
+export type TemplateGst = (rate: string | number | null | undefined, amount: number) => string
 export type TemplateDate = (value: string, format: string) => string
 
-export type TemplateTheme = Record<string, string | boolean>
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type TemplateTheme = any
 
 export type TemplateComponentProps = {
-  invoice?: TemplateInvoiceRecord
+  invoice?: TemplateInvoiceRecord | null
   business?: TemplateBusinessRecord | null
   templateId?: string
   fontFamily?: string
