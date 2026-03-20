@@ -105,7 +105,15 @@ export default function A4LargePreview({
             </div>
           </div>
 
-          <div className="origin-top-left will-change-transform" style={{ width: A4_WIDTH_PX, transformOrigin: "top left", ...(supportsZoom ? ({ zoom: scale } as any) : { transform: `scale(${scale})` }) }}>
+          <div
+            className="origin-top-left will-change-transform"
+            style={{
+              width: A4_WIDTH_PX,
+              transformOrigin: "top left",
+              // Always use transform for consistent rendering across mobile browsers.
+              transform: `scale(${scale})`,
+            }}
+          >
             {Array.from({ length: overflowPages }, (_, pageIndex) => {
               const sliceTop = pageIndex * A4_HEIGHT_PX
               return (

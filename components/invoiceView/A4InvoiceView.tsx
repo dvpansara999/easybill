@@ -103,9 +103,8 @@ const A4InvoiceView = forwardRef<HTMLDivElement, A4InvoiceViewProps>(function A4
           style={{
             width: A4_WIDTH_PX,
             transformOrigin: "top left",
-            ...(supportsZoom
-              ? ({ zoom: scale } as any)
-              : { transform: `scale(${scale})` }),
+            // Always use transform for consistent rendering across mobile browsers.
+            transform: `scale(${scale})`,
           }}
         >
           {/* Hidden measurer (unscaled, real A4 width) */}
