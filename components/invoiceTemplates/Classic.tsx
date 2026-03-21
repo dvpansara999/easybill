@@ -1,4 +1,3 @@
-// @ts-nocheck
 import Image from "next/image"
 import { DEFAULT_INVOICE_VISIBILITY, type InvoiceVisibilitySettings } from "@/context/SettingsContext"
 import { invoiceTemplateRootTypographyStyle } from "@/lib/invoiceTemplateRootStyle"
@@ -20,7 +19,7 @@ category:"classic",
 popular:true
 }
 
-const classicThemes: Record<string, TemplateTheme> = {
+export const classicThemes: Record<string, TemplateTheme> = {
 "classic-ledger": { accent:"#111827", paper:"#fffdf8", border:"#6b7280", header:"ledger", table:"ledger", serif:false, info:"split", logo:false },
 "classic-bold": { accent:"#111827", paper:"#ffffff", border:"#374151", header:"double", table:"heavy", serif:false, info:"stack", logo:false },
 "classic-office": { accent:"#1f2937", paper:"#ffffff", border:"#9ca3af", header:"office", table:"plain", serif:false, info:"detailsFirst", logo:true },
@@ -93,7 +92,7 @@ return(
 </div>
 <div className="text-right text-sm">
 <p><b>Invoice:</b> {invoice?.invoiceNumber || "-"}</p>
-<p><b>Date:</b> {formatDate?.(invoice?.date,dateFormat)}</p>
+<p><b>Date:</b> {formatDate?.(invoice?.date ?? "",dateFormat)}</p>
 </div>
 </div>
 </div>
@@ -116,7 +115,7 @@ return(
 </div>
 <div className="min-w-[180px] border-l pl-5 text-sm" style={{ borderColor: theme.border }}>
 <p><b>Invoice No:</b> {invoice?.invoiceNumber || "-"}</p>
-<p className="mt-2"><b>Date:</b> {formatDate?.(invoice?.date,dateFormat)}</p>
+<p className="mt-2"><b>Date:</b> {formatDate?.(invoice?.date ?? "",dateFormat)}</p>
 </div>
 </div>
 </div>
@@ -142,7 +141,7 @@ return(
 </div>
 <div className="mt-4 text-sm">
 <p><b>Invoice:</b> {invoice?.invoiceNumber || "-"}</p>
-<p><b>Date:</b> {formatDate?.(invoice?.date,dateFormat)}</p>
+<p><b>Date:</b> {formatDate?.(invoice?.date ?? "",dateFormat)}</p>
 </div>
 </div>
 </div>
@@ -164,7 +163,7 @@ return(
 </div>
 <div className="mt-4 flex justify-between text-sm">
 <p><b>Invoice:</b> {invoice?.invoiceNumber || "-"}</p>
-<p><b>Date:</b> {formatDate?.(invoice?.date,dateFormat)}</p>
+<p><b>Date:</b> {formatDate?.(invoice?.date ?? "",dateFormat)}</p>
 </div>
 </div>
 )}
@@ -184,7 +183,7 @@ return(
 </div>
 <div className="text-right text-sm">
 <p><b>Invoice:</b> {invoice?.invoiceNumber || "-"}</p>
-<p><b>Date:</b> {formatDate?.(invoice?.date,dateFormat)}</p>
+<p><b>Date:</b> {formatDate?.(invoice?.date ?? "",dateFormat)}</p>
 </div>
 </div>
 </div>
@@ -366,7 +365,7 @@ export default function ClassicTemplate({
 invoice,
 business,
 templateId,
-fontFamily,
+fontFamily = "system",
 fontSize,
 renderContext = "screen",
 subtotal,
@@ -380,7 +379,7 @@ dateFormat,
 invoiceVisibility
 }: TemplateComponentProps){
 
-const theme = classicThemes[templateId] || classicThemes["classic-ledger"]
+const theme = classicThemes[templateId ?? "classic-ledger"] || classicThemes["classic-ledger"]
 const details = invoice?.customDetails || []
 const businessInfo = business || {}
 const visibility: InvoiceVisibilitySettings = invoiceVisibility || DEFAULT_INVOICE_VISIBILITY
@@ -393,15 +392,15 @@ style={{
     ...invoiceTemplateRootTypographyStyle(fontFamily, fontSize, renderContext),
   }}
 >
-<ClassicHeader invoice={invoice} businessInfo={businessInfo} formatDate={formatDate} dateFormat={dateFormat} theme={theme} visibility={visibility}/>
+<ClassicHeader invoice={invoice ?? undefined} businessInfo={businessInfo} formatDate={formatDate} dateFormat={dateFormat} theme={theme} visibility={visibility}/>
 <div className="mt-6">
-<ClassicBillTo invoice={invoice} details={details} theme={theme} visibility={visibility}/>
+<ClassicBillTo invoice={invoice ?? undefined} details={details} theme={theme} visibility={visibility}/>
 </div>
 <div className="mt-6">
-<ClassicItems invoice={invoice} money={money} gstDisplay={gstDisplay} theme={theme}/>
+<ClassicItems invoice={invoice ?? undefined} money={money} gstDisplay={gstDisplay} theme={theme}/>
 </div>
 <div className="mt-6 flex justify-end">
-<ClassicSummary invoice={invoice} subtotal={subtotal} totalCGST={totalCGST} totalSGST={totalSGST} totalIGST={totalIGST} money={money} theme={theme}/>
+<ClassicSummary invoice={invoice ?? undefined} subtotal={subtotal} totalCGST={totalCGST} totalSGST={totalSGST} totalIGST={totalIGST} money={money} theme={theme}/>
 </div>
 <div className="mt-8">
 <ClassicFooter businessInfo={businessInfo} theme={theme} visibility={visibility}/>

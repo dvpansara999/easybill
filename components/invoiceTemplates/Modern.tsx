@@ -1,4 +1,3 @@
-// @ts-nocheck
 import Image from "next/image"
 import { DEFAULT_INVOICE_VISIBILITY, type InvoiceVisibilitySettings } from "@/context/SettingsContext"
 import { invoiceTemplateRootTypographyStyle } from "@/lib/invoiceTemplateRootStyle"
@@ -17,7 +16,7 @@ category:"modern",
 popular:true
 }
 
-const modernThemes: Record<string, TemplateTheme> = {
+export const modernThemes: Record<string, TemplateTheme> = {
 "modern-default": { accent:"#0f172a", soft:"#e2e8f0", tint:"#f8fafc", mode:"banner", table:"lines", summary:"card", info:"split", logo:true },
 "modern-pro": { accent:"#1d4ed8", soft:"#dbeafe", tint:"#f8fbff", mode:"split", table:"zebra", summary:"card", info:"stack", logo:false },
 "modern-slate": { accent:"#334155", soft:"#cbd5e1", tint:"#f8fafc", mode:"banner", table:"grid", summary:"card", info:"cards", logo:true },
@@ -270,7 +269,7 @@ export default function ModernTemplate({
 invoice,
 business,
 templateId,
-fontFamily,
+fontFamily = "system",
 fontSize,
 renderContext = "screen",
 subtotal,
@@ -286,7 +285,7 @@ invoiceVisibility
 
 const details = invoice?.customDetails || []
 const businessInfo = business || {}
-const theme = modernThemes[templateId] || modernThemes["modern-default"]
+const theme = modernThemes[templateId ?? "modern-default"] || modernThemes["modern-default"]
 const visibility: InvoiceVisibilitySettings = invoiceVisibility || DEFAULT_INVOICE_VISIBILITY
 const businessName = visibility.businessName ? businessInfo?.businessName || "BUSINESS" : ""
 
@@ -311,7 +310,7 @@ style={{
 </div>
 <div className="rounded-2xl bg-white/10 px-5 py-4 text-right text-sm">
 <p className="text-white/70">Issue Date</p>
-<p className="mt-2 text-2xl font-semibold">{formatDate?.(invoice?.date,dateFormat)}</p>
+<p className="mt-2 text-2xl font-semibold">{formatDate?.(invoice?.date ?? "",dateFormat)}</p>
 </div>
 </div>
 </div>
@@ -328,7 +327,7 @@ style={{
 </div>
 <div className="p-8 text-white" style={{ backgroundColor: theme.accent }}>
 <p className="text-sm text-white/70">Date</p>
-<p className="mt-2 text-3xl font-bold">{formatDate?.(invoice?.date,dateFormat)}</p>
+<p className="mt-2 text-3xl font-bold">{formatDate?.(invoice?.date ?? "",dateFormat)}</p>
 </div>
 </div>
 )}
@@ -345,7 +344,7 @@ style={{
 </div>
 <div className="rounded-2xl px-5 py-4 text-right" style={{ backgroundColor: theme.soft }}>
 <p className="text-sm text-gray-500">Date</p>
-<p className="mt-2 text-2xl font-semibold text-gray-900">{formatDate?.(invoice?.date,dateFormat)}</p>
+<p className="mt-2 text-2xl font-semibold text-gray-900">{formatDate?.(invoice?.date ?? "",dateFormat)}</p>
 </div>
 </div>
 </div>
@@ -361,7 +360,7 @@ style={{
 </div>
 <div className="rounded-[24px] p-8" style={{ backgroundColor: theme.soft }}>
 <p className="text-sm text-gray-500">Issued On</p>
-<p className="mt-2 text-3xl font-bold text-gray-900">{formatDate?.(invoice?.date,dateFormat)}</p>
+<p className="mt-2 text-3xl font-bold text-gray-900">{formatDate?.(invoice?.date ?? "",dateFormat)}</p>
 <div className="mt-5">{renderBusinessContact(businessInfo, false, visibility)}</div>
 </div>
 </div>
@@ -377,7 +376,7 @@ style={{
 </div>
 <div className="text-right">
 <p className="text-sm text-gray-500">Invoice #{invoice?.invoiceNumber}</p>
-<p className="mt-2 text-xl font-semibold text-gray-900">{formatDate?.(invoice?.date,dateFormat)}</p>
+<p className="mt-2 text-xl font-semibold text-gray-900">{formatDate?.(invoice?.date ?? "",dateFormat)}</p>
 </div>
 </div>
 <div className="mt-6">{renderBusinessContact(businessInfo, false, visibility)}</div>
@@ -400,7 +399,7 @@ style={{
 </div>
 <div className="text-right">
 <p className="text-sm text-gray-500">Date</p>
-<p className="mt-2 text-2xl font-semibold text-gray-900">{formatDate?.(invoice?.date,dateFormat)}</p>
+<p className="mt-2 text-2xl font-semibold text-gray-900">{formatDate?.(invoice?.date ?? "",dateFormat)}</p>
 </div>
 </div>
 </div>
@@ -418,7 +417,7 @@ style={{
 </div>
 <div className="rounded-2xl px-5 py-4" style={{ backgroundColor: theme.soft }}>
 <p className="text-sm text-gray-500">Date</p>
-<p className="mt-2 text-2xl font-semibold text-gray-900">{formatDate?.(invoice?.date,dateFormat)}</p>
+<p className="mt-2 text-2xl font-semibold text-gray-900">{formatDate?.(invoice?.date ?? "",dateFormat)}</p>
 </div>
 </div>
 </div>
@@ -431,7 +430,7 @@ style={{
 <p className="mt-6 text-sm text-white/70">No.</p>
 <p className="text-2xl font-bold">{invoice?.invoiceNumber}</p>
 <p className="mt-6 text-sm text-white/70">Date</p>
-<p className="text-xl font-semibold">{formatDate?.(invoice?.date,dateFormat)}</p>
+<p className="text-xl font-semibold">{formatDate?.(invoice?.date ?? "",dateFormat)}</p>
 </div>
 <div className="p-8">
 {renderLogo(businessInfo, theme.logo && visibility.businessLogo, "mb-5 h-14 object-contain")}
@@ -441,15 +440,15 @@ style={{
 </div>
 )}
 
-{renderInfoBlocks(invoice, details, theme, visibility)}
+{renderInfoBlocks(invoice ?? undefined, details, theme, visibility)}
 
 <div className="mt-8 rounded-3xl bg-white p-6 shadow-sm">
-{renderItemsTable(invoice,money,gstDisplay,theme)}
+{renderItemsTable(invoice ?? undefined,money,gstDisplay,theme)}
 </div>
 
 <div className="mt-8 flex justify-end">
 <div className="w-[360px]">
-{renderSummary(invoice,subtotal,totalCGST,totalSGST,totalIGST,money,theme)}
+{renderSummary(invoice ?? undefined,subtotal ?? 0,totalCGST ?? 0,totalSGST ?? 0,totalIGST ?? 0,money,theme)}
 </div>
 </div>
 

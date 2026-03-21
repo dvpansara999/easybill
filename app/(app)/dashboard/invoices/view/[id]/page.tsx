@@ -1,7 +1,7 @@
-// @ts-nocheck
 "use client"
 
-import { useCallback, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { flushSync } from "react-dom"
 import { useParams } from "next/navigation"
 import { useSettings } from "@/context/SettingsContext"
 import { formatDate } from "@/lib/dateFormat"
@@ -20,7 +20,7 @@ import html2canvas from "html2canvas"
 import jsPDF from "jspdf"
 
 import { appendCanvasToPdfPages } from "@/lib/canvasRasterPdf"
-import { parsePdfApiErrorMessage } from "@/lib/pdfApiContract"
+import { extractPdfBufferFromResponse, parsePdfApiErrorMessage } from "@/lib/pdfApiContract"
 import { templates } from "@/components/invoiceTemplates"
 
 /** Must match `A4InvoiceView` inner page width + padding for consistent capture vs on-screen layout. */
@@ -68,7 +68,8 @@ function resolveTemplateKey(templateId: string): TemplateKey {
 function readInvoiceViewState(invoiceId: string): InvoiceViewState {
   const invoices = safeParseInvoices(getActiveOrGlobalItem("invoices"))
   const invoice = invoices.find((entry) => entry.invoiceNumber === invoiceId) ?? null
-  const template = getActiveOrGlobalItem("invoiceTemplate") || "default"
+  // Keep default aligned with Templates page (`classic-default` → Default engine).
+  const template = getActiveOrGlobalItem("invoiceTemplate") || "classic-default"
 
   return {
     invoice,
@@ -76,45 +77,6 @@ function readInvoiceViewState(invoiceId: string): InvoiceViewState {
     template,
     typography: getStoredTemplateTypography(),
   }
-}
-
-function responseBodyLooksLikeHtml(u8: Uint8Array): boolean {
-  const head = new TextDecoder("utf-8", { fatal: false }).decode(
-    u8.slice(0, Math.min(256, u8.length))
-  ).trimStart()
-  const h = head.toLowerCase()
-  return h.startsWith("<!") || h.startsWith("<html") || h.startsWith("<head")
-}
-
-function extractPdfBufferFromResponse(raw: ArrayBuffer, contentType: string | null): ArrayBuffer | null {
-  const u8 = new Uint8Array(raw)
-  if (u8.length < 8) return null
-
-  const ct = (contentType || "").toLowerCase()
-  const claimsPdf = ct.includes("application/pdf")
-
-  const maxScan = Math.min(u8.length, 65536)
-  let i = 0
-  if (u8.length >= 3 && u8[0] === 0xef && u8[1] === 0xbb && u8[2] === 0xbf) i = 3
-  while (
-    i < maxScan &&
-    (u8[i] === 0x20 || u8[i] === 0x09 || u8[i] === 0x0a || u8[i] === 0x0d || u8[i] === 0x00)
-  ) {
-    i++
-  }
-  const headerAt = (at: number) =>
-    at + 3 < u8.length && u8[at] === 0x25 && u8[at + 1] === 0x50 && u8[at + 2] === 0x44 && u8[at + 3] === 0x46
-  if (headerAt(i)) return raw.slice(i)
-  for (let j = 0; j <= maxScan - 4; j++) {
-    if (headerAt(j)) return raw.slice(j)
-  }
-
-  // Some proxies strip/normalize bytes; trust declared PDF if body is not HTML.
-  if (claimsPdf && u8.length >= 64 && !responseBodyLooksLikeHtml(u8) && u8[0] !== 0x3c) {
-    return raw
-  }
-
-  return null
 }
 
 export default function ViewInvoice() {
@@ -130,10 +92,27 @@ export default function ViewInvoice() {
   const params = useParams()
   const invoiceId = getInvoiceIdFromParams(params?.id)
 
-  const [viewState] = useState(() => readInvoiceViewState(invoiceId))
+  const [viewState, setViewState] = useState<InvoiceViewState>(() => readInvoiceViewState(invoiceId))
   const [downloadingPdf, setDownloadingPdf] = useState(false)
   const [downloadError, setDownloadError] = useState("")
   const [downloadNotice, setDownloadNotice] = useState("")
+
+  // Stay in sync with Templates page + KV (template, typography, invoices) without full remount.
+  useEffect(() => {
+    setViewState(readInvoiceViewState(invoiceId))
+  }, [invoiceId])
+
+  useEffect(() => {
+    const refresh = () => setViewState(readInvoiceViewState(invoiceId))
+    window.addEventListener("easybill:kv-write", refresh as EventListener)
+    window.addEventListener("easybill:cloud-sync", refresh as EventListener)
+    window.addEventListener("storage", refresh)
+    return () => {
+      window.removeEventListener("easybill:kv-write", refresh as EventListener)
+      window.removeEventListener("easybill:cloud-sync", refresh as EventListener)
+      window.removeEventListener("storage", refresh)
+    }
+  }, [invoiceId])
 
   const invoice = viewState.invoice
   const business = viewState.business
@@ -154,12 +133,20 @@ export default function ViewInvoice() {
     )
   }, [amountFormat, currencyPosition, currencySymbol, showDecimals])
 
-  const gstDisplay = useCallback((rate: number | string, amount: number) => {
-    if (!rate || rate === "0") {
-      return "-"
+  const gstDisplay = useCallback((rate: unknown, amount: number) => {
+    if (rate === null || rate === undefined) return "-"
+
+    if (typeof rate === "number") {
+      if (!Number.isFinite(rate) || rate === 0) return "-"
+      return `${money(amount)} (${rate}%)`
     }
 
-    return `${money(amount)} (${rate}%)`
+    if (typeof rate === "string") {
+      if (!rate || rate === "0") return "-"
+      return `${money(amount)} (${rate}%)`
+    }
+
+    return "-"
   }, [money])
 
   const totals = useMemo(() => {
@@ -187,7 +174,7 @@ export default function ViewInvoice() {
 
   const templateData = useMemo(
     () => ({
-      invoice,
+      invoice: invoice ?? undefined,
       business,
       templateId: template,
       fontFamily,
@@ -218,7 +205,12 @@ export default function ViewInvoice() {
 
   async function downloadInvoiceFallback() {
     const element = captureRef.current
-    if (!element || !invoice) return
+    if (!invoice) {
+      throw new Error("No invoice loaded.")
+    }
+    if (!element) {
+      throw new Error("Invoice preview is not ready. Refresh the page and try again.")
+    }
 
     const nodes = element.querySelectorAll<HTMLElement>("*")
     const prev: Array<{
@@ -311,88 +303,90 @@ export default function ViewInvoice() {
     setDownloadError("")
     setDownloadNotice("")
 
-    const ac = new AbortController()
-    const abortTimer = window.setTimeout(() => ac.abort(), 90_000)
-
     try {
-      const response = await fetch("/api/invoice-pdf", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/pdf, application/json;q=0.9, */*;q=0.8",
-        },
-        credentials: "include",
-        cache: "no-store",
-        signal: ac.signal,
-        body: JSON.stringify({
-          invoiceId: String(invoiceId || invoice.invoiceNumber || ""),
-          mode: "download",
-        }),
+      // Same source as Templates page + preview: flush so we send the template id the user sees.
+      flushSync(() => {
+        setViewState(readInvoiceViewState(invoiceId))
+      })
+      await new Promise<void>((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
       })
 
-      if (!response.ok) {
-        setDownloadError(await parsePdfApiErrorMessage(response))
-        return
-      }
+      const fresh = readInvoiceViewState(invoiceId)
+      const templateIdForPdf = fresh.template
+      const typoForPdf = fresh.typography
 
-      const blob = await response.blob()
-      const fullBuf = await blob.arrayBuffer()
-      const pdfBuf = extractPdfBufferFromResponse(fullBuf, response.headers.get("content-type"))
-      if (!pdfBuf) {
-        const raw = new TextDecoder().decode(new Uint8Array(fullBuf).slice(0, 2048))
-        let msg = "Server did not return a valid PDF. Try again in a moment."
-        try {
-          const json = JSON.parse(new TextDecoder().decode(fullBuf)) as { error?: string }
-          if (typeof json.error === "string" && json.error.trim()) msg = json.error.trim()
-        } catch {
-          if (raw.trimStart().startsWith("<!") || raw.trimStart().startsWith("<html")) {
-            msg = "Server returned an HTML page instead of a PDF. Check deployment logs for /api/invoice-pdf."
+      let vectorOk = false
+      try {
+        const res = await fetch("/api/invoice-pdf", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            invoiceId,
+            mode: "download",
+            templateId: templateIdForPdf,
+            // Must match on-screen invoice — server KV can lag behind local cache / debounced sync.
+            fontId: typoForPdf.fontId,
+            fontSize: typoForPdf.fontSize,
+            fontFamily: typoForPdf.fontFamily,
+          }),
+        })
+
+        // 204 No Content is still `res.ok` — never treat as PDF. We only accept explicit 200 + body.
+        if (res.ok && res.status === 200) {
+          const extracted = await extractPdfBufferFromResponse(res)
+          if (extracted.ok && extracted.bytes.byteLength >= 8) {
+            const pdfSlice = extracted.bytes.slice()
+            const blob = new Blob([pdfSlice], { type: "application/pdf" })
+            const url = URL.createObjectURL(blob)
+            const a = document.createElement("a")
+            a.href = url
+            a.download = `Invoice-${invoice.invoiceNumber}.pdf`
+            document.body.appendChild(a)
+            a.click()
+            a.remove()
+            URL.revokeObjectURL(url)
+            vectorOk = true
+            setDownloadNotice("Vector PDF (Playwright) — template and data from your account.")
+            window.setTimeout(() => setDownloadNotice(""), 9000)
+          } else if (!extracted.ok) {
+            console.warn("[invoice-pdf] non-pdf response", {
+              reason: extracted.reason,
+              contentType: extracted.contentType,
+              byteLength: extracted.byteLength,
+              sampleHex: extracted.sampleHex,
+              status: res.status,
+            })
           }
         }
-        setDownloadError(msg)
-        return
-      }
 
-      const pdfBlob = new Blob([pdfBuf], { type: "application/pdf" })
-      const url = window.URL.createObjectURL(pdfBlob)
-      const anchor = document.createElement("a")
-
-      anchor.href = url
-      anchor.download = `Invoice-${invoice.invoiceNumber}.pdf`
-
-      document.body.appendChild(anchor)
-      anchor.click()
-      anchor.remove()
-
-      window.URL.revokeObjectURL(url)
-
-      if (response.headers.get("X-EasyBill-Pdf-Engine")?.includes("playwright")) {
-        setDownloadNotice("Saved as vector PDF (server-rendered).")
-        window.setTimeout(() => setDownloadNotice(""), 7000)
-      }
-    } catch (primaryErr) {
-      const aborted =
-        primaryErr instanceof DOMException
-          ? primaryErr.name === "AbortError"
-          : primaryErr instanceof Error && primaryErr.name === "AbortError"
-      if (aborted) {
-        setDownloadError("Download timed out. Check your connection and try again.")
-        return
-      }
-      console.warn("Network or unexpected error - trying high-quality backup export:", primaryErr)
-      try {
-        await downloadInvoiceFallback()
-        setDownloadNotice("Saved using high-quality image backup (could not reach the print server).")
-        window.setTimeout(() => setDownloadNotice(""), 9000)
+        if (!vectorOk) {
+          const reason =
+            res.status === 204
+              ? "Server returned HTTP 204 (empty body). If this persists, check the terminal running `next dev` for [invoice-pdf] lines, or run `npm run build` then `npm start`."
+              : res.ok
+                ? "Server returned a non-PDF body (see console for reason)."
+                : await parsePdfApiErrorMessage(res)
+          await downloadInvoiceFallback()
+          setDownloadNotice(
+            `Saved a screen capture instead (${reason}).`
+          )
+          window.setTimeout(() => setDownloadNotice(""), 12000)
+        }
       } catch {
-        setDownloadError(
-          primaryErr instanceof Error && primaryErr.message
-            ? primaryErr.message
-            : "Unable to download PDF right now. Please try again."
+        await downloadInvoiceFallback()
+        setDownloadNotice(
+          "Vector PDF unavailable (network or server). Saved a screen capture instead."
         )
+        window.setTimeout(() => setDownloadNotice(""), 12000)
       }
+    } catch (err) {
+      setDownloadError(
+        err instanceof Error && err.message
+          ? err.message
+          : "Unable to create PDF right now. Please try again."
+      )
     } finally {
-      window.clearTimeout(abortTimer)
       setDownloadingPdf(false)
     }
   }

@@ -6,10 +6,14 @@ import { normalizeInvoiceForPdf } from "@/lib/server/normalizeInvoiceForPdf"
 import { createSupabaseServerClient } from "@/lib/supabase/server"
 import { revealSensitiveDataFromStorage } from "@/lib/sensitiveData"
 import type { InvoiceVisibilitySettings } from "@/lib/invoiceVisibilityShared"
+import { defaultTemplateTypography, getTemplateFontCss } from "@/lib/templateTypography"
 
 export const maxDuration = 60
 
 export const dynamic = "force-dynamic"
+
+/** Playwright + Buffer responses need the Node runtime (not Edge). */
+export const runtime = "nodejs"
 
 function toRawString(value: unknown): string | null {
   if (value == null) return null
@@ -24,12 +28,43 @@ function toRawString(value: unknown): string | null {
 type PdfRequestBody = {
   invoiceId?: string
   mode?: "print" | "download"
+  templateId?: string
+  /** Same source as invoice view / Templates page — preferred over Supabase KV (avoids debounce lag). */
+  fontId?: string
+  fontSize?: number | string
+  fontFamily?: string
+}
+
+function sanitizePdfFontSize(v: unknown): number | null {
+  if (typeof v === "number" && Number.isFinite(v)) {
+    return Math.max(7, Math.min(17, Math.round(v)))
+  }
+  if (typeof v === "string" && v.trim()) {
+    const n = Number(v.trim())
+    if (Number.isFinite(n)) return Math.max(7, Math.min(17, Math.round(n)))
+  }
+  return null
+}
+
+function sanitizePdfFontId(v: unknown): string | null {
+  if (typeof v !== "string") return null
+  const s = v.trim()
+  return s || null
+}
+
+function logPdfDebug(event: string, meta: Record<string, unknown>) {
+  console.info("[invoice-pdf]", event, meta)
 }
 
 export async function POST(req: Request) {
   const started = Date.now()
   const body = (await req.json().catch(() => ({}))) as PdfRequestBody
   const mode = body.mode === "print" ? "print" : "download"
+  const sanitizeTemplateId = (v: unknown): string | null => {
+    if (typeof v !== "string") return null
+    const s = v.trim()
+    return s ? s : null
+  }
 
   if (!body.invoiceId || String(body.invoiceId).trim() === "") {
     return pdfError(
@@ -59,6 +94,9 @@ export async function POST(req: Request) {
     "currencySymbol",
     "currencyPosition",
     "invoiceVisibility",
+    "templateTypography",
+    "invoiceTemplateFontId",
+    "invoiceTemplateFontSize",
   ]
 
   const { data: rows, error } = await supabase
@@ -103,7 +141,42 @@ export async function POST(req: Request) {
 
   const invoiceVisibilityRaw = toRawString(getKvOrBundle("invoiceVisibility"))
   const visibility = (parseJsonLoose(invoiceVisibilityRaw) || null) as Partial<InvoiceVisibilitySettings> | null
-  const templateId = String(getKvOrBundle("invoiceTemplate") || "classic-default")
+  const storedTemplateId = String(getKvOrBundle("invoiceTemplate") || "classic-default")
+  const templateId = sanitizeTemplateId(body.templateId) || storedTemplateId
+  const templateTypography = parseJsonLoose(toRawString(getKvOrBundle("templateTypography"))) as
+    | { fontId?: string; fontSize?: number | string; fontFamily?: string }
+    | null
+  const kvFontId = String(
+    getKvOrBundle("invoiceTemplateFontId") || templateTypography?.fontId || defaultTemplateTypography.fontId
+  )
+  const storedFontSizeRaw = Number(
+    getKvOrBundle("invoiceTemplateFontSize") ?? templateTypography?.fontSize ?? defaultTemplateTypography.fontSize
+  )
+  const kvFontSize = Number.isFinite(storedFontSizeRaw)
+    ? Math.max(7, Math.min(17, Math.round(storedFontSizeRaw)))
+    : defaultTemplateTypography.fontSize
+  const kvFontFamily =
+    (templateTypography?.fontFamily && String(templateTypography.fontFamily)) || getTemplateFontCss(kvFontId)
+
+  const bodyFontId = sanitizePdfFontId(body.fontId)
+  const bodyFontSize = sanitizePdfFontSize(body.fontSize)
+  const bodyFontFamily =
+    typeof body.fontFamily === "string" && body.fontFamily.trim() ? body.fontFamily.trim() : null
+
+  const resolvedFontId = bodyFontId || kvFontId
+  const resolvedFontSize = bodyFontSize ?? kvFontSize
+  const resolvedFontFamily =
+    bodyFontFamily || (bodyFontId ? getTemplateFontCss(bodyFontId) : null) || kvFontFamily
+
+  logPdfDebug("request", {
+    mode,
+    invoiceId: body.invoiceId,
+    templateId,
+    fontId: resolvedFontId,
+    fontSize: resolvedFontSize,
+    typographySource: bodyFontSize != null || bodyFontId || bodyFontFamily ? "body" : "kv",
+    userIdSuffix: user.id.slice(-6),
+  })
 
   const html = buildInvoicePdfHtml({
     invoice: invoiceData as Record<string, unknown>,
@@ -117,18 +190,59 @@ export async function POST(req: Request) {
     currencyPosition: (String(getKvOrBundle("currencyPosition") || "before") === "after" ? "after" : "before") as
       | "before"
       | "after",
+    fontFamily: resolvedFontFamily,
+    fontSize: resolvedFontSize,
   })
   const result = await generateInvoicePdfBuffer({ html })
 
   if (!result.ok) {
+    logPdfDebug("engine-error", {
+      invoiceId: body.invoiceId,
+      templateId,
+      code: result.code,
+      httpStatus: result.httpStatus,
+      message: result.message,
+    })
     return pdfError(result.message, result.code, result.httpStatus)
+  }
+
+  // Guard: avoid returning 204/empty bodies if the PDF engine produced no bytes.
+  if (result.pdfBytes.byteLength < 8) {
+    logPdfDebug("invalid-pdf-empty", {
+      invoiceId: body.invoiceId,
+      templateId,
+      byteLength: result.pdfBytes.byteLength,
+    })
+    return pdfError("PDF engine returned an empty document.", "PDF_BUILD", 500)
+  }
+  const [b0, b1, b2, b3] = result.pdfBytes
+  const looksLikePdf = b0 === 0x25 && b1 === 0x50 && b2 === 0x44 && b3 === 0x46 // %PDF
+  if (!looksLikePdf) {
+    logPdfDebug("invalid-pdf-magic", {
+      invoiceId: body.invoiceId,
+      templateId,
+      byteLength: result.pdfBytes.byteLength,
+    })
+    return pdfError("PDF engine returned non-PDF bytes.", "PDF_BUILD", 500)
   }
 
   const elapsedMs = Date.now() - started
 
-  return new NextResponse(Buffer.from(result.pdfBytes), {
+  // Use Buffer + explicit 200 — some dev stacks mishandle Uint8Array bodies as empty (HTTP 204).
+  const pdfBuffer = Buffer.from(result.pdfBytes)
+
+  logPdfDebug("pdf-success", {
+    invoiceId: body.invoiceId,
+    templateId,
+    byteLength: pdfBuffer.length,
+    ms: elapsedMs,
+  })
+
+  return new NextResponse(pdfBuffer, {
+    status: 200,
     headers: {
       "Content-Type": "application/pdf",
+      "Content-Length": String(pdfBuffer.length),
       "Content-Disposition": mode === "print" ? "inline" : `attachment; filename=Invoice-${fileInvoiceNumber}.pdf`,
       "Cache-Control": "no-store, private",
       "X-EasyBill-Pdf-Engine": "playwright-setcontent",

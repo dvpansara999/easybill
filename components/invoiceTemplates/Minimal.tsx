@@ -1,4 +1,3 @@
-// @ts-nocheck
 import Image from "next/image"
 export const templateMeta = {
 id:"minimal-light",
@@ -22,7 +21,7 @@ import type {
   TemplateTheme,
 } from "@/components/invoiceTemplates/templateTypes"
 
-const minimalThemes: Record<string, TemplateTheme> = {
+export const minimalThemes: Record<string, TemplateTheme> = {
 "minimal-light": { accent:"#111827", soft:"#f3f4f6", line:"#e5e7eb", mode:"plain", header:"stack", summary:"clean", info:"split", logo:false },
 "minimal-dark": { accent:"#111827", soft:"#f5f5f5", line:"#d4d4d8", mode:"plain", header:"split", summary:"rule", info:"stack", logo:false },
 "minimal-white": { accent:"#374151", soft:"#ffffff", line:"#e5e7eb", mode:"open", header:"stack", summary:"clean", info:"detailsTop", logo:false },
@@ -89,7 +88,7 @@ return(
 </div>
 <div className="text-right text-sm text-gray-600">
 <p>Invoice #{invoice?.invoiceNumber}</p>
-<p className="mt-2 font-semibold text-gray-900">{formatDate?.(invoice?.date,dateFormat)}</p>
+<p className="mt-2 font-semibold text-gray-900">{formatDate?.(invoice?.date ?? "",dateFormat)}</p>
 </div>
 </div>
 )}
@@ -104,7 +103,7 @@ return(
 </div>
 <div className="text-right text-sm text-gray-600">
 <p>{invoice?.invoiceNumber}</p>
-<p>{formatDate?.(invoice?.date,dateFormat)}</p>
+<p>{formatDate?.(invoice?.date ?? "",dateFormat)}</p>
 </div>
 </div>
 )}
@@ -123,7 +122,7 @@ return(
 </div>
 <div className="text-right text-sm text-gray-600">
 <p>Invoice #{invoice?.invoiceNumber}</p>
-<p className="mt-2 font-semibold text-gray-900">{formatDate?.(invoice?.date,dateFormat)}</p>
+<p className="mt-2 font-semibold text-gray-900">{formatDate?.(invoice?.date ?? "",dateFormat)}</p>
 </div>
 </div>
 </div>
@@ -235,7 +234,7 @@ function MinimalSummary({invoice,subtotal,totalCGST,totalSGST,totalIGST,money,th
 return(
 <div className={theme.summary === "panel" ? "rounded-xl p-5" : "p-0"} style={theme.summary === "panel" ? { backgroundColor: theme.soft } : undefined}>
 <div className="space-y-2 text-sm text-gray-700">
-<div className="flex justify-between"><span>Subtotal</span><span>{money(subtotal)}</span></div>
+<div className="flex justify-between"><span>Subtotal</span><span>{money(subtotal ?? 0)}</span></div>
 <div className="flex justify-between"><span>CGST</span><span>{totalCGST ? money(totalCGST) : "-"}</span></div>
 <div className="flex justify-between"><span>SGST</span><span>{totalSGST ? money(totalSGST) : "-"}</span></div>
 <div className="flex justify-between"><span>IGST</span><span>{totalIGST ? money(totalIGST) : "-"}</span></div>
@@ -279,7 +278,7 @@ export default function MinimalTemplate({
 invoice,
 business,
 templateId,
-fontFamily,
+fontFamily = "system",
 fontSize,
 renderContext = "screen",
 subtotal,
@@ -294,7 +293,7 @@ invoiceVisibility
 }: TemplateComponentProps){
 const businessInfo = business || {}
 const details = invoice?.customDetails || []
-const theme = minimalThemes[templateId] || minimalThemes["minimal-light"]
+const theme = minimalThemes[templateId ?? "minimal-light"] || minimalThemes["minimal-light"]
 const visibility: InvoiceVisibilitySettings = invoiceVisibility || DEFAULT_INVOICE_VISIBILITY
 
 const shellClass =
@@ -312,14 +311,14 @@ className="w-full bg-white text-gray-800"
 style={invoiceTemplateRootTypographyStyle(fontFamily, fontSize, renderContext)}
 >
 <div className={shellClass} style={{ borderColor: theme.line, backgroundColor: theme.soft }}>
-<MinimalHeader invoice={invoice} businessInfo={businessInfo} formatDate={formatDate} dateFormat={dateFormat} theme={theme} visibility={visibility}/>
-<MinimalInfo invoice={invoice} details={details} theme={theme} visibility={visibility}/>
+<MinimalHeader invoice={invoice ?? undefined} businessInfo={businessInfo} formatDate={formatDate} dateFormat={dateFormat} theme={theme} visibility={visibility}/>
+<MinimalInfo invoice={invoice ?? undefined} details={details} theme={theme} visibility={visibility}/>
 <div className="mt-8">
-<MinimalItems invoice={invoice} money={money} gstDisplay={gstDisplay} theme={theme}/>
+<MinimalItems invoice={invoice ?? undefined} money={money} gstDisplay={gstDisplay} theme={theme}/>
 </div>
 <div className="mt-8 flex justify-end">
 <div className="w-[320px]">
-<MinimalSummary invoice={invoice} subtotal={subtotal} totalCGST={totalCGST} totalSGST={totalSGST} totalIGST={totalIGST} money={money} theme={theme}/>
+<MinimalSummary invoice={invoice ?? undefined} subtotal={subtotal} totalCGST={totalCGST} totalSGST={totalSGST} totalIGST={totalIGST} money={money} theme={theme}/>
 </div>
 </div>
 <div className="mt-8 border-t" style={{ borderColor: theme.line }}>

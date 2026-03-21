@@ -1,4 +1,3 @@
-// @ts-nocheck
 "use client"
 
 import Image from "next/image"
@@ -54,11 +53,11 @@ type InvoiceRecord = {
 }
 
 type TemplateMoney = (value: number) => string
-type TemplateGst = (rate: unknown, amount: number) => string
+type TemplateGst = (rate: string | number | null | undefined, amount: number) => string
 type TemplateDate = (value: string, format: string) => string
 
 type DefaultTemplateProps = {
-  invoice?: InvoiceRecord
+  invoice?: InvoiceRecord | null
   business?: BusinessRecord | null
   fontFamily?: string
   fontSize?: number
@@ -96,7 +95,7 @@ function readStoredBusiness() {
 export default function DefaultTemplate({
   invoice,
   business: businessProp,
-  fontFamily,
+  fontFamily = "system",
   fontSize,
   renderContext = "screen",
   subtotal = 0,

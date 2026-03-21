@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { getAuthMode } from "@/lib/runtimeMode"
 import * as local from "@/lib/authLocal"
 import * as supabase from "@/lib/authSupabase"
@@ -17,9 +16,9 @@ type AuthModule = {
   signInWithProvider: typeof local.signInWithProvider
   signOut: typeof local.signOut
   updateCredentials: typeof local.updateCredentials
-  updatePasswordAfterOtp: typeof local.updatePasswordAfterOtp
+  updatePasswordAfterOtp: typeof supabase.updatePasswordAfterOtp
   requestEmailChangeOtp: typeof local.requestEmailChangeOtp
-  verifyEmailChangeOtp: typeof local.verifyEmailChangeOtp
+  verifyEmailChangeOtp: typeof supabase.verifyEmailChangeOtp
 }
 
 function impl(): AuthModule {
