@@ -149,15 +149,21 @@ export default function CreateInvoiceClient() {
     return formatCurrency(value, currencySymbol, currencyPosition, showDecimals, amountFormat)
   }
 
+  function toNumber(value: unknown) {
+    const normalized = String(value ?? "").trim().replace(",", ".")
+    const parsed = Number(normalized)
+    return Number.isFinite(parsed) ? parsed : 0
+  }
+
   function updateTotals(updated: InvoiceItem[], index: number) {
     const row = updated[index]
-    const qty = Number(row.qty || 0)
-    const price = Number(row.price || 0)
+    const qty = toNumber(row.qty)
+    const price = toNumber(row.price)
     const base = qty * price
-    const cgst = base * (Number(row.cgst || 0) / 100)
-    const sgst = base * (Number(row.sgst || 0) / 100)
-    const igst = base * (Number(row.igst || 0) / 100)
-    updated[index] = { ...row, qty, price, total: base + cgst + sgst + igst }
+    const cgst = base * (toNumber(row.cgst) / 100)
+    const sgst = base * (toNumber(row.sgst) / 100)
+    const igst = base * (toNumber(row.igst) / 100)
+    updated[index] = { ...row, total: base + cgst + sgst + igst }
     return updated
   }
 
@@ -378,7 +384,7 @@ export default function CreateInvoiceClient() {
             <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Client Name *</label>
             <input
               placeholder="Client Name"
-              className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+              className="h-[54px] w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm leading-5 outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
               value={clientName}
               onChange={(e) => searchClientName(e.target.value)}
             />
@@ -397,7 +403,7 @@ export default function CreateInvoiceClient() {
             <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Client Phone</label>
             <input
               placeholder="Client Phone"
-              className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+              className="h-[54px] w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm leading-5 outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
               value={clientPhone}
               onChange={(e) => searchClientPhone(e.target.value)}
             />
@@ -414,15 +420,20 @@ export default function CreateInvoiceClient() {
 
           <div>
             <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Client Email</label>
-            <input placeholder="Client Email" className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100" value={clientEmail} onChange={(e) => setClientEmail(e.target.value)} />
+            <input placeholder="Client Email" className="h-[54px] w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm leading-5 outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100" value={clientEmail} onChange={(e) => setClientEmail(e.target.value)} />
           </div>
           <div>
             <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Client GSTIN</label>
-            <input placeholder="Client GSTIN" className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100" value={clientGST} onChange={(e) => setClientGST(e.target.value)} />
+            <input placeholder="Client GSTIN" className="h-[54px] w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm leading-5 outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100" value={clientGST} onChange={(e) => setClientGST(e.target.value)} />
           </div>
           <div>
             <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Invoice Date *</label>
-            <input type="date" className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100" value={date} onChange={(e) => setDate(e.target.value)} />
+            <input
+              type="date"
+              className="h-[54px] w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm leading-5 outline-none transition [appearance:textfield] focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+            />
           </div>
         </div>
 
@@ -450,13 +461,13 @@ export default function CreateInvoiceClient() {
                   <div key={index} className="grid gap-3 md:grid-cols-[0.35fr_1fr_auto]">
                     <input
                       placeholder="Label"
-                      className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+                      className="h-[54px] rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm leading-5 outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
                       value={detail.label}
                       onChange={(e) => setCustomDetails((prev) => prev.map((row, current) => (current === index ? { ...row, label: e.target.value } : row)))}
                     />
                     <input
                       placeholder="Value"
-                      className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+                      className="h-[54px] rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm leading-5 outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
                       value={detail.value}
                       onChange={(e) => setCustomDetails((prev) => prev.map((row, current) => (current === index ? { ...row, value: e.target.value } : row)))}
                     />
@@ -495,7 +506,7 @@ export default function CreateInvoiceClient() {
               <div className="grid grid-cols-2 gap-2.5 sm:gap-3 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-[1.7fr_0.95fr_0.62fr_0.7fr_0.9fr_0.68fr_0.68fr_0.68fr_1fr_auto]">
                 <div className="relative col-span-2">
                   <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Product *</label>
-                  <input value={item.product} onChange={(e) => searchProduct(index, e.target.value)} placeholder="Product" className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100" />
+                  <input value={item.product} onChange={(e) => searchProduct(index, e.target.value)} placeholder="Product" className="h-[54px] w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm leading-5 outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100" />
                   {activeRow === index && suggestions.length > 0 ? (
                     <div ref={dropdownRef} className="absolute z-50 mt-2 w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
                       {suggestions.map((product, suggestionIndex) => (
@@ -509,7 +520,7 @@ export default function CreateInvoiceClient() {
 
                 <div className="col-span-2 sm:col-span-1">
                   <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">HSN</label>
-                  <input value={item.hsn} onChange={(e) => searchHSN(index, e.target.value)} placeholder="HSN" className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100" />
+                  <input value={item.hsn} onChange={(e) => searchHSN(index, e.target.value)} placeholder="HSN" className="h-[54px] w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm leading-5 outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100" />
                 </div>
 
                 {(["qty", "unit", "price", "cgst", "sgst", "igst"] as const).map((field) => (
@@ -517,17 +528,20 @@ export default function CreateInvoiceClient() {
                     <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">{field === "qty" ? "Qty *" : field === "unit" ? "Unit" : `${field.toUpperCase()}${field === "price" ? " *" : " %"}`}</label>
                     <input
                       type={field === "unit" ? "text" : "text"}
-                      inputMode={field === "unit" ? undefined : field === "qty" ? "numeric" : "decimal"}
+                      inputMode={field === "unit" ? undefined : "decimal"}
                       value={String(item[field] ?? "")}
-                      onChange={(e) =>
-                        handleItemChange(
-                          index,
-                          field,
-                          field === "unit" || e.target.value === "" ? e.target.value : Number(e.target.value)
-                        )
-                      }
+                      onChange={(e) => {
+                        const next = e.target.value
+                        if (field === "unit") {
+                          handleItemChange(index, field, next)
+                          return
+                        }
+                        // Keep numeric typing smooth (e.g. "1.", "0.5", "0,5") while blocking invalid characters.
+                        if (!/^\d*([.,]?\d*)$/.test(next)) return
+                        handleItemChange(index, field, next)
+                      }}
                       placeholder={field === "unit" ? "Unit" : field.toUpperCase()}
-                      className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+                      className="h-[54px] w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm leading-5 outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
                     />
                   </div>
                 ))}

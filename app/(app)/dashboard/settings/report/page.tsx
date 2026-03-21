@@ -126,7 +126,7 @@ export default function ReportBugFeedbackPage() {
         <button
           type="button"
           onClick={() => router.push("/dashboard/settings")}
-          className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50 sm:w-fit sm:rounded-full sm:py-2"
+          className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50 sm:w-fit sm:justify-start sm:rounded-full sm:py-2"
         >
           <ArrowLeft className="h-4 w-4" />
           Back to Settings

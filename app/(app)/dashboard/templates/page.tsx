@@ -369,7 +369,7 @@ previewTemplate===t.id
 </div>
 
 <div
-  className="soft-card flex w-full max-w-full flex-col overflow-hidden rounded-[22px] p-4 sm:p-5 xl:sticky xl:top-8 xl:max-w-[420px] xl:justify-self-end xl:rounded-[28px] xl:p-6"
+  className="soft-card flex w-full max-w-full flex-col overflow-visible rounded-[22px] p-4 sm:p-5 xl:sticky xl:top-8 xl:max-w-[420px] xl:justify-self-end xl:rounded-[28px] xl:p-6"
   style={isXl && leftColumnHeight ? { maxHeight: leftColumnHeight } : undefined}
 >
 <div className="mb-3 xl:mb-4">
@@ -377,7 +377,7 @@ previewTemplate===t.id
 <p className="mt-1 text-xs text-slate-500 sm:text-sm">See the exact direction before you activate it.</p>
 </div>
 
-<div className="min-h-0 flex-1">
+<div className="min-h-0 flex-1 overflow-hidden">
   <A4LargePreview
     template={previewTemplate}
     fontFamily={fontFamily}
@@ -387,9 +387,6 @@ previewTemplate===t.id
 </div>
 
 <div className="mt-4 hidden xl:mt-6 xl:block">
-<p className="mb-3 text-xs leading-5 text-slate-500">
-  Preview is sized like A4 PDF output. Scroll appears only if it flows to page 2 (preview capped at 2 pages).
-</p>
 {activeTemplate===previewTemplate ? (
 <button disabled className="w-full rounded-2xl bg-slate-200 py-3 text-sm font-semibold text-slate-500">
 Currently Active

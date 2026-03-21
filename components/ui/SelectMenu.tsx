@@ -24,10 +24,24 @@ export default function SelectMenu<T extends string>({
   className?: string
 }) {
   const [open, setOpen] = useState(false)
+  const [useNativeMobile, setUseNativeMobile] = useState(false)
   const wrapRef = useRef<HTMLDivElement | null>(null)
   const buttonRef = useRef<HTMLButtonElement | null>(null)
 
   const selected = useMemo(() => options.find((o) => o.value === value) || null, [options, value])
+
+  useEffect(() => {
+    const coarse = window.matchMedia("(pointer: coarse)")
+    const small = window.matchMedia("(max-width: 767px)")
+    const apply = () => setUseNativeMobile(coarse.matches || small.matches)
+    apply()
+    coarse.addEventListener("change", apply)
+    small.addEventListener("change", apply)
+    return () => {
+      coarse.removeEventListener("change", apply)
+      small.removeEventListener("change", apply)
+    }
+  }, [])
 
   useEffect(() => {
     function onDocDown(e: MouseEvent) {
@@ -37,8 +51,19 @@ export default function SelectMenu<T extends string>({
         setOpen(false)
       }
     }
+    function onDocTouch(e: TouchEvent) {
+      const target = e.target as Node | null
+      if (!target) return
+      if (wrapRef.current && !wrapRef.current.contains(target)) {
+        setOpen(false)
+      }
+    }
     document.addEventListener("mousedown", onDocDown)
-    return () => document.removeEventListener("mousedown", onDocDown)
+    document.addEventListener("touchstart", onDocTouch)
+    return () => {
+      document.removeEventListener("mousedown", onDocDown)
+      document.removeEventListener("touchstart", onDocTouch)
+    }
   }, [])
 
   useEffect(() => {
@@ -53,6 +78,30 @@ export default function SelectMenu<T extends string>({
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
   }, [open])
+
+  if (useNativeMobile) {
+    return (
+      <div ref={wrapRef} className={`relative ${className}`}>
+        <select
+          value={value}
+          onChange={(e) => onChange(e.target.value as T)}
+          disabled={disabled}
+          className={`w-full appearance-none rounded-2xl border px-4 py-3 text-sm shadow-sm outline-none transition ${
+            disabled
+              ? "cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400"
+              : "border-slate-200 bg-white text-slate-900 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+          }`}
+        >
+          {options.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+        <ChevronDown className={`pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 ${disabled ? "text-slate-300" : "text-slate-400"}`} />
+      </div>
+    )
+  }
 
   return (
     <div ref={wrapRef} className={`relative ${className}`}>

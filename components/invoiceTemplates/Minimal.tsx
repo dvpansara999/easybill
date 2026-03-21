@@ -172,29 +172,76 @@ function items({
   gstDisplay: TemplateComponentProps["gstDisplay"]
   theme: MinimalTheme
 }) {
+  void gstDisplay
+  const rows = invoice?.items || []
+  const hasHsn = rows.some((item) => String(item.hsn || "").trim() !== "")
+  const hasCgst = rows.some((item) => Number(item.cgst || 0) > 0)
+  const hasSgst = rows.some((item) => Number(item.sgst || 0) > 0)
+  const hasIgst = rows.some((item) => Number(item.igst || 0) > 0)
+  const splitHsn = (hsn: string | undefined) => {
+    const text = String(hsn || "-")
+    if (text.length <= 4) return [text, ""]
+    return [text.slice(0, 4), text.slice(4)]
+  }
+  const gstCell = (rate: number | string | null | undefined, amount: number) => {
+    const rateText = rate === null || rate === undefined || rate === "" || String(rate) === "0" ? "" : `${rate}%`
+    return (
+      <div className="leading-tight">
+        <div>{rateText ? money(amount) : "-"}</div>
+        <div className="text-[11px] text-slate-400">{rateText || "\u00A0"}</div>
+      </div>
+    )
+  }
   return (
     <table className="w-full text-sm">
       <thead>
         <tr className="border-b text-slate-500" style={{ borderColor: theme.line }}>
-          <th className="py-2 text-left">Item</th><th className="py-2 text-left">HSN</th><th className="py-2 text-right">Qty</th>
-          <th className="py-2 text-right">Price</th><th className="py-2 text-right">CGST</th><th className="py-2 text-right">SGST</th>
-          <th className="py-2 text-right">IGST</th><th className="py-2 text-right">Amount</th>
+          <th className="py-2 text-left">Item</th>
+          {hasHsn ? <th className="py-2 text-center">HSN</th> : null}
+          <th className="py-2 text-center">Qty</th>
+          <th className="py-2 text-right">Price</th>
+          {hasCgst ? <th className="py-2 text-right">CGST</th> : null}
+          {hasSgst ? <th className="py-2 text-right">SGST</th> : null}
+          {hasIgst ? <th className="py-2 text-right">IGST</th> : null}
+          <th className="py-2 text-right">Amount</th>
         </tr>
       </thead>
       <tbody>
-        {(invoice?.items || []).map((item, idx) => {
+        {rows.map((item, idx) => {
           const base = Number(item.qty || 0) * Number(item.price || 0)
           const cgstAmount = item.cgst ? (base * Number(item.cgst)) / 100 : 0
           const sgstAmount = item.sgst ? (base * Number(item.sgst)) / 100 : 0
           const igstAmount = item.igst ? (base * Number(item.igst)) / 100 : 0
           return (
-            <tr key={idx} className="border-b" style={{ borderColor: theme.line }}>
-              <td className="py-2">{item.product || "-"}</td><td className="py-2">{item.hsn || "-"}</td><td className="py-2 text-right">{item.qty || 0}</td>
-              <td className="py-2 text-right">{money(item.price || 0)}</td>
-              <td className="py-2 text-right">{gstDisplay(item.cgst, cgstAmount)}</td>
-              <td className="py-2 text-right">{gstDisplay(item.sgst, sgstAmount)}</td>
-              <td className="py-2 text-right">{gstDisplay(item.igst, igstAmount)}</td>
-              <td className="py-2 text-right font-semibold">{money(item.total || 0)}</td>
+            <tr key={idx} className="border-b" style={{ borderColor: theme.line, height: 56 }}>
+              <td className="py-2 align-middle">
+                <div
+                  className="leading-tight"
+                  style={{
+                    display: "-webkit-box",
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: "vertical",
+                    overflow: "hidden",
+                  }}
+                >
+                  {item.product || "-"}
+                </div>
+              </td>
+              {hasHsn ? (
+                <td className="py-2 text-center align-middle">
+                  <div className="leading-tight">
+                    {splitHsn(item.hsn).map((line, i) => (
+                      <div key={i}>{line || "\u00A0"}</div>
+                    ))}
+                  </div>
+                </td>
+              ) : null}
+              <td className="py-2 text-center align-middle">{item.qty || 0}</td>
+              <td className="py-2 text-right align-middle">{money(item.price || 0)}</td>
+              {hasCgst ? <td className="py-2 text-right align-middle">{gstCell(item.cgst, cgstAmount)}</td> : null}
+              {hasSgst ? <td className="py-2 text-right align-middle">{gstCell(item.sgst, sgstAmount)}</td> : null}
+              {hasIgst ? <td className="py-2 text-right align-middle">{gstCell(item.igst, igstAmount)}</td> : null}
+              <td className="py-2 text-right align-middle font-bold text-slate-900">{money(item.total || 0)}</td>
             </tr>
           )
         })}
@@ -224,9 +271,9 @@ function summary({
     <div className="eb-summary-box rounded-lg border p-3" style={{ borderColor: theme.line }}>
       <div className="space-y-2 text-sm text-slate-700">
         <div className="flex justify-between"><span>Subtotal</span><span>{money(subtotal)}</span></div>
-        <div className="flex justify-between"><span>CGST</span><span>{totalCGST ? money(totalCGST) : "-"}</span></div>
-        <div className="flex justify-between"><span>SGST</span><span>{totalSGST ? money(totalSGST) : "-"}</span></div>
-        <div className="flex justify-between"><span>IGST</span><span>{totalIGST ? money(totalIGST) : "-"}</span></div>
+        {totalCGST ? <div className="flex justify-between"><span>CGST</span><span>{money(totalCGST)}</span></div> : null}
+        {totalSGST ? <div className="flex justify-between"><span>SGST</span><span>{money(totalSGST)}</span></div> : null}
+        {totalIGST ? <div className="flex justify-between"><span>IGST</span><span>{money(totalIGST)}</span></div> : null}
         <div className="flex justify-between border-t pt-2 text-lg font-semibold text-slate-900" style={{ borderColor: theme.line }}>
           <span>Total</span><span>{money(invoice?.grandTotal || 0)}</span>
         </div>
@@ -303,7 +350,7 @@ export default function MinimalTemplate({
         <div className="eb-content-block">{header({ invoice: invoice || undefined, business: businessInfo, visibility, theme, formatDate, dateFormat })}</div>
         <div className="eb-content-block">{info({ invoice: invoice || undefined, details, visibility, theme })}</div>
         <div className="eb-content-block eb-section eb-section-items mt-5">{items({ invoice: invoice || undefined, money, gstDisplay, theme })}</div>
-        <div className="eb-content-block eb-section eb-section-summary mt-5 flex justify-end">
+        <div className="eb-content-block eb-section eb-section-summary mt-7 flex justify-end">
           <div className="w-[320px]">{summary({ invoice: invoice || undefined, subtotal: subtotal || 0, totalCGST: totalCGST || 0, totalSGST: totalSGST || 0, totalIGST: totalIGST || 0, money, theme })}</div>
         </div>
         <div className="eb-content-block eb-section eb-section-footer mt-5">{footer({ business: businessInfo, visibility, theme })}</div>
