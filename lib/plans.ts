@@ -1,3 +1,5 @@
+import { DEFAULT_TEMPLATE_ID, resolveTemplateId } from "@/lib/templateIds"
+
 export type PlanId = "free" | "plus"
 
 export type Plan = {
@@ -29,12 +31,12 @@ export const PLANS: Plan[] = [
       canEditInvoices: false,
       maxProducts: 3,
       allowedTemplateIds: [
-        "classic-default",
-        "classic-ledger",
-        "modern-default",
-        "modern-pro",
-        "minimal-light",
-        "minimal-white",
+        "modern-atlas",
+        "modern-zenboard",
+        "minimal-mist",
+        "minimal-inkgrid",
+        "classic-registry",
+        "classic-notaryx",
       ],
     },
   },
@@ -164,7 +166,7 @@ export function canEditInvoices(): boolean {
 export function canUseTemplate(templateId: string): boolean {
   const allowed = getActivePlan().limits.allowedTemplateIds
   if (!allowed) return true
-  return allowed.includes(templateId)
+  return allowed.includes(resolveTemplateId(templateId))
 }
 
 export function getMaxProducts(): number | null {
@@ -180,9 +182,9 @@ export function enforceFreeRestrictions() {
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { getActiveOrGlobalItem, setActiveOrGlobalItem } = require("@/lib/userStore") as typeof import("@/lib/userStore")
-    const current = getActiveOrGlobalItem("invoiceTemplate") || "classic-default"
+    const current = resolveTemplateId(getActiveOrGlobalItem("invoiceTemplate") || DEFAULT_TEMPLATE_ID)
     if (!canUseTemplate(current)) {
-      setActiveOrGlobalItem("invoiceTemplate", "classic-default")
+      setActiveOrGlobalItem("invoiceTemplate", DEFAULT_TEMPLATE_ID)
     }
   } catch {
     // ignore

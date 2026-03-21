@@ -7,6 +7,27 @@ const A4_WIDTH_PX = 794
 const A4_HEIGHT_PX = 1123
 const PAGE_PADDING_PX = 38
 const PAGE_GAP_PX = 34
+const OVERFLOW_EPSILON_PX = 12
+
+function hasMeaningfulContent(node: HTMLElement) {
+  const text = (node.textContent || "").replace(/\s+/g, " ").trim()
+  if (text.length > 0) return true
+  return Boolean(node.querySelector("img,svg,table"))
+}
+
+function measureMeaningfulHeight(container: HTMLElement) {
+  const blocks = Array.from(container.querySelectorAll<HTMLElement>(".eb-content-block"))
+  if (!blocks.length) return container.scrollHeight || container.offsetHeight || A4_HEIGHT_PX
+  const rootRect = container.getBoundingClientRect()
+  let maxBottom = 0
+  for (const block of blocks) {
+    if (!hasMeaningfulContent(block)) continue
+    const rect = block.getBoundingClientRect()
+    maxBottom = Math.max(maxBottom, rect.bottom - rootRect.top)
+  }
+  if (maxBottom <= 0) return container.scrollHeight || container.offsetHeight || A4_HEIGHT_PX
+  return Math.ceil(maxBottom + 2)
+}
 
 type A4InvoiceViewProps = {
   TemplateComponent: React.ComponentType<TemplateComponentProps>
@@ -58,7 +79,8 @@ const A4InvoiceView = forwardRef<HTMLDivElement, A4InvoiceViewProps>(function A4
     if (!el) return
 
     const updateHeight = () => {
-      setContentHeight(Math.max(A4_HEIGHT_PX, el.scrollHeight || el.offsetHeight || A4_HEIGHT_PX))
+      const measuredHeight = measureMeaningfulHeight(el)
+      setContentHeight(Math.max(A4_HEIGHT_PX, measuredHeight))
     }
 
     const ro = new ResizeObserver(() => {
@@ -73,7 +95,8 @@ const A4InvoiceView = forwardRef<HTMLDivElement, A4InvoiceViewProps>(function A4
 
   const scale = wrapWidth ? Math.min(1, wrapWidth / A4_WIDTH_PX) : 0.9
   const rawPages = useMemo(() => Math.max(1, Math.ceil(contentHeight / A4_HEIGHT_PX)), [contentHeight])
-  const overflowPages = Math.min(maxPages, rawPages)
+  const overflowPx = Math.max(0, contentHeight - A4_HEIGHT_PX)
+  const overflowPages = overflowPx > OVERFLOW_EPSILON_PX ? Math.min(maxPages, rawPages) : 1
   const pageViewportHeight = Math.max(220, Math.round(A4_HEIGHT_PX * scale))
   const viewportHeight = viewportMaxHeightPx
     ? Math.min(viewportMaxHeightPx, pageViewportHeight * overflowPages + PAGE_GAP_PX * (overflowPages - 1))

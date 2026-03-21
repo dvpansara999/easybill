@@ -5,18 +5,29 @@ import ClassicTemplate from "@/components/invoiceTemplates/Classic"
 import MinimalTemplate from "@/components/invoiceTemplates/Minimal"
 import ModernTemplate from "@/components/invoiceTemplates/Modern"
 import type { TemplateComponentProps } from "@/components/invoiceTemplates/templateTypes"
+import { resolveTemplateId } from "@/lib/templateIds"
 
 function pickVariant(templateId: string | undefined) {
-  const id = String(templateId || "classic-default")
-  if (id === "classic-default" || id === "default") return DefaultTemplate
-  if (id.startsWith("modern")) return ModernTemplate
-  if (id.startsWith("minimal")) return MinimalTemplate
-  if (id.startsWith("classic")) return ClassicTemplate
-  return DefaultTemplate
+  const id = resolveTemplateId(templateId)
+  if (id === "default") return "default"
+  if (id.startsWith("modern")) return "modern"
+  if (id.startsWith("minimal")) return "minimal"
+  if (id.startsWith("classic")) return "classic"
+  return "default"
 }
 
 export default function SharedInvoiceTemplate(props: TemplateComponentProps) {
-  const Variant = pickVariant(props.templateId)
-  return <Variant {...props} />
+  const resolvedTemplateId = resolveTemplateId(props.templateId)
+  const variant = pickVariant(resolvedTemplateId)
+  if (variant === "modern") {
+    return <ModernTemplate {...props} templateId={resolvedTemplateId} />
+  }
+  if (variant === "minimal") {
+    return <MinimalTemplate {...props} templateId={resolvedTemplateId} />
+  }
+  if (variant === "classic") {
+    return <ClassicTemplate {...props} templateId={resolvedTemplateId} />
+  }
+  return <DefaultTemplate {...props} />
 }
 

@@ -3,12 +3,13 @@
 import { createElement } from "react"
 import { templates as templateEngines } from "@/components/invoiceTemplates"
 import { previewTemplateProps } from "@/lib/templatePreviewData"
+import { resolveTemplateId } from "@/lib/templateIds"
 
 function getTemplateEngine(id: string) {
-  if (id.startsWith("modern")) return templateEngines.modern
-  if (id.startsWith("minimal")) return templateEngines.minimal
-  if (id === "classic-default") return templateEngines.default
-  if (id.startsWith("classic")) return templateEngines.classic
+  const resolved = resolveTemplateId(id)
+  if (resolved.startsWith("modern")) return templateEngines.modern
+  if (resolved.startsWith("minimal")) return templateEngines.minimal
+  if (resolved.startsWith("classic")) return templateEngines.classic
 
   return templateEngines.default
 }
@@ -29,7 +30,7 @@ export default function SmallPreview({
       <div className="origin-top-left scale-[0.16] w-[600%]">
         {createElement(engine, {
           ...previewTemplateProps,
-          templateId: template,
+          templateId: resolveTemplateId(template),
           fontFamily,
           fontSize,
         })}

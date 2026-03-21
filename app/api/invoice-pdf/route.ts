@@ -7,6 +7,7 @@ import { revealSensitiveDataFromStorage } from "@/lib/sensitiveData"
 import type { InvoiceVisibilitySettings } from "@/lib/invoiceVisibilityShared"
 import { defaultTemplateTypography, getTemplateFontCss } from "@/lib/templateTypography"
 import { normalizeTemplateTypography } from "@/lib/globalTemplateTypography"
+import { DEFAULT_TEMPLATE_ID, resolveTemplateId } from "@/lib/templateIds"
 
 // Use your local Chromium executable for debugging (must be set before launching Playwright).
 process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH =
@@ -165,8 +166,8 @@ export async function POST(req: Request) {
 
   const invoiceVisibilityRaw = toRawString(getKvOrBundle("invoiceVisibility"))
   const visibility = (parseJsonLoose(invoiceVisibilityRaw) || null) as Partial<InvoiceVisibilitySettings> | null
-  const storedTemplateId = String(getKvOrBundle("invoiceTemplate") || "classic-default")
-  const templateId = sanitizeTemplateId(body.templateId) || storedTemplateId
+  const storedTemplateId = resolveTemplateId(getKvOrBundle("invoiceTemplate") || DEFAULT_TEMPLATE_ID)
+  const templateId = resolveTemplateId(sanitizeTemplateId(body.templateId) || storedTemplateId)
   const templateTypography = parseJsonLoose(toRawString(getKvOrBundle("templateTypography"))) as
     | { fontId?: string; fontSize?: number | string; fontFamily?: string }
     | null

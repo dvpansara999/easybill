@@ -176,3 +176,30 @@ Meaning of this checkpoint:
 How to use:
 - If user says exactly: `before shared-template-unification`
 - Treat this as the restore target before this refactor started.
+
+## SAFE_POINT: everything is working v0.1
+
+Created: 2026-03-21
+
+Meaning of this checkpoint:
+- Template preview, invoice view, and downloaded PDF are aligned on shared rendering behavior.
+- Playwright vector download path is stable on localhost and template selection is applied.
+- Typography (font family + font size) selection from templates is consistently reflected across preview/view/PDF.
+
+How to use:
+- If user says exactly: `everything is working v0.1`
+- Treat this as the restore target for this verified stable state.
+
+## SAFE_POINT: template redesign unified v0.1
+
+Created: 2026-03-21
+
+Meaning of this checkpoint:
+- Template catalog is fully redesigned with new IDs across Modern/Minimal/Classic.
+- Legacy saved template IDs resolve safely to nearest new variants (no broken selections).
+- Preview, Invoice View, and downloaded PDF share unified rendering through `SharedInvoiceTemplate`.
+- Terms-heavy variants are included and allow long Terms content to flow naturally onto later pages in PDF.
+
+How to use:
+- If user says exactly: `template redesign unified v0.1`
+- Treat this as the restore target for the redesigned unified-template system.

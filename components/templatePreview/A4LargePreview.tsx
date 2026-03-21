@@ -3,18 +3,39 @@
 import { createElement, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { templates as templateEngines } from "@/components/invoiceTemplates"
 import { previewTemplateProps } from "@/lib/templatePreviewData"
+import { resolveTemplateId } from "@/lib/templateIds"
 
 const A4_WIDTH_PX = 794
 const A4_HEIGHT_PX = 1123
 const PAGE_PADDING_PX = 38
 const PAGE_GAP_PX = 34
-const SECOND_PAGE_MIN_OVERFLOW_PX = 140
+const OVERFLOW_EPSILON_PX = 12
+
+function hasMeaningfulContent(node: HTMLElement) {
+  const text = (node.textContent || "").replace(/\s+/g, " ").trim()
+  if (text.length > 0) return true
+  return Boolean(node.querySelector("img,svg,table"))
+}
+
+function measureMeaningfulHeight(container: HTMLElement) {
+  const blocks = Array.from(container.querySelectorAll<HTMLElement>(".eb-content-block"))
+  if (!blocks.length) return container.scrollHeight || container.offsetHeight || A4_HEIGHT_PX
+  const rootRect = container.getBoundingClientRect()
+  let maxBottom = 0
+  for (const block of blocks) {
+    if (!hasMeaningfulContent(block)) continue
+    const rect = block.getBoundingClientRect()
+    maxBottom = Math.max(maxBottom, rect.bottom - rootRect.top)
+  }
+  if (maxBottom <= 0) return container.scrollHeight || container.offsetHeight || A4_HEIGHT_PX
+  return Math.ceil(maxBottom + 2)
+}
 
 function getTemplateEngine(id: string) {
-  if (id.startsWith("modern")) return templateEngines.modern
-  if (id.startsWith("minimal")) return templateEngines.minimal
-  if (id === "classic-default") return templateEngines.default
-  if (id.startsWith("classic")) return templateEngines.classic
+  const resolved = resolveTemplateId(id)
+  if (resolved.startsWith("modern")) return templateEngines.modern
+  if (resolved.startsWith("minimal")) return templateEngines.minimal
+  if (resolved.startsWith("classic")) return templateEngines.classic
   return templateEngines.default
 }
 
@@ -63,7 +84,8 @@ export default function A4LargePreview({
     if (!el) return
 
     const updateHeight = () => {
-      setContentHeight(Math.max(A4_HEIGHT_PX, el.scrollHeight || el.offsetHeight || A4_HEIGHT_PX))
+      const measuredHeight = measureMeaningfulHeight(el)
+      setContentHeight(Math.max(A4_HEIGHT_PX, measuredHeight))
     }
 
     const ro = new ResizeObserver(() => {
@@ -79,8 +101,7 @@ export default function A4LargePreview({
   const scale = wrapWidth ? Math.min(1, wrapWidth / A4_WIDTH_PX) : 0.4
   const rawPages = useMemo(() => Math.max(1, Math.ceil(contentHeight / A4_HEIGHT_PX)), [contentHeight])
   const overflowPx = Math.max(0, contentHeight - A4_HEIGHT_PX)
-  // Show page 2 only when there is meaningful overflow, not tiny measurement spill.
-  const overflowPages = rawPages > 1 && overflowPx > SECOND_PAGE_MIN_OVERFLOW_PX ? Math.min(2, rawPages) : 1
+  const overflowPages = overflowPx > OVERFLOW_EPSILON_PX ? Math.min(2, rawPages) : 1
   const enableScroll = overflowPages > 1
   const pageViewportHeight = Math.max(220, Math.round(A4_HEIGHT_PX * scale))
   const viewportHeight = viewportMaxHeight ? Math.min(viewportMaxHeight, pageViewportHeight) : pageViewportHeight
@@ -89,7 +110,7 @@ export default function A4LargePreview({
   const templateElement = (pageIndex?: number) =>
     createElement(Engine, {
       ...previewTemplateProps,
-      templateId: template,
+      templateId: resolveTemplateId(template),
       fontFamily,
       fontSize,
       key: pageIndex ?? "measure",

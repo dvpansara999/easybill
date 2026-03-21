@@ -16,6 +16,7 @@ import { useAppAlert } from "@/components/providers/AppAlertProvider"
 import { getAuthMode } from "@/lib/runtimeMode"
 import { TEMPLATE_CROSS_DEVICE_PARITY } from "@/lib/templateDeviceParity"
 import type { TemplateComponentProps } from "@/components/invoiceTemplates/templateTypes"
+import { DEFAULT_TEMPLATE_ID, resolveTemplateId } from "@/lib/templateIds"
 
 type TemplateListItem = {
   id: string
@@ -26,20 +27,17 @@ type TemplateListItem = {
 }
 
 function getTemplateEngine(id: string) {
+  const resolved = resolveTemplateId(id)
 
-  if (id.startsWith("modern")) {
+  if (resolved.startsWith("modern")) {
     return templateEngines.modern
   }
 
-  if (id.startsWith("minimal")) {
+  if (resolved.startsWith("minimal")) {
     return templateEngines.minimal
   }
 
-  if (id === "classic-default") {
-    return templateEngines.default
-  }
-
-  if (id.startsWith("classic")) {
+  if (resolved.startsWith("classic")) {
     return templateEngines.classic
   }
 
@@ -51,8 +49,8 @@ export default function TemplatesPage(){
 const router = useRouter()
 const { showAlert } = useAppAlert()
 
-const [previewTemplate,setPreviewTemplate] = useState("classic-default")
-const [activeTemplate,setActiveTemplate] = useState("classic-default")
+const [previewTemplate,setPreviewTemplate] = useState(DEFAULT_TEMPLATE_ID)
+const [activeTemplate,setActiveTemplate] = useState(DEFAULT_TEMPLATE_ID)
 const [fontId,setFontId] = useState("system")
 const [fontFamily,setFontFamily] = useState(previewTemplateProps.fontFamily)
 const [fontSize,setFontSize] = useState(previewTemplateProps.fontSize)
@@ -85,12 +83,18 @@ useEffect(()=>{
 useEffect(()=>{
   function initFromStore(writeDefaults: boolean) {
     const saved = getActiveOrGlobalItem("invoiceTemplate")
+    const resolvedSaved = resolveTemplateId(saved)
     if (saved) {
-      setActiveTemplate(saved)
-      setPreviewTemplate(saved)
+      setActiveTemplate(resolvedSaved)
+      setPreviewTemplate(resolvedSaved)
+      if (saved !== resolvedSaved) {
+        setActiveOrGlobalItem("invoiceTemplate", resolvedSaved)
+      }
     } else if (writeDefaults) {
       // Brand-new user default.
-      setActiveOrGlobalItem("invoiceTemplate", "classic-default")
+      setActiveOrGlobalItem("invoiceTemplate", DEFAULT_TEMPLATE_ID)
+      setActiveTemplate(DEFAULT_TEMPLATE_ID)
+      setPreviewTemplate(DEFAULT_TEMPLATE_ID)
     }
 
     const typography = normalizeTemplateTypography(getStoredTemplateTypography())

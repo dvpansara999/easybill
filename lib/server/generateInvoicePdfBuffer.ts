@@ -85,6 +85,7 @@ export async function generateInvoicePdfBuffer(params: { url: string }): Promise
       const pdf = await page.pdf({
         format: "A4",
         printBackground: true,
+        preferCSSPageSize: true,
       })
       const elapsedMs = Date.now() - started
       return { ok: true, pdfBytes: new Uint8Array(pdf), elapsedMs }

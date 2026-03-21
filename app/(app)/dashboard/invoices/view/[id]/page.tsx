@@ -23,6 +23,7 @@ import jsPDF from "jspdf"
 import { appendCanvasToPdfPages } from "@/lib/canvasRasterPdf"
 import { extractPdfBufferFromResponse, parsePdfApiErrorMessage } from "@/lib/pdfApiContract"
 import { templates } from "@/components/invoiceTemplates"
+import { DEFAULT_TEMPLATE_ID, resolveTemplateId } from "@/lib/templateIds"
 
 /** Must match `A4InvoiceView` inner page width + padding for consistent capture vs on-screen layout. */
 const A4_CAPTURE_WIDTH_PX = 794
@@ -62,15 +63,14 @@ function safeParseInvoices(raw: string | null): InvoiceRecord[] {
 function resolveTemplateKey(templateId: string): TemplateKey {
   if (templateId.startsWith("modern")) return "modern"
   if (templateId.startsWith("minimal")) return "minimal"
-  if (templateId.startsWith("classic") && templateId !== "classic-default") return "classic"
+  if (templateId.startsWith("classic")) return "classic"
   return "default"
 }
 
 function readInvoiceViewState(invoiceId: string): InvoiceViewState {
   const invoices = safeParseInvoices(getActiveOrGlobalItem("invoices"))
   const invoice = invoices.find((entry) => entry.invoiceNumber === invoiceId) ?? null
-  // Keep default aligned with Templates page (`classic-default` → Default engine).
-  const template = getActiveOrGlobalItem("invoiceTemplate") || "classic-default"
+  const template = resolveTemplateId(getActiveOrGlobalItem("invoiceTemplate") || DEFAULT_TEMPLATE_ID)
 
   return {
     invoice,

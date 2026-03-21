@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo } from "react"
+import { useLayoutEffect, useMemo, useRef, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import SharedInvoiceTemplate from "@/components/invoiceTemplates/SharedInvoiceTemplate"
 import type { TemplateComponentProps } from "@/components/invoiceTemplates/templateTypes"
@@ -8,6 +8,31 @@ import { formatCurrency } from "@/lib/formatCurrency"
 import { formatDate } from "@/lib/dateFormat"
 import { DEFAULT_INVOICE_VISIBILITY, type InvoiceVisibilitySettings } from "@/lib/invoiceVisibilityShared"
 import { normalizeTemplateTypography } from "@/lib/globalTemplateTypography"
+
+const A4_WIDTH_PX = 794
+const A4_HEIGHT_PX = 1123
+const PAGE_PADDING_PX = 38
+const OVERFLOW_EPSILON_PX = 12
+
+function hasMeaningfulContent(node: HTMLElement) {
+  const text = (node.textContent || "").replace(/\s+/g, " ").trim()
+  if (text.length > 0) return true
+  return Boolean(node.querySelector("img,svg,table"))
+}
+
+function measureMeaningfulHeight(container: HTMLElement) {
+  const blocks = Array.from(container.querySelectorAll<HTMLElement>(".eb-content-block"))
+  if (!blocks.length) return container.scrollHeight || container.offsetHeight || A4_HEIGHT_PX
+  const rootRect = container.getBoundingClientRect()
+  let maxBottom = 0
+  for (const block of blocks) {
+    if (!hasMeaningfulContent(block)) continue
+    const rect = block.getBoundingClientRect()
+    maxBottom = Math.max(maxBottom, rect.bottom - rootRect.top)
+  }
+  if (maxBottom <= 0) return container.scrollHeight || container.offsetHeight || A4_HEIGHT_PX
+  return Math.ceil(maxBottom + 2)
+}
 
 type PdfRenderPayload = {
   invoice: TemplateComponentProps["invoice"]
@@ -48,12 +73,11 @@ function readPayload(searchParams: URLSearchParams): PdfRenderPayload | null {
 export default function InvoicePdfRenderPage() {
   const searchParams = useSearchParams()
   const payload = useMemo(() => readPayload(searchParams), [searchParams])
+  const measureRef = useRef<HTMLDivElement | null>(null)
+  const [contentHeight, setContentHeight] = useState(A4_HEIGHT_PX)
 
-  const content = useMemo(() => {
-    if (!payload) {
-      return <div style={{ padding: 24 }}>Unable to render invoice preview.</div>
-    }
-
+  const templateData = useMemo<TemplateComponentProps | null>(() => {
+    if (!payload) return null
     const visibility = { ...DEFAULT_INVOICE_VISIBILITY, ...(payload.visibility || {}) }
     const typography = normalizeTemplateTypography({
       fontFamily: payload.fontFamily,
@@ -70,7 +94,7 @@ export default function InvoicePdfRenderPage() {
     const gstDisplay = (rate: string | number | null | undefined, amount: number) =>
       !rate || rate === "" || rate === "0" ? "-" : `${money(amount)} (${rate}%)`
 
-    const templateData: TemplateComponentProps = {
+    return {
       invoice: payload.invoice,
       business: payload.business,
       templateId: payload.templateId,
@@ -85,20 +109,64 @@ export default function InvoicePdfRenderPage() {
       formatDate,
       dateFormat: payload.dateFormat,
       invoiceVisibility: visibility,
-      // Keep same typography behavior as preview + invoice view.
       renderContext: "screen",
     }
-
-    return (
-      <div style={{ width: 794, padding: 38, boxSizing: "border-box", background: "#fff", margin: "0 auto" }}>
-        <SharedInvoiceTemplate {...templateData} />
-      </div>
-    )
   }, [payload])
+
+  useLayoutEffect(() => {
+    const el = measureRef.current
+    if (!el || !templateData) return
+
+    const updateHeight = () => {
+      const next = Math.max(A4_HEIGHT_PX, measureMeaningfulHeight(el))
+      setContentHeight(next)
+    }
+
+    const ro = new ResizeObserver(() => {
+      requestAnimationFrame(updateHeight)
+    })
+    ro.observe(el)
+    requestAnimationFrame(updateHeight)
+
+    return () => ro.disconnect()
+  }, [templateData])
+
+  const pageCount = useMemo(() => {
+    const overflowPx = Math.max(0, contentHeight - A4_HEIGHT_PX)
+    if (overflowPx <= OVERFLOW_EPSILON_PX) return 1
+    return Math.max(1, Math.ceil(contentHeight / A4_HEIGHT_PX))
+  }, [contentHeight])
 
   return (
     <main style={{ margin: 0, padding: 0, background: "#fff" }}>
-      <div data-easybill-pdf-ready="true">{content}</div>
+      {!templateData ? (
+        <div style={{ padding: 24 }}>Unable to render invoice preview.</div>
+      ) : (
+        <>
+          <div className="pointer-events-none absolute left-[-99999px] top-0 h-0 w-0 overflow-hidden">
+            <div ref={measureRef} style={{ width: A4_WIDTH_PX, padding: PAGE_PADDING_PX, boxSizing: "border-box" }}>
+              <SharedInvoiceTemplate {...templateData} />
+            </div>
+          </div>
+
+          <div data-easybill-pdf-ready="true">
+            {Array.from({ length: pageCount }, (_, pageIndex) => {
+              const sliceTop = pageIndex * A4_HEIGHT_PX
+              return (
+                <section className="eb-pdf-page" key={pageIndex}>
+                  <div className="eb-pdf-page-inner">
+                    <div style={{ transform: `translateY(-${sliceTop}px)` }}>
+                      <div style={{ width: A4_WIDTH_PX, padding: PAGE_PADDING_PX, boxSizing: "border-box" }}>
+                        <SharedInvoiceTemplate {...templateData} />
+                      </div>
+                    </div>
+                  </div>
+                </section>
+              )
+            })}
+          </div>
+        </>
+      )}
       <style jsx global>{`
         html,
         body {
@@ -106,9 +174,59 @@ export default function InvoicePdfRenderPage() {
           padding: 0;
           background: #ffffff;
         }
+        .eb-pdf-page {
+          width: 210mm;
+          height: 297mm;
+          overflow: hidden;
+          break-after: page;
+          page-break-after: always;
+        }
+        .eb-pdf-page:last-child {
+          break-after: auto;
+          page-break-after: auto;
+        }
+        .eb-pdf-page-inner {
+          width: ${A4_WIDTH_PX}px;
+          height: ${A4_HEIGHT_PX}px;
+          margin: 0 auto;
+          overflow: hidden;
+          background: #fff;
+        }
         @page {
           size: A4;
-          margin: 10mm;
+          margin: 0;
+        }
+        @media print {
+          .eb-section {
+            break-inside: auto !important;
+            page-break-inside: auto !important;
+          }
+          .eb-section-items,
+          .eb-section-summary,
+          .eb-section-footer {
+            margin-top: 16px !important;
+          }
+          .eb-section-footer {
+            /* Flatten decorative container in print so footer can fragment naturally. */
+            padding: 0 !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+            background: transparent !important;
+            border: 0 !important;
+            break-before: auto !important;
+            page-break-before: auto !important;
+          }
+          /* Keep footer layout consistent with preview/invoice view in PDF. */
+          .eb-footer-grid {
+            display: grid !important;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+            column-gap: 24px !important;
+            row-gap: 0 !important;
+          }
+          .eb-footer-grid > * {
+            break-inside: avoid !important;
+            page-break-inside: avoid !important;
+          }
         }
       `}</style>
     </main>
