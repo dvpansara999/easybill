@@ -642,6 +642,17 @@ export default function Home() {
 
           {/* RIGHT: auth card (mechanics unchanged) */}
           <section className="order-1 lg:order-2">
+            <div className="mb-3 lg:hidden">
+              <h1 className="font-display text-3xl leading-[1.08] text-slate-950">Professional invoices, made easy.</h1>
+              <div className="mt-3 grid gap-2.5 sm:grid-cols-2">
+                {MARKETING_FEATURES.map((item) => (
+                  <div key={item.title} className="rounded-2xl border border-slate-200 bg-white px-3 py-2.5">
+                    <p className="text-[15px] font-semibold leading-6 text-slate-900">{item.title}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
             <div className="mx-auto w-full max-w-[540px] overflow-hidden rounded-[22px] border border-slate-200 bg-white text-left shadow-[0_10px_30px_rgba(15,23,42,0.08)] sm:rounded-[34px] sm:bg-white/80 sm:shadow-[0_30px_90px_rgba(15,23,42,0.10)] sm:backdrop-blur">
               <div className="border-b border-slate-200 bg-white px-4 py-4 sm:bg-white/60 sm:px-7 sm:py-6">
                 <div className="mb-4 flex items-center gap-3 sm:hidden">
