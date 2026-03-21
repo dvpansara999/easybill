@@ -8,6 +8,7 @@ import type {
   TemplateInvoiceRecord,
   TemplateTheme,
 } from "@/components/invoiceTemplates/templateTypes"
+import { TERMS_PAGE2_TEMPLATE_IDS } from "@/lib/templateCatalog"
 
 type ModernTheme = {
   accent: string
@@ -21,11 +22,12 @@ type ModernTheme = {
   info?: string
   logo?: boolean
   header: "split" | "stripe" | "banner" | "panel" | "editorial" | "compact"
+  termsPage2?: boolean
 }
 
 export const templateMeta = {
-  id: "modern-atlas",
-  name: "Modern Atlas",
+  id: "modern-v01",
+  name: "Modern Atlas A",
   category: "modern",
   popular: true,
 }
@@ -37,6 +39,50 @@ export const modernThemes: Record<string, ModernTheme> = {
   "modern-ledgerflow": { accent: "#1f2937", soft: "#e5e7eb", page: "#f9fafb", tint: "#f9fafb", line: "#dde1e6", header: "panel", mode: "side", table: "lines", summary: "boxed", info: "stack", logo: false },
   "modern-zenboard": { accent: "#ea580c", soft: "#fed7aa", page: "#fff7ed", tint: "#fff7ed", line: "#ffe2c2", header: "editorial", mode: "frame", table: "grid", summary: "boxed", info: "split", logo: true },
   "modern-studiox": { accent: "#be123c", soft: "#fecdd3", page: "#fff1f2", tint: "#fff1f2", line: "#ffd7df", header: "compact", mode: "compact", table: "lines", summary: "inline", info: "sidebar", logo: true },
+}
+
+const MODERN_HEADERS: ModernTheme["header"][] = ["split", "stripe", "banner", "panel", "editorial", "compact"]
+const MODERN_PALETTES = [
+  { accent: "#1d4ed8", soft: "#dbeafe", page: "#f8fbff", tint: "#f8fbff", line: "#dbe6f7" },
+  { accent: "#0f766e", soft: "#ccfbf1", page: "#f0fdfa", tint: "#f0fdfa", line: "#bfeee6" },
+  { accent: "#7c3aed", soft: "#ede9fe", page: "#faf5ff", tint: "#faf5ff", line: "#e7ddff" },
+  { accent: "#1f2937", soft: "#e5e7eb", page: "#f9fafb", tint: "#f9fafb", line: "#dde1e6" },
+  { accent: "#ea580c", soft: "#fed7aa", page: "#fff7ed", tint: "#fff7ed", line: "#ffe2c2" },
+  { accent: "#be123c", soft: "#fecdd3", page: "#fff1f2", tint: "#fff1f2", line: "#ffd7df" },
+  { accent: "#0369a1", soft: "#dbeafe", page: "#f0f9ff", tint: "#f0f9ff", line: "#d7e8f6" },
+  { accent: "#4338ca", soft: "#e0e7ff", page: "#eef2ff", tint: "#eef2ff", line: "#d4dcff" },
+] as const
+
+function parseVariant(templateId: string | undefined) {
+  const match = String(templateId || "modern-v01").match(/(\d+)/)
+  const n = match ? Number(match[1]) : 1
+  return Number.isFinite(n) && n > 0 ? n : 1
+}
+
+function resolveModernTheme(templateId: string | undefined): ModernTheme {
+  const raw = String(templateId || "")
+  const mapped = modernThemes[raw]
+  if (mapped) {
+    return {
+      ...mapped,
+      termsPage2: TERMS_PAGE2_TEMPLATE_IDS.has(raw),
+    }
+  }
+  const variant = parseVariant(raw)
+  const layoutIndex = Math.floor((variant - 1) / 4)
+  const paletteIndex = (variant - 1) % 4
+  const palette = MODERN_PALETTES[(layoutIndex * 2 + paletteIndex) % MODERN_PALETTES.length]
+  const header = MODERN_HEADERS[layoutIndex % MODERN_HEADERS.length]
+  return {
+    ...palette,
+    header,
+    mode: header === "panel" ? "side" : header === "editorial" ? "frame" : "split",
+    table: layoutIndex % 3 === 0 ? "grid" : layoutIndex % 3 === 1 ? "lines" : "zebra",
+    summary: layoutIndex % 4 === 0 ? "boxed" : layoutIndex % 4 === 1 ? "inline" : layoutIndex % 4 === 2 ? "glass" : "card",
+    info: layoutIndex % 4 === 0 ? "split" : layoutIndex % 4 === 1 ? "sidebar" : layoutIndex % 4 === 2 ? "stack" : "cards",
+    logo: layoutIndex % 5 !== 0,
+    termsPage2: TERMS_PAGE2_TEMPLATE_IDS.has(raw),
+  }
 }
 
 function renderLogo(business: TemplateBusinessRecord, visibility: InvoiceVisibilitySettings) {
@@ -136,26 +182,43 @@ function Info({
   visibility: InvoiceVisibilitySettings
   theme: ModernTheme
 }) {
+  const billBlock = (
+    <div className="rounded-xl border bg-white p-4" style={{ borderColor: theme.line }}>
+      <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Bill To</p>
+      <p className="mt-2 text-lg font-semibold text-slate-900">{visibility.clientName ? invoice?.clientName || "-" : "-"}</p>
+      <div className="mt-2 space-y-1 text-sm text-slate-600">
+        {visibility.clientPhone && invoice?.clientPhone && <p>{invoice.clientPhone}</p>}
+        {invoice?.clientEmail && <p>{invoice.clientEmail}</p>}
+        {visibility.clientGstin && invoice?.clientGST && <p>GSTIN: {invoice.clientGST}</p>}
+        {visibility.clientAddress && invoice?.clientAddress && <p>{invoice.clientAddress}</p>}
+      </div>
+    </div>
+  )
+  const detailsBlock = (
+    <div className="rounded-xl border bg-white p-4" style={{ borderColor: theme.line }}>
+      <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Additional Details</p>
+      <div className="mt-2 space-y-1 text-sm text-slate-600">
+        {details.length ? details.map((detail, idx) => (
+          <p key={idx}><span className="font-semibold text-slate-800">{detail.label}:</span> {detail.value}</p>
+        )) : <p>No additional details</p>}
+      </div>
+    </div>
+  )
+
+  if (theme.info === "stack") {
+    return <div className="mt-5 space-y-4">{billBlock}{detailsBlock}</div>
+  }
+  if (theme.info === "sidebar") {
+    return <div className="mt-5 grid grid-cols-[0.9fr_1.1fr] gap-5">{detailsBlock}{billBlock}</div>
+  }
+  if (theme.info === "cards") {
+    return <div className="mt-5 grid grid-cols-3 gap-5"><div className="col-span-2">{billBlock}</div>{detailsBlock}</div>
+  }
+
   return (
     <div className="mt-5 grid grid-cols-2 gap-5">
-      <div className="rounded-xl border bg-white p-4" style={{ borderColor: theme.line }}>
-        <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Bill To</p>
-        <p className="mt-2 text-lg font-semibold text-slate-900">{visibility.clientName ? invoice?.clientName || "-" : "-"}</p>
-        <div className="mt-2 space-y-1 text-sm text-slate-600">
-          {visibility.clientPhone && invoice?.clientPhone && <p>{invoice.clientPhone}</p>}
-          {invoice?.clientEmail && <p>{invoice.clientEmail}</p>}
-          {visibility.clientGstin && invoice?.clientGST && <p>GSTIN: {invoice.clientGST}</p>}
-          {visibility.clientAddress && invoice?.clientAddress && <p>{invoice.clientAddress}</p>}
-        </div>
-      </div>
-      <div className="rounded-xl border bg-white p-4" style={{ borderColor: theme.line }}>
-        <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Additional Details</p>
-        <div className="mt-2 space-y-1 text-sm text-slate-600">
-          {details.length ? details.map((detail, idx) => (
-            <p key={idx}><span className="font-semibold text-slate-800">{detail.label}:</span> {detail.value}</p>
-          )) : <p>No additional details</p>}
-        </div>
-      </div>
+      {billBlock}
+      {detailsBlock}
     </div>
   )
 }
@@ -171,10 +234,11 @@ function Items({
   gstDisplay: TemplateComponentProps["gstDisplay"]
   theme: ModernTheme
 }) {
+  const headerRowClass = theme.table === "grid" ? "border-b bg-slate-50 text-slate-700" : "border-b text-slate-600"
   return (
     <table className="w-full text-sm">
       <thead>
-        <tr className="border-b text-slate-600" style={{ borderColor: theme.line }}>
+        <tr className={headerRowClass} style={{ borderColor: theme.line }}>
           <th className="py-3 text-left">Item</th><th className="py-3 text-left">HSN</th><th className="py-3 text-right">Qty</th>
           <th className="py-3 text-right">Price</th><th className="py-3 text-right">CGST</th><th className="py-3 text-right">SGST</th>
           <th className="py-3 text-right">IGST</th><th className="py-3 text-right">Amount</th>
@@ -187,7 +251,14 @@ function Items({
           const sgstAmount = item.sgst ? (base * Number(item.sgst)) / 100 : 0
           const igstAmount = item.igst ? (base * Number(item.igst)) / 100 : 0
           return (
-            <tr key={idx} className="border-b" style={{ borderColor: theme.line }}>
+            <tr
+              key={idx}
+              className="border-b"
+              style={{
+                borderColor: theme.line,
+                backgroundColor: theme.table === "zebra" && idx % 2 === 1 ? `${theme.soft}` : "transparent",
+              }}
+            >
               <td className="py-2">{item.product || "-"}</td>
               <td className="py-2">{item.hsn || "-"}</td>
               <td className="py-2 text-right">{item.qty || 0}</td>
@@ -221,8 +292,10 @@ function Summary({
   money: TemplateComponentProps["money"]
   theme: ModernTheme
 }) {
+  void theme
+
   return (
-    <div className="rounded-xl border p-4" style={{ borderColor: theme.line, backgroundColor: theme.soft }}>
+    <div className="eb-summary-box rounded-xl border p-4" style={{ borderColor: theme.line, backgroundColor: theme.soft }}>
       <div className="space-y-2 text-sm text-slate-700">
         <div className="flex justify-between"><span>Subtotal</span><span>{money(subtotal)}</span></div>
         <div className="flex justify-between"><span>CGST</span><span>{totalCGST ? money(totalCGST) : "-"}</span></div>
@@ -236,7 +309,16 @@ function Summary({
   )
 }
 
-function Footer({ business, visibility, theme }: { business: TemplateBusinessRecord; visibility: InvoiceVisibilitySettings; theme: ModernTheme }) {
+function Footer({
+  business,
+  visibility,
+  theme,
+}: {
+  business: TemplateBusinessRecord
+  visibility: InvoiceVisibilitySettings
+  theme: ModernTheme
+}) {
+  const showTermsInline = !theme.termsPage2
   return (
     <div className="eb-footer-grid grid grid-cols-2 gap-6 border-t pt-4" style={{ borderColor: theme.line }}>
       <div className="text-sm text-slate-700">
@@ -253,13 +335,31 @@ function Footer({ business, visibility, theme }: { business: TemplateBusinessRec
         ) : null}
       </div>
       <div className="text-sm text-slate-700">
-        {visibility.businessTerms && business?.terms ? (
+        {showTermsInline && visibility.businessTerms && business?.terms ? (
           <>
             <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Terms</p>
             <p className="mt-2 whitespace-pre-line">{business.terms}</p>
           </>
         ) : null}
       </div>
+    </div>
+  )
+}
+
+function TermsPage({
+  business,
+  visibility,
+  theme,
+}: {
+  business: TemplateBusinessRecord
+  visibility: InvoiceVisibilitySettings
+  theme: ModernTheme
+}) {
+  if (!theme.termsPage2 || !visibility.businessTerms || !business?.terms) return null
+  return (
+    <div className="eb-content-block eb-terms-fullpage rounded-xl border bg-white p-6" style={{ borderColor: theme.line, minHeight: 980 }}>
+      <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Terms & Conditions</p>
+      <p className="mt-4 whitespace-pre-line text-sm leading-7 text-slate-700">{business.terms}</p>
     </div>
   )
 }
@@ -281,7 +381,7 @@ export default function ModernTemplate({
   dateFormat,
   invoiceVisibility,
 }: TemplateComponentProps) {
-  const theme = (modernThemes[templateId || "modern-atlas"] || modernThemes["modern-atlas"]) as TemplateTheme as ModernTheme
+  const theme = resolveModernTheme(templateId) as TemplateTheme as ModernTheme
   const businessInfo = business || {}
   const details = invoice?.customDetails || []
   const visibility: InvoiceVisibilitySettings = invoiceVisibility || DEFAULT_INVOICE_VISIBILITY
@@ -305,6 +405,7 @@ export default function ModernTemplate({
       <div className="eb-content-block eb-section eb-section-footer mt-5 rounded-xl border bg-white p-4" style={{ borderColor: theme.line }}>
         <Footer business={businessInfo} visibility={visibility} theme={theme} />
       </div>
+      <TermsPage business={businessInfo} visibility={visibility} theme={theme} />
     </div>
   )
 }

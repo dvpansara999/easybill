@@ -7,6 +7,7 @@ import type {
   TemplateCustomDetail,
   TemplateInvoiceRecord,
 } from "@/components/invoiceTemplates/templateTypes"
+import { TERMS_PAGE2_TEMPLATE_IDS } from "@/lib/templateCatalog"
 
 type MinimalTheme = {
   accent: string
@@ -18,11 +19,12 @@ type MinimalTheme = {
   logo?: boolean
   shell: "plain" | "paper" | "boxed"
   info: "split" | "stack"
+  termsPage2?: boolean
 }
 
 export const templateMeta = {
-  id: "minimal-mist",
-  name: "Minimal Mist",
+  id: "minimal-v01",
+  name: "Minimal Pure A",
   category: "minimal",
   popular: true,
 }
@@ -34,6 +36,44 @@ export const minimalThemes: Record<string, MinimalTheme> = {
   "minimal-slateform": { accent: "#111827", page: "#fcfcfd", soft: "#f5f5f5", line: "#e5e7eb", shell: "boxed", mode: "boxed", summary: "rule", info: "split", logo: false },
   "minimal-legal": { accent: "#52525b", page: "#ffffff", soft: "#ffffff", line: "#e7e5e4", shell: "paper", mode: "paper", summary: "panel", info: "stack", logo: false },
   "minimal-airmail": { accent: "#0369a1", page: "#f8fcff", soft: "#f0f9ff", line: "#d5ebf8", shell: "plain", mode: "plain", summary: "clean", info: "split", logo: true },
+}
+
+const MINIMAL_SHELLS: MinimalTheme["shell"][] = ["plain", "boxed", "paper"]
+const MINIMAL_INFO: MinimalTheme["info"][] = ["split", "stack"]
+const MINIMAL_PALETTES = [
+  { accent: "#334155", page: "#ffffff", soft: "#ffffff", line: "#e2e8f0" },
+  { accent: "#0f172a", page: "#ffffff", soft: "#ffffff", line: "#dbe2eb" },
+  { accent: "#4338ca", page: "#f8faff", soft: "#eef2ff", line: "#d7dcff" },
+  { accent: "#111827", page: "#fcfcfd", soft: "#f5f5f5", line: "#e5e7eb" },
+  { accent: "#52525b", page: "#ffffff", soft: "#ffffff", line: "#e7e5e4" },
+  { accent: "#0369a1", page: "#f8fcff", soft: "#f0f9ff", line: "#d5ebf8" },
+  { accent: "#047857", page: "#f7fffb", soft: "#e8fff7", line: "#d4f4e6" },
+  { accent: "#7c2d12", page: "#fffaf7", soft: "#fff0e8", line: "#f5dbc9" },
+] as const
+
+function parseVariant(templateId: string | undefined) {
+  const match = String(templateId || "minimal-v01").match(/(\d+)/)
+  const n = match ? Number(match[1]) : 1
+  return Number.isFinite(n) && n > 0 ? n : 1
+}
+
+function resolveMinimalTheme(templateId: string | undefined): MinimalTheme {
+  const raw = String(templateId || "")
+  const mapped = minimalThemes[raw]
+  if (mapped) return { ...mapped, termsPage2: TERMS_PAGE2_TEMPLATE_IDS.has(raw) }
+  const variant = parseVariant(raw)
+  const layoutIndex = Math.floor((variant - 1) / 4)
+  const paletteIndex = (variant - 1) % 4
+  const palette = MINIMAL_PALETTES[(layoutIndex * 2 + paletteIndex) % MINIMAL_PALETTES.length]
+  return {
+    ...palette,
+    shell: MINIMAL_SHELLS[layoutIndex % MINIMAL_SHELLS.length],
+    info: MINIMAL_INFO[layoutIndex % MINIMAL_INFO.length],
+    mode: layoutIndex % 2 === 0 ? "boxed" : "plain",
+    summary: layoutIndex % 3 === 0 ? "panel" : layoutIndex % 3 === 1 ? "rule" : "clean",
+    logo: layoutIndex % 4 !== 0,
+    termsPage2: TERMS_PAGE2_TEMPLATE_IDS.has(raw),
+  }
 }
 
 function logo(business: TemplateBusinessRecord, visibility: InvoiceVisibilitySettings) {
@@ -181,7 +221,7 @@ function summary({
   theme: MinimalTheme
 }) {
   return (
-    <div className="rounded-lg border p-3" style={{ borderColor: theme.line }}>
+    <div className="eb-summary-box rounded-lg border p-3" style={{ borderColor: theme.line }}>
       <div className="space-y-2 text-sm text-slate-700">
         <div className="flex justify-between"><span>Subtotal</span><span>{money(subtotal)}</span></div>
         <div className="flex justify-between"><span>CGST</span><span>{totalCGST ? money(totalCGST) : "-"}</span></div>
@@ -196,6 +236,7 @@ function summary({
 }
 
 function footer({ business, visibility, theme }: { business: TemplateBusinessRecord; visibility: InvoiceVisibilitySettings; theme: MinimalTheme }) {
+  const showTermsInline = !theme.termsPage2
   return (
     <div className="eb-footer-grid grid grid-cols-2 gap-6 border-t pt-4" style={{ borderColor: theme.line }}>
       <div className="text-sm text-slate-700">
@@ -212,13 +253,23 @@ function footer({ business, visibility, theme }: { business: TemplateBusinessRec
         ) : null}
       </div>
       <div className="text-sm text-slate-700">
-        {visibility.businessTerms && business?.terms ? (
+        {showTermsInline && visibility.businessTerms && business?.terms ? (
           <>
             <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Terms</p>
             <p className="mt-2 whitespace-pre-line">{business.terms}</p>
           </>
         ) : null}
       </div>
+    </div>
+  )
+}
+
+function termsPage({ business, visibility, theme }: { business: TemplateBusinessRecord; visibility: InvoiceVisibilitySettings; theme: MinimalTheme }) {
+  if (!theme.termsPage2 || !visibility.businessTerms || !business?.terms) return null
+  return (
+    <div className="eb-content-block eb-terms-fullpage rounded-lg border p-6" style={{ borderColor: theme.line, backgroundColor: theme.soft, minHeight: 980 }}>
+      <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Terms & Conditions</p>
+      <p className="mt-4 whitespace-pre-line text-sm leading-7 text-slate-700">{business.terms}</p>
     </div>
   )
 }
@@ -240,7 +291,7 @@ export default function MinimalTemplate({
   dateFormat,
   invoiceVisibility,
 }: TemplateComponentProps) {
-  const theme = minimalThemes[templateId || "minimal-mist"] || minimalThemes["minimal-mist"]
+  const theme = resolveMinimalTheme(templateId)
   const visibility: InvoiceVisibilitySettings = invoiceVisibility || DEFAULT_INVOICE_VISIBILITY
   const businessInfo = business || {}
   const details = invoice?.customDetails || []
@@ -256,6 +307,7 @@ export default function MinimalTemplate({
           <div className="w-[320px]">{summary({ invoice: invoice || undefined, subtotal: subtotal || 0, totalCGST: totalCGST || 0, totalSGST: totalSGST || 0, totalIGST: totalIGST || 0, money, theme })}</div>
         </div>
         <div className="eb-content-block eb-section eb-section-footer mt-5">{footer({ business: businessInfo, visibility, theme })}</div>
+        {termsPage({ business: businessInfo, visibility, theme })}
       </div>
     </div>
   )

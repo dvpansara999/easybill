@@ -28,7 +28,8 @@ function measureMeaningfulHeight(container: HTMLElement) {
   for (const block of blocks) {
     if (!hasMeaningfulContent(block)) continue
     const rect = block.getBoundingClientRect()
-    maxBottom = Math.max(maxBottom, rect.bottom - rootRect.top)
+    const bottom = rect.bottom - rootRect.top
+    maxBottom = Math.max(maxBottom, bottom)
   }
   if (maxBottom <= 0) return container.scrollHeight || container.offsetHeight || A4_HEIGHT_PX
   return Math.ceil(maxBottom + 2)
@@ -75,6 +76,7 @@ export default function InvoicePdfRenderPage() {
   const payload = useMemo(() => readPayload(searchParams), [searchParams])
   const measureRef = useRef<HTMLDivElement | null>(null)
   const [contentHeight, setContentHeight] = useState(A4_HEIGHT_PX)
+  const [dedicatedTermsPage, setDedicatedTermsPage] = useState(false)
 
   const templateData = useMemo<TemplateComponentProps | null>(() => {
     if (!payload) return null
@@ -120,6 +122,7 @@ export default function InvoicePdfRenderPage() {
     const updateHeight = () => {
       const next = Math.max(A4_HEIGHT_PX, measureMeaningfulHeight(el))
       setContentHeight(next)
+      setDedicatedTermsPage(Boolean(el.querySelector(".eb-terms-fullpage")))
     }
 
     const ro = new ResizeObserver(() => {
@@ -132,10 +135,11 @@ export default function InvoicePdfRenderPage() {
   }, [templateData])
 
   const pageCount = useMemo(() => {
+    if (dedicatedTermsPage) return 2
     const overflowPx = Math.max(0, contentHeight - A4_HEIGHT_PX)
     if (overflowPx <= OVERFLOW_EPSILON_PX) return 1
     return Math.max(1, Math.ceil(contentHeight / A4_HEIGHT_PX))
-  }, [contentHeight])
+  }, [contentHeight, dedicatedTermsPage])
 
   return (
     <main style={{ margin: 0, padding: 0, background: "#fff" }}>
@@ -151,15 +155,22 @@ export default function InvoicePdfRenderPage() {
 
           <div data-easybill-pdf-ready="true">
             {Array.from({ length: pageCount }, (_, pageIndex) => {
+              const pageClass = dedicatedTermsPage ? (pageIndex === 0 ? "eb-page-main" : "eb-page-terms") : ""
               const sliceTop = pageIndex * A4_HEIGHT_PX
               return (
-                <section className="eb-pdf-page" key={pageIndex}>
+                <section className={`eb-pdf-page ${pageClass}`} key={pageIndex}>
                   <div className="eb-pdf-page-inner">
-                    <div style={{ transform: `translateY(-${sliceTop}px)` }}>
+                    {dedicatedTermsPage ? (
                       <div style={{ width: A4_WIDTH_PX, padding: PAGE_PADDING_PX, boxSizing: "border-box" }}>
                         <SharedInvoiceTemplate {...templateData} />
                       </div>
-                    </div>
+                    ) : (
+                      <div style={{ transform: `translateY(-${sliceTop}px)` }}>
+                        <div style={{ width: A4_WIDTH_PX, padding: PAGE_PADDING_PX, boxSizing: "border-box" }}>
+                          <SharedInvoiceTemplate {...templateData} />
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </section>
               )
@@ -197,6 +208,10 @@ export default function InvoicePdfRenderPage() {
           margin: 0;
         }
         @media print {
+          html, body {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
           .eb-section {
             break-inside: auto !important;
             page-break-inside: auto !important;
@@ -205,6 +220,13 @@ export default function InvoicePdfRenderPage() {
           .eb-section-summary,
           .eb-section-footer {
             margin-top: 16px !important;
+          }
+          .eb-section-summary {
+            display: block !important;
+          }
+          .eb-section-summary > * {
+            margin-left: auto !important;
+            margin-right: 0 !important;
           }
           .eb-section-footer {
             /* Flatten decorative container in print so footer can fragment naturally. */
@@ -226,6 +248,29 @@ export default function InvoicePdfRenderPage() {
           .eb-footer-grid > * {
             break-inside: avoid !important;
             page-break-inside: avoid !important;
+          }
+          .eb-summary-box {
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            break-inside: avoid !important;
+            page-break-inside: avoid !important;
+            position: relative !important;
+            z-index: 1 !important;
+          }
+          .eb-terms-fullpage {
+            min-height: 980px !important;
+          }
+          .eb-page-main .eb-terms-fullpage {
+            display: none !important;
+          }
+          .eb-page-terms .eb-content-block:not(.eb-terms-fullpage) {
+            display: none !important;
+          }
+          .eb-page-terms .eb-terms-fullpage {
+            margin-top: 0 !important;
+            break-before: auto !important;
+            page-break-before: auto !important;
           }
         }
       `}</style>

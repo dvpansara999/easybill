@@ -23,7 +23,8 @@ function measureMeaningfulHeight(container: HTMLElement) {
   for (const block of blocks) {
     if (!hasMeaningfulContent(block)) continue
     const rect = block.getBoundingClientRect()
-    maxBottom = Math.max(maxBottom, rect.bottom - rootRect.top)
+    const bottom = rect.bottom - rootRect.top
+    maxBottom = Math.max(maxBottom, bottom)
   }
   if (maxBottom <= 0) return container.scrollHeight || container.offsetHeight || A4_HEIGHT_PX
   return Math.ceil(maxBottom + 2)
@@ -44,6 +45,7 @@ const A4InvoiceView = forwardRef<HTMLDivElement, A4InvoiceViewProps>(function A4
   const measureRef = useRef<HTMLDivElement | null>(null)
   const [wrapWidth, setWrapWidth] = useState(0)
   const [contentHeight, setContentHeight] = useState(A4_HEIGHT_PX)
+  const [dedicatedTermsPage, setDedicatedTermsPage] = useState(false)
 
   const setRefs = (node: HTMLDivElement | null) => {
     wrapRef.current = node
@@ -81,6 +83,7 @@ const A4InvoiceView = forwardRef<HTMLDivElement, A4InvoiceViewProps>(function A4
     const updateHeight = () => {
       const measuredHeight = measureMeaningfulHeight(el)
       setContentHeight(Math.max(A4_HEIGHT_PX, measuredHeight))
+      setDedicatedTermsPage(Boolean(el.querySelector(".eb-terms-fullpage")))
     }
 
     const ro = new ResizeObserver(() => {
@@ -96,7 +99,7 @@ const A4InvoiceView = forwardRef<HTMLDivElement, A4InvoiceViewProps>(function A4
   const scale = wrapWidth ? Math.min(1, wrapWidth / A4_WIDTH_PX) : 0.9
   const rawPages = useMemo(() => Math.max(1, Math.ceil(contentHeight / A4_HEIGHT_PX)), [contentHeight])
   const overflowPx = Math.max(0, contentHeight - A4_HEIGHT_PX)
-  const overflowPages = overflowPx > OVERFLOW_EPSILON_PX ? Math.min(maxPages, rawPages) : 1
+  const overflowPages = dedicatedTermsPage ? Math.min(maxPages, 2) : overflowPx > OVERFLOW_EPSILON_PX ? Math.min(maxPages, rawPages) : 1
   const pageViewportHeight = Math.max(220, Math.round(A4_HEIGHT_PX * scale))
   const viewportHeight = viewportMaxHeightPx
     ? Math.min(viewportMaxHeightPx, pageViewportHeight * overflowPages + PAGE_GAP_PX * (overflowPages - 1))
@@ -127,22 +130,40 @@ const A4InvoiceView = forwardRef<HTMLDivElement, A4InvoiceViewProps>(function A4
           }}
         >
           {Array.from({ length: overflowPages }, (_, pageIndex) => {
+            const pageClass = dedicatedTermsPage ? (pageIndex === 0 ? "eb-page-main" : "eb-page-terms") : ""
             const sliceTop = pageIndex * A4_HEIGHT_PX
             return (
-              <div key={pageIndex} style={{ marginBottom: pageIndex === overflowPages - 1 ? 0 : PAGE_GAP_PX }}>
+              <div className={pageClass} key={pageIndex} style={{ marginBottom: pageIndex === overflowPages - 1 ? 0 : PAGE_GAP_PX }}>
                 <div
                   className="bg-white shadow-[0_18px_60px_rgba(15,23,42,0.10)] ring-1 ring-slate-200"
                   style={{ width: A4_WIDTH_PX, height: A4_HEIGHT_PX, overflow: "hidden" }}
                 >
-                  <div style={{ transform: `translateY(-${sliceTop}px)` }}>
+                  {dedicatedTermsPage ? (
                     <div style={{ width: A4_WIDTH_PX, padding: PAGE_PADDING_PX }}>{templateElement(pageIndex)}</div>
-                  </div>
+                  ) : (
+                    <div style={{ transform: `translateY(-${sliceTop}px)` }}>
+                      <div style={{ width: A4_WIDTH_PX, padding: PAGE_PADDING_PX }}>{templateElement(pageIndex)}</div>
+                    </div>
+                  )}
                 </div>
               </div>
             )
           })}
         </div>
       </div>
+      <style jsx>{`
+        .eb-page-main :global(.eb-terms-fullpage) {
+          display: none !important;
+        }
+        .eb-page-terms :global(.eb-content-block:not(.eb-terms-fullpage)) {
+          display: none !important;
+        }
+        .eb-page-terms :global(.eb-terms-fullpage) {
+          margin-top: 0 !important;
+          break-before: auto !important;
+          page-break-before: auto !important;
+        }
+      `}</style>
     </div>
   )
 })

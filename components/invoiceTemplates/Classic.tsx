@@ -7,6 +7,7 @@ import type {
   TemplateCustomDetail,
   TemplateInvoiceRecord,
 } from "@/components/invoiceTemplates/templateTypes"
+import { TERMS_PAGE2_TEMPLATE_IDS } from "@/lib/templateCatalog"
 
 type ClassicTheme = {
   accent: string
@@ -17,11 +18,12 @@ type ClassicTheme = {
   serif?: boolean
   header: "formal" | "office" | "seal"
   table: "plain" | "boxed"
+  termsPage2?: boolean
 }
 
 export const templateMeta = {
-  id: "classic-registry",
-  name: "Classic Registry",
+  id: "classic-v01",
+  name: "Classic Ledger A",
   category: "classic",
   popular: true,
 }
@@ -33,6 +35,43 @@ export const classicThemes: Record<string, ClassicTheme> = {
   "classic-courthouse": { accent: "#172554", page: "#eff6ff", paper: "#eff6ff", line: "#bfdbfe", header: "formal", table: "boxed", info: "split", serif: true },
   "classic-heritagex": { accent: "#7c2d12", page: "#fff7ed", paper: "#fff7ed", line: "#f2d6bf", header: "seal", table: "plain", info: "stack", serif: true },
   "classic-carboncopy": { accent: "#111827", page: "#ffffff", paper: "#ffffff", line: "#d1d5db", header: "office", table: "boxed", info: "split", serif: false },
+}
+
+const CLASSIC_HEADERS: ClassicTheme["header"][] = ["formal", "office", "seal"]
+const CLASSIC_TABLES: ClassicTheme["table"][] = ["boxed", "plain"]
+const CLASSIC_PALETTES = [
+  { accent: "#1f2937", page: "#ffffff", paper: "#ffffff", line: "#cbd5e1" },
+  { accent: "#92400e", page: "#fffbeb", paper: "#fffbeb", line: "#e5d6b6" },
+  { accent: "#0f172a", page: "#ffffff", paper: "#ffffff", line: "#d1d5db" },
+  { accent: "#172554", page: "#eff6ff", paper: "#eff6ff", line: "#bfdbfe" },
+  { accent: "#7c2d12", page: "#fff7ed", paper: "#fff7ed", line: "#f2d6bf" },
+  { accent: "#111827", page: "#ffffff", paper: "#ffffff", line: "#d1d5db" },
+  { accent: "#4c1d95", page: "#faf5ff", paper: "#faf5ff", line: "#e9d5ff" },
+  { accent: "#14532d", page: "#f7fee7", paper: "#f7fee7", line: "#d9f99d" },
+] as const
+
+function parseVariant(templateId: string | undefined) {
+  const match = String(templateId || "classic-v01").match(/(\d+)/)
+  const n = match ? Number(match[1]) : 1
+  return Number.isFinite(n) && n > 0 ? n : 1
+}
+
+function resolveClassicTheme(templateId: string | undefined): ClassicTheme {
+  const raw = String(templateId || "")
+  const mapped = classicThemes[raw]
+  if (mapped) return { ...mapped, termsPage2: TERMS_PAGE2_TEMPLATE_IDS.has(raw) }
+  const variant = parseVariant(raw)
+  const layoutIndex = Math.floor((variant - 1) / 4)
+  const paletteIndex = (variant - 1) % 4
+  const palette = CLASSIC_PALETTES[(layoutIndex * 2 + paletteIndex) % CLASSIC_PALETTES.length]
+  return {
+    ...palette,
+    header: CLASSIC_HEADERS[layoutIndex % CLASSIC_HEADERS.length],
+    table: CLASSIC_TABLES[layoutIndex % CLASSIC_TABLES.length],
+    info: layoutIndex % 2 === 0 ? "stack" : "split",
+    serif: layoutIndex % 3 === 0,
+    termsPage2: TERMS_PAGE2_TEMPLATE_IDS.has(raw),
+  }
 }
 
 function logo(business: TemplateBusinessRecord, visibility: InvoiceVisibilitySettings) {
@@ -235,7 +274,7 @@ function summary({
   theme: ClassicTheme
 }) {
   return (
-    <div className="w-[320px] border p-4" style={{ borderColor: theme.line }}>
+    <div className="eb-summary-box w-[320px] border p-4" style={{ borderColor: theme.line }}>
       <div className="space-y-2 text-sm text-slate-700">
         <div className="flex justify-between"><span>Subtotal</span><span>{money(subtotal)}</span></div>
         <div className="flex justify-between"><span>CGST</span><span>{totalCGST ? money(totalCGST) : "-"}</span></div>
@@ -258,6 +297,7 @@ function footer({
   visibility: InvoiceVisibilitySettings
   theme: ClassicTheme
 }) {
+  const showTermsInline = !theme.termsPage2
   return (
     <div className="eb-footer-grid grid grid-cols-2 gap-6 border-t pt-4" style={{ borderColor: theme.line }}>
       <div className="text-sm text-slate-700">
@@ -274,13 +314,31 @@ function footer({
         ) : null}
       </div>
       <div className="text-sm text-slate-700">
-        {visibility.businessTerms && business?.terms ? (
+        {showTermsInline && visibility.businessTerms && business?.terms ? (
           <>
             <p className="font-semibold">Terms</p>
             <p className="mt-2 whitespace-pre-line">{business.terms}</p>
           </>
         ) : null}
       </div>
+    </div>
+  )
+}
+
+function termsPage({
+  business,
+  visibility,
+  theme,
+}: {
+  business: TemplateBusinessRecord
+  visibility: InvoiceVisibilitySettings
+  theme: ClassicTheme
+}) {
+  if (!theme.termsPage2 || !visibility.businessTerms || !business?.terms) return null
+  return (
+    <div className="eb-content-block eb-terms-fullpage border p-6" style={{ borderColor: theme.line, minHeight: 980 }}>
+      <p className="font-semibold uppercase tracking-[0.2em]" style={{ color: theme.accent }}>Terms & Conditions</p>
+      <p className="mt-4 whitespace-pre-line text-sm leading-7 text-slate-700">{business.terms}</p>
     </div>
   )
 }
@@ -302,7 +360,7 @@ export default function ClassicTemplate({
   dateFormat,
   invoiceVisibility,
 }: TemplateComponentProps) {
-  const theme = classicThemes[templateId || "classic-registry"] || classicThemes["classic-registry"]
+  const theme = resolveClassicTheme(templateId)
   const businessInfo = business || {}
   const details = invoice?.customDetails || []
   const visibility: InvoiceVisibilitySettings = invoiceVisibility || DEFAULT_INVOICE_VISIBILITY
@@ -314,6 +372,7 @@ export default function ClassicTemplate({
       <div className="eb-content-block eb-section eb-section-items mt-5">{items({ invoice: invoice || undefined, money, gstDisplay, theme })}</div>
       <div className="eb-content-block eb-section eb-section-summary mt-5 flex justify-end">{summary({ invoice: invoice || undefined, subtotal: subtotal || 0, totalCGST: totalCGST || 0, totalSGST: totalSGST || 0, totalIGST: totalIGST || 0, money, theme })}</div>
       <div className="eb-content-block eb-section eb-section-footer mt-5">{footer({ business: businessInfo, visibility, theme })}</div>
+      {termsPage({ business: businessInfo, visibility, theme })}
     </div>
   )
 }
