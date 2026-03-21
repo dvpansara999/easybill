@@ -57,7 +57,7 @@ const WHY_EASIER_POINTS = [
 
 const MarketingPanel = memo(function MarketingPanel() {
   return (
-    <section className="order-2 space-y-7 lg:order-1">
+    <section className="order-2 hidden space-y-7 lg:order-1 lg:block">
       <div className="rounded-[28px] border border-slate-200 bg-white/70 p-5 shadow-[0_30px_90px_rgba(15,23,42,0.08)] backdrop-blur sm:rounded-[34px] sm:p-7">
         <div className="flex items-center gap-4">
           <EasyBillLogoMark size={56} className="drop-shadow sm:hidden" />
@@ -238,6 +238,44 @@ export default function Home() {
     /[^A-Za-z0-9]/.test(forgotNewPassword) &&
     forgotNewPassword.length >= 7 &&
     forgotNewPassword.length <= 20
+
+  function handleTrackedInput(field: string, setter: (next: string) => void, next: string) {
+    if (typeof window === "undefined") {
+      setter(next)
+      return
+    }
+    const isMobile = window.matchMedia("(max-width: 1023px)").matches
+    if (!isMobile) {
+      setter(next)
+      return
+    }
+    const start = performance.now()
+    setter(next)
+    window.requestAnimationFrame(() => {
+      const elapsed = performance.now() - start
+      if (elapsed >= 24) {
+        console.info(`[auth-lag] ${field}: ${elapsed.toFixed(1)}ms`)
+      }
+    })
+  }
+
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof PerformanceObserver === "undefined") return
+    if (!window.matchMedia("(max-width: 1023px)").matches) return
+    const observer = new PerformanceObserver((list) => {
+      for (const entry of list.getEntries()) {
+        if (entry.duration >= 50) {
+          console.warn(`[auth-lag] long-task: ${entry.duration.toFixed(1)}ms`)
+        }
+      }
+    })
+    try {
+      observer.observe({ entryTypes: ["longtask"] })
+    } catch {
+      // ignore unsupported environments
+    }
+    return () => observer.disconnect()
+  }, [])
 
   async function handlePrimaryAction() {
     if (primaryBusy) return
@@ -590,30 +628,39 @@ export default function Home() {
   }
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[linear-gradient(to_bottom,_#fafaf9,_#f1f5f9)] px-4 py-6 sm:py-8 lg:px-8">
-      <MemoInvoiceAnimeBackground />
+    <main className="relative min-h-screen overflow-hidden bg-[linear-gradient(to_bottom,_#fafaf9,_#f1f5f9)] px-3 py-4 sm:px-4 sm:py-8 lg:px-8">
+      <div className="hidden lg:block">
+        <MemoInvoiceAnimeBackground />
+      </div>
 
       <div className="relative mx-auto w-full max-w-[1180px]">
-        <div className="h-2 sm:h-4" />
+        <div className="h-1 sm:h-4" />
 
-        <div className="mt-6 grid gap-6 sm:gap-8 lg:mt-10 lg:grid-cols-[1.05fr_0.95fr] lg:items-start">
+        <div className="mt-3 grid gap-4 sm:mt-6 sm:gap-8 lg:mt-10 lg:grid-cols-[1.05fr_0.95fr] lg:items-start">
           {/* LEFT: brand + pros */}
           <MarketingPanel />
 
           {/* RIGHT: auth card (mechanics unchanged) */}
           <section className="order-1 lg:order-2">
-            <div className="mx-auto w-full max-w-[540px] overflow-hidden rounded-[28px] border border-slate-200 bg-white/80 text-left shadow-[0_30px_90px_rgba(15,23,42,0.10)] backdrop-blur sm:rounded-[34px]">
-              <div className="border-b border-slate-200 bg-white/60 px-5 py-5 sm:px-7 sm:py-6">
+            <div className="mx-auto w-full max-w-[540px] overflow-hidden rounded-[22px] border border-slate-200 bg-white text-left shadow-[0_10px_30px_rgba(15,23,42,0.08)] sm:rounded-[34px] sm:bg-white/80 sm:shadow-[0_30px_90px_rgba(15,23,42,0.10)] sm:backdrop-blur">
+              <div className="border-b border-slate-200 bg-white px-4 py-4 sm:bg-white/60 sm:px-7 sm:py-6">
+                <div className="mb-4 flex items-center gap-3 sm:hidden">
+                  <EasyBillLogoMark size={34} className="drop-shadow-sm" />
+                  <div>
+                    <p className="text-sm font-extrabold tracking-tight text-slate-950">easyBILL</p>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">Create • Send • Track</p>
+                  </div>
+                </div>
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.32em] text-indigo-700">{panelCopy.eyebrow}</p>
-                    <p className="mt-2 text-sm leading-6 text-slate-600">{panelCopy.description}</p>
+                    <p className="mt-2 text-sm leading-6 text-slate-600 sm:block">{panelCopy.description}</p>
                   </div>
 
-                  <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-white p-1 text-sm">
+                  <div className="grid grid-cols-2 gap-2 rounded-2xl border border-slate-200 bg-white p-1 text-sm sm:flex sm:items-center sm:gap-2 sm:rounded-full">
                     <button
                       onClick={() => switchMode("signin")}
-                      className={`rounded-full px-3.5 py-2 font-semibold transition ${
+                      className={`rounded-xl px-3.5 py-2 text-center font-semibold transition sm:rounded-full ${
                         mode === "signin" ? "bg-slate-950 text-white" : "text-slate-600 hover:text-slate-950"
                       }`}
                     >
@@ -621,7 +668,7 @@ export default function Home() {
                     </button>
                     <button
                       onClick={() => switchMode("create")}
-                      className={`rounded-full px-3.5 py-2 font-semibold transition ${
+                      className={`rounded-xl px-3.5 py-2 text-center font-semibold transition sm:rounded-full ${
                         mode === "create" ? "bg-slate-950 text-white" : "text-slate-600 hover:text-slate-950"
                       }`}
                     >
@@ -631,7 +678,7 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className="px-5 py-6 sm:px-7 sm:py-7">
+              <div className="px-4 py-5 sm:px-7 sm:py-7">
                 <div className="grid gap-4">
                   <div className="mx-auto grid w-full max-w-sm gap-3">
                     <button
@@ -681,7 +728,7 @@ export default function Home() {
                           type="text"
                           placeholder="e.g. ABC Traders"
                           value={businessName}
-                          onChange={(e) => setBusinessName(e.target.value)}
+                          onChange={(e) => handleTrackedInput("businessName", setBusinessName, e.target.value)}
                           className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100"
                         />
                         {showError(createErrors.businessName, businessName) && (
@@ -695,7 +742,7 @@ export default function Home() {
                           type="email"
                           placeholder="you@business.com"
                           value={email}
-                          onChange={(e) => setEmail(e.target.value)}
+                          onChange={(e) => handleTrackedInput("createEmail", setEmail, e.target.value)}
                           className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100"
                         />
                         {showError(createErrors.email, email) && (
@@ -710,7 +757,7 @@ export default function Home() {
                             type={showCreatePassword ? "text" : "password"}
                             placeholder="7–20 characters"
                             value={createPassword}
-                            onChange={(e) => setCreatePassword(e.target.value)}
+                            onChange={(e) => handleTrackedInput("createPassword", setCreatePassword, e.target.value)}
                             className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100"
                           />
                           {showError(createErrors.createPassword, createPassword) && (
@@ -724,7 +771,7 @@ export default function Home() {
                             type={showConfirmPassword ? "text" : "password"}
                             placeholder="re-enter password"
                             value={confirmPassword}
-                            onChange={(e) => setConfirmPassword(e.target.value)}
+                            onChange={(e) => handleTrackedInput("confirmPassword", setConfirmPassword, e.target.value)}
                             className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100"
                           />
                           {showError(createErrors.confirmPassword, confirmPassword) && (
@@ -781,7 +828,7 @@ export default function Home() {
                           type="text"
                           placeholder="you@business.com"
                           value={signinEmail}
-                          onChange={(e) => setSigninEmail(e.target.value)}
+                          onChange={(e) => handleTrackedInput("signinEmail", setSigninEmail, e.target.value)}
                           className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100"
                         />
                       </div>
@@ -792,7 +839,7 @@ export default function Home() {
                           type={showSigninPassword ? "text" : "password"}
                           placeholder="Your password"
                           value={signinPassword}
-                          onChange={(e) => setSigninPassword(e.target.value)}
+                          onChange={(e) => handleTrackedInput("signinPassword", setSigninPassword, e.target.value)}
                           className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100"
                         />
                       </div>
@@ -847,7 +894,7 @@ export default function Home() {
                         type="text"
                         placeholder="you@business.com"
                         value={forgotEmail}
-                        onChange={(e) => setForgotEmail(e.target.value)}
+                        onChange={(e) => handleTrackedInput("forgotEmail", setForgotEmail, e.target.value)}
                         className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100"
                       />
                     </div>
@@ -868,7 +915,7 @@ export default function Home() {
                         inputMode="numeric"
                         placeholder="Enter 6-digit OTP"
                         value={forgotOtpCode}
-                        onChange={(e) => setForgotOtpCode(e.target.value)}
+                        onChange={(e) => handleTrackedInput("forgotOtpCode", setForgotOtpCode, e.target.value)}
                         disabled={!forgotOtpSent || forgotOtpVerified}
                         className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 disabled:cursor-not-allowed disabled:bg-slate-100"
                       />
@@ -890,7 +937,7 @@ export default function Home() {
                           type={showForgotNewPassword ? "text" : "password"}
                           placeholder="New password"
                           value={forgotNewPassword}
-                          onChange={(e) => setForgotNewPassword(e.target.value)}
+                          onChange={(e) => handleTrackedInput("forgotNewPassword", setForgotNewPassword, e.target.value)}
                           disabled={!forgotOtpVerified}
                           className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 disabled:cursor-not-allowed disabled:bg-slate-100"
                         />
@@ -901,7 +948,7 @@ export default function Home() {
                           type={showForgotConfirmPassword ? "text" : "password"}
                           placeholder="Re-enter password"
                           value={forgotConfirmPassword}
-                          onChange={(e) => setForgotConfirmPassword(e.target.value)}
+                          onChange={(e) => handleTrackedInput("forgotConfirmPassword", setForgotConfirmPassword, e.target.value)}
                           disabled={!forgotOtpVerified}
                           className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 disabled:cursor-not-allowed disabled:bg-slate-100"
                         />
@@ -961,7 +1008,7 @@ export default function Home() {
                       inputMode="numeric"
                       placeholder="Enter code"
                       value={otpToken}
-                      onChange={(e) => setOtpToken(e.target.value)}
+                      onChange={(e) => handleTrackedInput("otpToken", setOtpToken, e.target.value)}
                       className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100"
                     />
                     {otpVerifyError ? <p className="mt-2 text-sm text-rose-600">{otpVerifyError}</p> : null}
@@ -978,7 +1025,7 @@ export default function Home() {
                 </div>
               ) : null}
 
-              <div className="border-t border-slate-200 bg-slate-50/70 px-7 py-6">
+              <div className="border-t border-slate-200 bg-slate-50/70 px-4 py-4 sm:px-7 sm:py-6">
                 <div className="grid gap-3">
                   <button
                     onClick={handlePrimaryAction}
@@ -1003,7 +1050,7 @@ export default function Home() {
                     </button>
                   </div>
 
-                  <div className="rounded-[22px] border border-slate-200 bg-white p-4">
+                  <div className="hidden rounded-[22px] border border-slate-200 bg-white p-4 sm:block">
                     <div className="flex items-start gap-3">
                       <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-amber-50 text-amber-700">
                         <Stars className="h-5 w-5" />
