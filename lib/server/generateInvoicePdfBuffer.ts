@@ -28,14 +28,25 @@ async function launchBrowser() {
     return chromium.launch({
       args: chromiumPack.args,
       executablePath,
-      headless: false,
+      headless: true,
     })
   }
+
+  // Localhost (Windows)
   const { chromium: full } = await import("playwright")
-  return full.launch({ headless: true })
+  return full.launch({
+    headless: true,
+    executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-dev-shm-usage",
+      "--disable-gpu",
+    ],
+  })
 }
 
-export async function generateInvoicePdfBuffer(params: { html: string }): Promise<PdfGenResult> {
+export async function generateInvoicePdfBuffer(params: { url: string }): Promise<PdfGenResult> {
   const started = Date.now()
   let browser: Awaited<ReturnType<typeof launchBrowser>> | null = null
   try {
@@ -58,12 +69,13 @@ export async function generateInvoicePdfBuffer(params: { html: string }): Promis
     page.setDefaultNavigationTimeout(45_000)
 
     try {
-      await page.setContent(params.html, { waitUntil: "load", timeout: 45_000 })
+      await page.goto(params.url, { waitUntil: "domcontentloaded", timeout: 45_000 })
+      await page.waitForSelector("[data-easybill-pdf-ready='true']", { timeout: 45_000 })
     } catch {
       return {
         ok: false,
         code: "PDF_NAV_TIMEOUT",
-        message: "PDF HTML template did not load in time.",
+        message: "PDF template page did not load in time.",
         httpStatus: 504,
       }
     }

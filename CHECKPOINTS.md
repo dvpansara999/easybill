@@ -151,3 +151,28 @@ Meaning of this checkpoint:
 How to use:
 - If user says exactly: `Mobile font scaling + PDF fallback fixes v0.1`
 - Treat this as the restore target for these fixes.
+
+## SAFE_POINT: stable playwright download
+
+Created: 2026-03-21
+
+Meaning of this checkpoint:
+- Download flow confirms vector PDF path is active (`Vector PDF (Playwright)` notice shown in invoice view).
+- Route is pinned to local Playwright Chromium executable for localhost verification.
+- Template selection and Playwright output alignment are stable at this point.
+
+How to use:
+- If user says exactly: `stable playwright download`
+- Treat this as the restore target for this verified Playwright download state.
+
+## SAFE_POINT: before shared-template-unification
+
+Created: 2026-03-21
+
+Meaning of this checkpoint:
+- State right before unifying invoice preview/view/PDF to a single shared template component path.
+- Use this to fully roll back if the shared-template refactor is not desired.
+
+How to use:
+- If user says exactly: `before shared-template-unification`
+- Treat this as the restore target before this refactor started.

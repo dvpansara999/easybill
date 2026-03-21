@@ -13,6 +13,7 @@ import {
   type InvoiceRecord,
 } from "@/lib/invoice"
 import { getStoredTemplateTypography } from "@/lib/templateTypography"
+import { normalizeTemplateTypography } from "@/lib/globalTemplateTypography"
 import { getActiveOrGlobalItem } from "@/lib/userStore"
 import A4InvoiceView from "@/components/invoiceView/A4InvoiceView"
 
@@ -75,7 +76,7 @@ function readInvoiceViewState(invoiceId: string): InvoiceViewState {
     invoice,
     business: getStoredBusinessRecord(),
     template,
-    typography: getStoredTemplateTypography(),
+    typography: normalizeTemplateTypography(getStoredTemplateTypography()),
   }
 }
 
@@ -96,6 +97,7 @@ export default function ViewInvoice() {
   const [downloadingPdf, setDownloadingPdf] = useState(false)
   const [downloadError, setDownloadError] = useState("")
   const [downloadNotice, setDownloadNotice] = useState("")
+  const [downloadNoticeTone, setDownloadNoticeTone] = useState<"success" | "info">("success")
 
   // Stay in sync with Templates page + KV (template, typography, invoices) without full remount.
   useEffect(() => {
@@ -302,6 +304,7 @@ export default function ViewInvoice() {
     setDownloadingPdf(true)
     setDownloadError("")
     setDownloadNotice("")
+    setDownloadNoticeTone("success")
 
     try {
       // Same source as Templates page + preview: flush so we send the template id the user sees.
@@ -347,7 +350,8 @@ export default function ViewInvoice() {
             a.remove()
             URL.revokeObjectURL(url)
             vectorOk = true
-            setDownloadNotice("Vector PDF (Playwright) — template and data from your account.")
+            setDownloadNoticeTone("success")
+            setDownloadNotice("Your PDF is ready and downloaded successfully.")
             window.setTimeout(() => setDownloadNotice(""), 9000)
           } else if (!extracted.ok) {
             console.warn("[invoice-pdf] non-pdf response", {
@@ -368,15 +372,17 @@ export default function ViewInvoice() {
                 ? "Server returned a non-PDF body (see console for reason)."
                 : await parsePdfApiErrorMessage(res)
           await downloadInvoiceFallback()
+          setDownloadNoticeTone("info")
           setDownloadNotice(
-            `Saved a screen capture instead (${reason}).`
+            `We downloaded a backup PDF from your screen preview (${reason}).`
           )
           window.setTimeout(() => setDownloadNotice(""), 12000)
         }
       } catch {
         await downloadInvoiceFallback()
+        setDownloadNoticeTone("info")
         setDownloadNotice(
-          "Vector PDF unavailable (network or server). Saved a screen capture instead."
+          "Vector PDF is temporarily unavailable. We downloaded a backup PDF from your screen preview."
         )
         window.setTimeout(() => setDownloadNotice(""), 12000)
       }
@@ -414,7 +420,15 @@ export default function ViewInvoice() {
         <p className="mb-4 text-right text-sm text-rose-600">{downloadError}</p>
       ) : null}
       {downloadNotice ? (
-        <p className="mb-4 text-right text-sm text-emerald-700">{downloadNotice}</p>
+        <div
+          className={`mb-4 rounded-md border px-3 py-2 text-sm ${
+            downloadNoticeTone === "success"
+              ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+              : "border-amber-200 bg-amber-50 text-amber-800"
+          }`}
+        >
+          {downloadNotice}
+        </div>
       ) : null}
 
       <div

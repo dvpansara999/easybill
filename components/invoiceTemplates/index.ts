@@ -1,11 +1,8 @@
-import DefaultTemplate from "./Default"
-import ClassicTemplate from "./Classic"
-import MinimalTemplate from "./Minimal"
-import ModernTemplate from "./Modern"
+import SharedInvoiceTemplate from "./SharedInvoiceTemplate"
 
 export const templates = {
-default: DefaultTemplate,
-classic: ClassicTemplate,
-minimal: MinimalTemplate,
-modern: ModernTemplate
+default: SharedInvoiceTemplate,
+classic: SharedInvoiceTemplate,
+minimal: SharedInvoiceTemplate,
+modern: SharedInvoiceTemplate
 }

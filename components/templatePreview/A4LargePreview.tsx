@@ -8,6 +8,7 @@ const A4_WIDTH_PX = 794
 const A4_HEIGHT_PX = 1123
 const PAGE_PADDING_PX = 38
 const PAGE_GAP_PX = 34
+const SECOND_PAGE_MIN_OVERFLOW_PX = 140
 
 function getTemplateEngine(id: string) {
   if (id.startsWith("modern")) return templateEngines.modern
@@ -77,8 +78,10 @@ export default function A4LargePreview({
 
   const scale = wrapWidth ? Math.min(1, wrapWidth / A4_WIDTH_PX) : 0.4
   const rawPages = useMemo(() => Math.max(1, Math.ceil(contentHeight / A4_HEIGHT_PX)), [contentHeight])
-  const overflowPages = Math.min(2, rawPages)
-  const enableScroll = rawPages > 1
+  const overflowPx = Math.max(0, contentHeight - A4_HEIGHT_PX)
+  // Show page 2 only when there is meaningful overflow, not tiny measurement spill.
+  const overflowPages = rawPages > 1 && overflowPx > SECOND_PAGE_MIN_OVERFLOW_PX ? Math.min(2, rawPages) : 1
+  const enableScroll = overflowPages > 1
   const pageViewportHeight = Math.max(220, Math.round(A4_HEIGHT_PX * scale))
   const viewportHeight = viewportMaxHeight ? Math.min(viewportMaxHeight, pageViewportHeight) : pageViewportHeight
   const outerOverflowClass = enableScroll ? "overflow-y-auto overflow-x-hidden" : "overflow-y-hidden overflow-x-hidden"

@@ -7,6 +7,7 @@ import { templates as templateEngines } from "@/components/invoiceTemplates"
 import { templateRegistry } from "@/components/invoiceTemplates/loadTemplates"
 import { previewTemplateProps } from "@/lib/templatePreviewData"
 import { getStoredTemplateTypography, saveStoredTemplateTypography, templateFontOptions, templateFontSizeOptions } from "@/lib/templateTypography"
+import { normalizeTemplateTypography } from "@/lib/globalTemplateTypography"
 import { getActiveOrGlobalItem, isActiveUserKvHydrated, setActiveOrGlobalItem } from "@/lib/userStore"
 import A4LargePreview from "@/components/templatePreview/A4LargePreview"
 import { canUseTemplate, getActivePlanId } from "@/lib/plans"
@@ -92,7 +93,7 @@ useEffect(()=>{
       setActiveOrGlobalItem("invoiceTemplate", "classic-default")
     }
 
-    const typography = getStoredTemplateTypography()
+    const typography = normalizeTemplateTypography(getStoredTemplateTypography())
     setFontId(typography.fontId)
     setFontFamily(typography.fontFamily)
     setFontSize(typography.fontSize)
@@ -138,18 +139,26 @@ showAlert({
 function updateFont(nextFontId:string){
 
 const option = templateFontOptions.find((item)=>item.id === nextFontId)
-const nextFontFamily = option?.css || previewTemplateProps.fontFamily
+const normalized = normalizeTemplateTypography({
+  fontId: nextFontId,
+  fontFamily: option?.css || previewTemplateProps.fontFamily,
+  fontSize,
+})
 
-setFontId(nextFontId)
-setFontFamily(nextFontFamily)
-saveStoredTemplateTypography(nextFontId,fontSize)
+setFontId(normalized.fontId)
+setFontFamily(normalized.fontFamily)
+setFontSize(normalized.fontSize)
+saveStoredTemplateTypography(normalized.fontId,normalized.fontSize)
 
 }
 
 function updateFontSize(nextFontSize:number){
 
-setFontSize(nextFontSize)
-saveStoredTemplateTypography(fontId,nextFontSize)
+const normalized = normalizeTemplateTypography({ fontId, fontFamily, fontSize: nextFontSize })
+setFontId(normalized.fontId)
+setFontFamily(normalized.fontFamily)
+setFontSize(normalized.fontSize)
+saveStoredTemplateTypography(normalized.fontId,normalized.fontSize)
 
 }
 

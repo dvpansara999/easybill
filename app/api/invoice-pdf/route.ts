@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server"
-import { buildInvoicePdfHtml } from "@/lib/server/buildInvoicePdfHtml"
 import { generateInvoicePdfBuffer } from "@/lib/server/generateInvoicePdfBuffer"
 import { parseJsonLoose, pdfError } from "@/lib/server/invoicePdfRouteHelpers"
 import { normalizeInvoiceForPdf } from "@/lib/server/normalizeInvoiceForPdf"
@@ -7,6 +6,11 @@ import { createSupabaseServerClient } from "@/lib/supabase/server"
 import { revealSensitiveDataFromStorage } from "@/lib/sensitiveData"
 import type { InvoiceVisibilitySettings } from "@/lib/invoiceVisibilityShared"
 import { defaultTemplateTypography, getTemplateFontCss } from "@/lib/templateTypography"
+import { normalizeTemplateTypography } from "@/lib/globalTemplateTypography"
+
+// Use your local Chromium executable for debugging (must be set before launching Playwright).
+process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH =
+  "C:\\Users\\dvpan\\AppData\\Local\\ms-playwright\\chromium-1208\\chrome-win64\\chrome.exe"
 
 export const maxDuration = 60
 
@@ -33,6 +37,26 @@ type PdfRequestBody = {
   fontId?: string
   fontSize?: number | string
   fontFamily?: string
+}
+
+type PdfRenderPayload = {
+  invoice: Record<string, unknown>
+  business: Record<string, unknown> | null
+  visibility: Partial<InvoiceVisibilitySettings> | null
+  templateId: string
+  dateFormat: string
+  amountFormat: string
+  showDecimals: boolean
+  currencySymbol: string
+  currencyPosition: "before" | "after"
+  fontFamily: string
+  fontSize: number
+  totals: {
+    subtotal: number
+    totalCGST: number
+    totalSGST: number
+    totalIGST: number
+  }
 }
 
 function sanitizePdfFontSize(v: unknown): number | null {
@@ -163,37 +187,67 @@ export async function POST(req: Request) {
   const bodyFontFamily =
     typeof body.fontFamily === "string" && body.fontFamily.trim() ? body.fontFamily.trim() : null
 
-  const resolvedFontId = bodyFontId || kvFontId
-  const resolvedFontSize = bodyFontSize ?? kvFontSize
-  const resolvedFontFamily =
-    bodyFontFamily || (bodyFontId ? getTemplateFontCss(bodyFontId) : null) || kvFontFamily
+  const typography = normalizeTemplateTypography({
+    fontId: bodyFontId || kvFontId,
+    fontFamily: bodyFontFamily || (bodyFontId ? getTemplateFontCss(bodyFontId) : null) || kvFontFamily,
+    fontSize: bodyFontSize ?? kvFontSize,
+  })
 
   logPdfDebug("request", {
     mode,
     invoiceId: body.invoiceId,
     templateId,
-    fontId: resolvedFontId,
-    fontSize: resolvedFontSize,
+    fontId: typography.fontId,
+    fontSize: typography.fontSize,
     typographySource: bodyFontSize != null || bodyFontId || bodyFontFamily ? "body" : "kv",
     userIdSuffix: user.id.slice(-6),
   })
 
-  const html = buildInvoicePdfHtml({
+  const dateFormat = String(getKvOrBundle("dateFormat") || "YYYY-MM-DD")
+  const amountFormat = String(getKvOrBundle("amountFormat") || "indian")
+  const showDecimals = String(getKvOrBundle("showDecimals") || "true") === "true"
+  const currencySymbol = String(getKvOrBundle("currencySymbol") || "₹")
+  const currencyPosition = (String(getKvOrBundle("currencyPosition") || "before") === "after" ? "after" : "before") as
+    | "before"
+    | "after"
+  const totals = (() => {
+    const items = Array.isArray((invoiceData as { items?: unknown[] }).items)
+      ? ((invoiceData as { items?: Array<Record<string, unknown>> }).items || [])
+      : []
+    let subtotal = 0
+    let totalCGST = 0
+    let totalSGST = 0
+    let totalIGST = 0
+    for (const item of items) {
+      const qty = Number(item?.qty) || 0
+      const price = Number(item?.price) || 0
+      const base = qty * price
+      subtotal += base
+      totalCGST += item?.cgst ? (base * Number(item.cgst)) / 100 : 0
+      totalSGST += item?.sgst ? (base * Number(item.sgst)) / 100 : 0
+      totalIGST += item?.igst ? (base * Number(item.igst)) / 100 : 0
+    }
+    return { subtotal, totalCGST, totalSGST, totalIGST }
+  })()
+  const payload: PdfRenderPayload = {
     invoice: invoiceData as Record<string, unknown>,
     business: businessObj,
     visibility,
     templateId,
-    dateFormat: String(getKvOrBundle("dateFormat") || "YYYY-MM-DD"),
-    amountFormat: String(getKvOrBundle("amountFormat") || "indian"),
-    showDecimals: String(getKvOrBundle("showDecimals") || "true") === "true",
-    currencySymbol: String(getKvOrBundle("currencySymbol") || "₹"),
-    currencyPosition: (String(getKvOrBundle("currencyPosition") || "before") === "after" ? "after" : "before") as
-      | "before"
-      | "after",
-    fontFamily: resolvedFontFamily,
-    fontSize: resolvedFontSize,
-  })
-  const result = await generateInvoicePdfBuffer({ html })
+    dateFormat,
+    amountFormat,
+    showDecimals,
+    currencySymbol,
+    currencyPosition,
+    fontFamily: typography.fontFamily,
+    fontSize: typography.fontSize,
+    totals,
+  }
+  const payloadEncoded = Buffer.from(JSON.stringify(payload), "utf-8").toString("base64url")
+  const reqUrl = new URL(req.url)
+  const renderUrl = `${reqUrl.origin}/invoice-pdf?payload=${encodeURIComponent(payloadEncoded)}`
+
+  const result = await generateInvoicePdfBuffer({ url: renderUrl })
 
   if (!result.ok) {
     logPdfDebug("engine-error", {

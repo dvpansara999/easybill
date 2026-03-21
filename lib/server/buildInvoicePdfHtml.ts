@@ -90,6 +90,8 @@ type ResolvedPdfTheme = {
   headerLayout: PdfHeaderLayout
   tableZebra: boolean
   fontFamily: string
+  infoLayout: "split" | "stack" | "sidebar" | "cards" | "detailsTop"
+  summaryStyle: "card" | "inline" | "boxed" | "glass" | "panel" | "clean" | "rule"
 }
 
 function resolvePdfTheme(templateId: string): ResolvedPdfTheme {
@@ -105,6 +107,8 @@ function resolvePdfTheme(templateId: string): ResolvedPdfTheme {
     headerLayout: "default-clean",
     tableZebra: false,
     fontFamily: sans,
+    infoLayout: "split",
+    summaryStyle: "clean",
   })
 
   if (templateId === "classic-default" || templateId === "default") {
@@ -133,6 +137,8 @@ function resolvePdfTheme(templateId: string): ResolvedPdfTheme {
       headerLayout: modeToLayout[mode] || "modern-banner",
       tableZebra: modern.table === "zebra",
       fontFamily: sans,
+      infoLayout: (modern.info as ResolvedPdfTheme["infoLayout"]) || "split",
+      summaryStyle: (modern.summary as ResolvedPdfTheme["summaryStyle"]) || "card",
     }
   }
 
@@ -148,6 +154,8 @@ function resolvePdfTheme(templateId: string): ResolvedPdfTheme {
       headerLayout: "minimal-plain",
       tableZebra: false,
       fontFamily: sans,
+      infoLayout: (minimal.info as ResolvedPdfTheme["infoLayout"]) || "split",
+      summaryStyle: (minimal.summary as ResolvedPdfTheme["summaryStyle"]) || "clean",
     }
   }
 
@@ -164,6 +172,8 @@ function resolvePdfTheme(templateId: string): ResolvedPdfTheme {
       headerLayout: "classic-card",
       tableZebra: classic.table === "ledger",
       fontFamily: classic.serif ? serif : sans,
+      infoLayout: (classic.info as ResolvedPdfTheme["infoLayout"]) || "split",
+      summaryStyle: "boxed",
     }
   }
 
@@ -521,6 +531,13 @@ export function buildInvoicePdfHtml(input: BuildInvoicePdfHtmlInput): string {
       ${vis.clientAddress && inv.clientAddress ? `<p>${escapeHtml(inv.clientAddress)}</p>` : ""}
     </div>
   `
+  const detailsCard = `
+    <div class="card">
+      <h4>ADDITIONAL DETAILS</h4>
+      ${detailsHtml}
+    </div>
+  `
+  const billToCard = billTo
 
   const businessContactLight = `
     ${vis.businessAddress && biz.address ? `<p>${escapeHtml(biz.address)}</p>` : ""}
@@ -558,6 +575,29 @@ export function buildInvoicePdfHtml(input: BuildInvoicePdfHtmlInput): string {
   const zebraCss = theme.tableZebra
     ? `tbody tr:nth-child(even) { background: ${theme.soft}33; }`
     : ""
+  const summaryClass =
+    theme.summaryStyle === "inline"
+      ? "summary summary-inline"
+      : theme.summaryStyle === "boxed"
+        ? "summary summary-boxed"
+        : theme.summaryStyle === "glass"
+          ? "summary summary-glass"
+          : theme.summaryStyle === "panel"
+            ? "summary summary-panel"
+            : theme.summaryStyle === "rule"
+              ? "summary summary-rule"
+              : "summary summary-clean"
+  const showSummaryHeader = theme.summaryStyle !== "inline" && theme.summaryStyle !== "rule"
+  const infoBlocksHtml =
+    theme.infoLayout === "stack"
+      ? `<div class="grid2 grid2-stack">${billToCard}${detailsCard}</div>`
+      : theme.infoLayout === "sidebar"
+        ? `<div class="grid2 grid2-sidebar">${detailsCard}${billToCard}</div>`
+        : theme.infoLayout === "cards"
+          ? `<div class="grid2 grid2-cards">${billToCard}${detailsCard}</div>`
+          : theme.infoLayout === "detailsTop"
+            ? `<div class="grid2">${detailsCard}${billToCard}</div>`
+            : `<div class="grid2">${billToCard}${detailsCard}</div>`
 
   return `<!doctype html>
 <html>
@@ -781,6 +821,9 @@ export function buildInvoicePdfHtml(input: BuildInvoicePdfHtmlInput): string {
         grid-template-columns: 1fr 1fr;
         gap: 10px;
       }
+      .grid2-stack { grid-template-columns: 1fr; }
+      .grid2-sidebar { grid-template-columns: 0.85fr 1.15fr; }
+      .grid2-cards { grid-template-columns: 1.2fr 0.8fr; }
       .card {
         background: white;
         border-radius: 14px;
@@ -812,6 +855,24 @@ export function buildInvoicePdfHtml(input: BuildInvoicePdfHtmlInput): string {
         background: white;
         overflow: hidden;
       }
+      .summary-inline {
+        width: 320px;
+        border: none;
+        background: transparent;
+      }
+      .summary-inline .summary-b {
+        padding: 0;
+      }
+      .summary-inline .r {
+        border-bottom: 1px solid ${theme.soft};
+        padding: 3px 0;
+      }
+      .summary-boxed { border: 2px solid ${theme.accent}; }
+      .summary-glass { background: #ffffffdd; border-color: ${theme.line}; }
+      .summary-panel .summary-h { background: ${theme.soft}; color: #111827; letter-spacing: .08em; }
+      .summary-rule .summary-h { display: none; }
+      .summary-rule .summary-b { border-top: 2px solid ${theme.line}; }
+      .summary-clean .summary-h { background: ${theme.accent}; }
       .summary-h {
         background: ${theme.accent};
         color: white;
@@ -839,13 +900,7 @@ export function buildInvoicePdfHtml(input: BuildInvoicePdfHtmlInput): string {
     <div class="page">
       ${headerHtml}
 
-      <div class="grid2">
-        ${billTo}
-        <div class="card">
-          <h4>ADDITIONAL DETAILS</h4>
-          ${detailsHtml}
-        </div>
-      </div>
+      ${infoBlocksHtml}
 
       <section class="tbl-wrap">
         <table>
@@ -859,8 +914,8 @@ export function buildInvoicePdfHtml(input: BuildInvoicePdfHtmlInput): string {
         </table>
       </section>
 
-      <section class="summary">
-        <div class="summary-h">Invoice Summary</div>
+      <section class="${summaryClass}">
+        ${showSummaryHeader ? `<div class="summary-h">Invoice Summary</div>` : ""}
         <div class="summary-b">
           <div class="r"><span>Subtotal</span><span>${escapeHtml(fmt(subtotal))}</span></div>
           <div class="r"><span>CGST</span><span>${escapeHtml(totalCGST ? fmt(totalCGST) : "-")}</span></div>
