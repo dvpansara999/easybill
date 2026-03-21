@@ -85,7 +85,8 @@ export default function InvoicePdfRenderPage() {
       formatDate,
       dateFormat: payload.dateFormat,
       invoiceVisibility: visibility,
-      renderContext: "pdf",
+      // Keep same typography behavior as preview + invoice view.
+      renderContext: "screen",
     }
 
     return (

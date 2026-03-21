@@ -57,7 +57,9 @@ export const classicThemes: Record<string, TemplateTheme> = {
 }
 
 function classicFontClass(serif:boolean){
-return serif ? "font-serif" : ""
+void serif
+// Use globally selected template font consistently across preview/view/pdf.
+return ""
 }
 
 function renderClassicLogo(business: TemplateBusinessRecord, enabled:boolean){
