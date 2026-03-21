@@ -21,6 +21,114 @@ import {
 
 const MemoInvoiceAnimeBackground = memo(InvoiceAnimeBackground)
 
+const MARKETING_FEATURES = [
+  {
+    title: "Go digital (save paper)",
+    desc: "Create, share, and store invoices digitally—cleaner for your desk and lighter on paper.",
+    icon: BadgeCheck,
+    tone: "emerald" as const,
+  },
+  {
+    title: "100+ templates + PDF export",
+    desc: "Pick from 100+ designs and export A4 PDFs that look professional when shared or printed.",
+    icon: FileText,
+    tone: "indigo" as const,
+  },
+  {
+    title: "Move faster with saved items",
+    desc: "Reuse saved products and customers to build invoices in seconds—no re-typing.",
+    icon: Sparkles,
+    tone: "sky" as const,
+  },
+  {
+    title: "End-to-end encrypted",
+    desc: "Sensitive fields are protected with end-to-end encryption and secure storage handling.",
+    icon: LockKeyhole,
+    tone: "rose" as const,
+  },
+]
+
+const WHY_EASIER_POINTS = [
+  "No ads. No distractions.",
+  "Unlimited invoices with Plus.",
+  "Edit invoices on Plus if you made a mistake.",
+  "Clean UI made for daily billing work.",
+]
+
+const MarketingPanel = memo(function MarketingPanel() {
+  return (
+    <section className="order-2 space-y-7 lg:order-1">
+      <div className="rounded-[28px] border border-slate-200 bg-white/70 p-5 shadow-[0_30px_90px_rgba(15,23,42,0.08)] backdrop-blur sm:rounded-[34px] sm:p-7">
+        <div className="flex items-center gap-4">
+          <EasyBillLogoMark size={56} className="drop-shadow sm:hidden" />
+          <EasyBillLogoMark size={68} className="hidden drop-shadow sm:block" />
+          <div>
+            <p className="text-sm font-extrabold tracking-tight text-slate-950">easyBILL</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">Create • Send • Track</p>
+          </div>
+        </div>
+
+        <div className="mt-5 inline-flex w-fit items-center gap-2 rounded-full border border-indigo-200 bg-white/80 px-4 py-2 text-xs font-semibold text-indigo-700 shadow-sm">
+          <Wand2 className="h-4 w-4" />
+          Built for first-time users
+        </div>
+
+        <h1 className="font-display mt-5 text-4xl leading-[1.06] text-slate-950 sm:mt-6 sm:text-6xl sm:leading-[1.02]">
+          Professional invoices, made easy.
+        </h1>
+        <p className="mt-3 max-w-xl text-sm leading-7 text-slate-600 sm:mt-4 sm:text-base">
+          easyBILL gives you a calm workspace with smart defaults—so you can bill faster, look professional, and stay
+          organized.
+        </p>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        {MARKETING_FEATURES.map((item) => {
+          const Icon = item.icon
+          const tone = item.tone
+          const toneClasses =
+            tone === "indigo"
+              ? "bg-indigo-50 text-indigo-700"
+              : tone === "emerald"
+                ? "bg-emerald-50 text-emerald-700"
+                : tone === "sky"
+                  ? "bg-sky-50 text-sky-700"
+                  : "bg-rose-50 text-rose-700"
+
+          return (
+            <div
+              key={item.title}
+              className="rounded-[24px] border border-slate-200 bg-white/75 p-4 shadow-[0_18px_44px_rgba(15,23,42,0.06)] backdrop-blur sm:rounded-[28px] sm:p-5"
+            >
+              <div className="flex items-start gap-4">
+                <div className={`flex h-10 w-10 items-center justify-center rounded-2xl ${toneClasses} sm:h-11 sm:w-11`}>
+                  <Icon className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-slate-950">{item.title}</p>
+                  <p className="mt-1 text-sm leading-6 text-slate-600">{item.desc}</p>
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      <div className="rounded-[28px] border border-slate-200 bg-white/70 p-5 text-left shadow-sm backdrop-blur sm:rounded-[30px] sm:p-6">
+        <p className="text-xs font-semibold uppercase tracking-[0.32em] text-slate-500">Why it feels easier</p>
+        <div className="mt-4 grid gap-3 text-sm text-slate-700 sm:grid-cols-2">
+          {WHY_EASIER_POINTS.map((item) => (
+            <div key={item} className="flex items-start gap-3">
+              <BadgeCheck className="mt-0.5 h-5 w-5 text-emerald-600" />
+              <span>{item}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+})
+
 export default function Home() {
   const router = useRouter()
   const [mode, setMode] = useState<"signin" | "create">("signin")
@@ -490,107 +598,7 @@ export default function Home() {
 
         <div className="mt-6 grid gap-6 sm:gap-8 lg:mt-10 lg:grid-cols-[1.05fr_0.95fr] lg:items-start">
           {/* LEFT: brand + pros */}
-          <section className="order-2 space-y-7 lg:order-1">
-            <div className="rounded-[28px] border border-slate-200 bg-white/70 p-5 shadow-[0_30px_90px_rgba(15,23,42,0.08)] backdrop-blur sm:rounded-[34px] sm:p-7">
-              <div className="flex items-center gap-4">
-                <EasyBillLogoMark size={56} className="drop-shadow sm:hidden" />
-                <EasyBillLogoMark size={68} className="hidden drop-shadow sm:block" />
-                <div>
-                  <p className="text-sm font-extrabold tracking-tight text-slate-950">easyBILL</p>
-                  <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">
-                    Create • Send • Track
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-5 inline-flex w-fit items-center gap-2 rounded-full border border-indigo-200 bg-white/80 px-4 py-2 text-xs font-semibold text-indigo-700 shadow-sm">
-                <Wand2 className="h-4 w-4" />
-                Built for first-time users
-              </div>
-
-              <h1 className="font-display mt-5 text-4xl leading-[1.06] text-slate-950 sm:mt-6 sm:text-6xl sm:leading-[1.02]">
-                Professional invoices, made easy.
-              </h1>
-              <p className="mt-3 max-w-xl text-sm leading-7 text-slate-600 sm:mt-4 sm:text-base">
-                easyBILL gives you a calm workspace with smart defaults—so you can bill faster, look professional, and stay
-                organized.
-              </p>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              {[
-                {
-                  title: "Go digital (save paper)",
-                  desc: "Create, share, and store invoices digitally—cleaner for your desk and lighter on paper.",
-                  icon: BadgeCheck,
-                  tone: "emerald",
-                },
-                {
-                  title: "100+ templates + PDF export",
-                  desc: "Pick from 100+ designs and export A4 PDFs that look professional when shared or printed.",
-                  icon: FileText,
-                  tone: "indigo",
-                },
-                {
-                  title: "Move faster with saved items",
-                  desc: "Reuse saved products and customers to build invoices in seconds—no re-typing.",
-                  icon: Sparkles,
-                  tone: "sky",
-                },
-                {
-                  title: "End-to-end encrypted",
-                  desc: "Sensitive fields are protected with end-to-end encryption and secure storage handling.",
-                  icon: LockKeyhole,
-                  tone: "rose",
-                },
-              ].map((item) => {
-                const Icon = item.icon
-                const tone = item.tone
-                const toneClasses =
-                  tone === "indigo"
-                    ? "bg-indigo-50 text-indigo-700"
-                    : tone === "emerald"
-                      ? "bg-emerald-50 text-emerald-700"
-                      : tone === "sky"
-                        ? "bg-sky-50 text-sky-700"
-                        : "bg-rose-50 text-rose-700"
-
-                return (
-                  <div
-                    key={item.title}
-                    className="rounded-[24px] border border-slate-200 bg-white/75 p-4 shadow-[0_18px_44px_rgba(15,23,42,0.06)] backdrop-blur sm:rounded-[28px] sm:p-5"
-                  >
-                    <div className="flex items-start gap-4">
-                      <div className={`flex h-10 w-10 items-center justify-center rounded-2xl ${toneClasses} sm:h-11 sm:w-11`}>
-                        <Icon className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-slate-950">{item.title}</p>
-                        <p className="mt-1 text-sm leading-6 text-slate-600">{item.desc}</p>
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-
-            <div className="rounded-[28px] border border-slate-200 bg-white/70 p-5 text-left shadow-sm backdrop-blur sm:rounded-[30px] sm:p-6">
-              <p className="text-xs font-semibold uppercase tracking-[0.32em] text-slate-500">Why it feels easier</p>
-              <div className="mt-4 grid gap-3 text-sm text-slate-700 sm:grid-cols-2">
-                {[
-                  "No ads. No distractions.",
-                  "Unlimited invoices with Plus.",
-                  "Edit invoices on Plus if you made a mistake.",
-                  "Clean UI made for daily billing work.",
-                ].map((item) => (
-                  <div key={item} className="flex items-start gap-3">
-                    <BadgeCheck className="mt-0.5 h-5 w-5 text-emerald-600" />
-                    <span>{item}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </section>
+          <MarketingPanel />
 
           {/* RIGHT: auth card (mechanics unchanged) */}
           <section className="order-1 lg:order-2">
@@ -655,7 +663,7 @@ export default function Home() {
                           d="M12 5.45c1.38 0 2.6.48 3.57 1.43l2.68-2.68C16.65 2.7 14.53 1.8 12 1.8c-3.68 0-6.85 2.05-8.4 5.12l3.23 2.45c.73-2.18 2.77-3.8 5.17-3.8z"
                         />
                       </svg>
-                      Continue with Google
+                      {oauthBusy ? "Connecting..." : "Continue with Google"}
                     </button>
                   </div>
 
@@ -965,7 +973,7 @@ export default function Home() {
                     disabled={otpBusy || otpToken.trim().length < 6}
                     className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white shadow-[0_18px_44px_rgba(15,23,42,0.18)] transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-100"
                   >
-                    Verify & continue
+                    {otpBusy ? "Verifying..." : "Verify & continue"}
                   </button>
                 </div>
               ) : null}
@@ -976,12 +984,12 @@ export default function Home() {
                     onClick={handlePrimaryAction}
                     disabled={primaryBusy || otpMode !== null || (mode === "create" && !createFormValid)}
                     className={`inline-flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-100 ${
-                      mode === "create" && !createFormValid
+                      primaryBusy || (mode === "create" && !createFormValid)
                         ? "bg-slate-200 text-slate-500"
                         : "bg-slate-950 text-white shadow-[0_18px_44px_rgba(15,23,42,0.18)] hover:bg-slate-800"
                     }`}
                   >
-                    {panelCopy.primary}
+                    {primaryBusy ? (mode === "create" ? "Creating account..." : "Signing in...") : panelCopy.primary}
                     <ArrowRight className="h-4 w-4" />
                   </button>
 

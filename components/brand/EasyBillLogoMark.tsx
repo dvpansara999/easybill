@@ -1,5 +1,7 @@
 "use client"
 
+import { useId } from "react"
+
 export default function EasyBillLogoMark({
   size = 40,
   className = "",
@@ -7,6 +9,7 @@ export default function EasyBillLogoMark({
   size?: number
   className?: string
 }) {
+  const gradientId = useId()
   return (
     <svg
       aria-hidden
@@ -17,13 +20,13 @@ export default function EasyBillLogoMark({
       fill="none"
     >
       <defs>
-        <linearGradient id="eb_bg" x1="10" y1="6" x2="56" y2="58" gradientUnits="userSpaceOnUse">
+        <linearGradient id={gradientId} x1="10" y1="6" x2="56" y2="58" gradientUnits="userSpaceOnUse">
           <stop stopColor="#3b4046" />
           <stop offset="1" stopColor="#2a2f35" />
         </linearGradient>
       </defs>
 
-      <rect x="6" y="6" width="52" height="52" rx="16" fill="url(#eb_bg)" />
+      <rect x="6" y="6" width="52" height="52" rx="16" fill={`url(#${gradientId})`} />
 
       {/* "eB" monogram: filled geometry + centered like the sample */}
       <g fill="#ffffff" transform="translate(1 1)">

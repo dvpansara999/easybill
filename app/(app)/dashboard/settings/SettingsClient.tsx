@@ -80,6 +80,7 @@ export default function SettingsClient() {
   const [emailOtpCode, setEmailOtpCode] = useState("")
   const [emailChangeBusy, setEmailChangeBusy] = useState(false)
   const [passwordOtpBusy, setPasswordOtpBusy] = useState(false)
+  const [updatePasswordBusy, setUpdatePasswordBusy] = useState(false)
   const [passwordOtpSent, setPasswordOtpSent] = useState(false)
   const [passwordOtpCode, setPasswordOtpCode] = useState("")
   const [passwordOtpVerified, setPasswordOtpVerified] = useState(false)
@@ -337,7 +338,9 @@ export default function SettingsClient() {
       return
     }
 
+    setUpdatePasswordBusy(true)
     const { record, error } = await updatePasswordAfterOtp(newPassword)
+    setUpdatePasswordBusy(false)
 
     if (error || !record) {
       setAccountError(error || "Unable to update password.")
@@ -572,7 +575,7 @@ export default function SettingsClient() {
               <button
                 onClick={updateEmailOnly}
                 disabled={emailChangeBusy}
-                className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+                className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {emailChangeBusy
                   ? "Processing..."
@@ -682,12 +685,14 @@ export default function SettingsClient() {
               </p>
               <button
                 onClick={updatePasswordOnly}
-                disabled={!passwordOtpVerified}
+                disabled={!passwordOtpVerified || updatePasswordBusy}
                 className={`rounded-2xl px-5 py-3 text-sm font-semibold transition ${
-                  passwordOtpVerified ? "bg-slate-950 text-white hover:bg-slate-800" : "bg-slate-200 text-slate-500"
+                  passwordOtpVerified && !updatePasswordBusy
+                    ? "bg-slate-950 text-white hover:bg-slate-800"
+                    : "cursor-not-allowed bg-slate-200 text-slate-500"
                 }`}
               >
-                Update Password
+                {updatePasswordBusy ? "Updating..." : "Update Password"}
               </button>
             </div>
           </>
