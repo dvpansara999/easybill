@@ -121,6 +121,7 @@ if(!canUseTemplate(previewTemplate)){
   showAlert({
     tone: "warning",
     title: "Template locked (Free plan)",
+    actionHint: "Upgrade to Plus to unlock this template, or pick another style.",
     message: "This template is available on Plus. Upgrade to unlock it.",
     primaryLabel: "Upgrade to Plus",
     secondaryLabel: "Not now",
@@ -134,8 +135,8 @@ setActiveTemplate(previewTemplate)
 showAlert({
   tone: "success",
   title: "Template applied",
+  actionHint: "Create or preview an invoice to see it in action.",
   message: "This template will be used for new invoices (and previews) in easyBILL.",
-  primaryLabel: "OK",
 })
 
 }
@@ -210,19 +211,26 @@ const activateLabel =
 
 return(
 
-<div className="space-y-5 overflow-x-hidden pb-28 xl:space-y-8 xl:pb-0">
+<div className="min-w-0 space-y-5 overflow-x-hidden pb-28 xl:space-y-8 xl:pb-0">
 
-<section className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(360px,0.8fr)] xl:gap-6">
-<div className="rounded-[22px] border border-slate-200/80 bg-gradient-to-br from-emerald-50/90 via-white to-slate-50/80 p-4 shadow-[0_12px_40px_rgba(15,23,42,0.06)] xl:rounded-none xl:border-0 xl:bg-transparent xl:p-0 xl:shadow-none">
-<p className="text-[10px] font-semibold uppercase tracking-[0.34em] text-emerald-700 xl:text-xs">Templates</p>
-<h1 className="font-display mt-2 max-w-none text-2xl leading-[1.15] text-slate-950 sm:text-3xl xl:mt-3 xl:text-[2.45rem] xl:leading-[1.08]">
-Choose the invoice experience that
-<br className="hidden xl:block" />
-your customers will remember.
-</h1>
-<p className="mt-2 max-w-2xl text-xs leading-6 text-slate-600 sm:text-sm sm:leading-7 xl:mt-3 xl:text-slate-500">
-Browse styles, preview them instantly, and tune typography — all inside easyBILL.
-</p>
+<section className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,min(360px,40vw))] xl:gap-6">
+<div className="soft-card relative min-w-0 overflow-hidden rounded-[22px] p-5 sm:p-6 xl:rounded-[28px] xl:p-8">
+  <div
+    className="pointer-events-none absolute inset-0 rounded-[22px] bg-gradient-to-br from-emerald-50/45 via-white/40 to-slate-50/35 xl:rounded-[28px]"
+    aria-hidden
+  />
+  <div className="relative">
+    <p className="text-[10px] font-semibold tracking-[0.24em] text-emerald-700 xl:text-xs">Invoice design</p>
+    <h1 className="font-display mt-2 max-w-none text-3xl leading-[1.12] text-slate-950 sm:text-4xl xl:mt-3 xl:text-[2.75rem] xl:leading-[1.06]">
+      Templates
+    </h1>
+    <p className="mt-3 max-w-2xl text-sm font-medium leading-7 text-slate-800 sm:text-base xl:mt-4">
+      Choose the invoice experience that your customers will remember.
+    </p>
+    <p className="mt-2 max-w-2xl text-xs leading-6 text-slate-600 sm:text-sm sm:leading-7 xl:text-slate-500">
+      Browse styles, preview them instantly, and tune typography — all inside easyBILL.
+    </p>
+  </div>
 </div>
 
 {/* Mobile: collapsible typography */}
@@ -277,7 +285,7 @@ Browse styles, preview them instantly, and tune typography — all inside easyBI
 </button>
 </section>
 
-<section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px] xl:items-start xl:gap-8">
+<section className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,420px)] xl:items-start xl:gap-8">
 <div ref={leftColumnRef} className="min-w-0 space-y-5 xl:space-y-8">
 <div className="soft-card rounded-[22px] p-4 sm:p-5 xl:rounded-[28px] xl:p-6">
 <h2 className="section-title text-lg sm:text-xl xl:text-2xl">Most Popular Templates</h2>
@@ -369,7 +377,7 @@ previewTemplate===t.id
 </div>
 
 <div
-  className="soft-card flex w-full max-w-full flex-col overflow-visible rounded-[22px] p-4 sm:p-5 xl:sticky xl:top-8 xl:max-w-[420px] xl:justify-self-end xl:rounded-[28px] xl:p-6"
+  className="soft-card flex w-full min-w-0 max-w-full flex-col overflow-hidden rounded-[22px] p-4 sm:p-5 xl:sticky xl:top-8 xl:max-w-[min(420px,100%)] xl:justify-self-end xl:rounded-[28px] xl:p-6"
   style={isXl && leftColumnHeight ? { maxHeight: leftColumnHeight } : undefined}
 >
 <div className="mb-3 xl:mb-4">

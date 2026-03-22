@@ -22,11 +22,17 @@ export default function SetupShell({
 }: SetupShellProps) {
   return (
     <main className="app-shell relative min-h-screen overflow-hidden px-4 py-6 lg:px-6">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(16,185,129,0.14),_transparent_22%),radial-gradient(circle_at_bottom_right,_rgba(15,23,42,0.1),_transparent_28%)]" />
-      <div className="absolute left-[-6%] top-[10%] h-72 w-72 rounded-full bg-emerald-200/20 blur-3xl" />
-      <div className="absolute bottom-[8%] right-[-4%] h-80 w-80 rounded-full bg-sky-200/20 blur-3xl" />
+      <div className="auth-desktop-depth pointer-events-none absolute inset-0 z-0" aria-hidden />
+      <div
+        className="pointer-events-none absolute inset-0 z-[1] opacity-[0.32]"
+        style={{
+          backgroundImage: "radial-gradient(rgba(15, 23, 42, 0.045) 1px, transparent 1px)",
+          backgroundSize: "22px 22px",
+        }}
+        aria-hidden
+      />
 
-      <div className="relative mx-auto grid w-full max-w-[1580px] gap-8 xl:grid-cols-[0.92fr_1.08fr]">
+      <div className="relative z-[2] mx-auto grid w-full max-w-[1580px] gap-8 xl:grid-cols-[0.92fr_1.08fr]">
         <section className="space-y-6 rounded-[34px] bg-slate-950 p-8 text-white shadow-[0_24px_60px_rgba(15,23,42,0.22)]">
           <button
             onClick={onBack}
@@ -54,7 +60,7 @@ export default function SetupShell({
           </div>
         </section>
 
-        <section className="glass-card rounded-[34px] border-white/70 p-8 shadow-2xl">
+        <section className="glass-card auth-glass-desktop rounded-[34px] border-white/70 p-8 shadow-2xl lg:border-white/40">
           {children}
         </section>
       </div>

@@ -331,6 +331,7 @@ export default function InvoicesClient() {
                           showAlert({
                             tone: "warning",
                             title: "Editing is locked on the Free plan",
+                            actionHint: "Upgrade to Plus to unlock editing, or stay on the list.",
                             message: "Upgrade to Plus to edit invoices.",
                             primaryLabel: "Upgrade to Plus",
                             secondaryLabel: "Not now",
@@ -403,6 +404,7 @@ export default function InvoicesClient() {
                               showAlert({
                                 tone: "warning",
                                 title: "Editing is locked on the Free plan",
+                                actionHint: "Upgrade to Plus to unlock editing, or stay on the list.",
                                 message: "Upgrade to Plus to edit invoices.",
                                 primaryLabel: "Upgrade to Plus",
                                 secondaryLabel: "Not now",

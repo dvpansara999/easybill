@@ -45,7 +45,7 @@ export default function Sidebar({
   const wrapClass =
     variant === "drawer"
       ? "glass-card flex w-full max-w-sm flex-col overflow-hidden rounded-[28px] max-h-[85vh]"
-      : "glass-card sticky top-0 m-4 flex min-h-[calc(100vh-2rem)] w-72 flex-col overflow-hidden rounded-[28px]"
+      : "glass-card auth-glass-desktop sticky top-0 m-4 flex min-h-[calc(100vh-2rem)] w-72 flex-col overflow-hidden rounded-[28px]"
 
   const navClass =
     variant === "drawer"
@@ -62,7 +62,7 @@ export default function Sidebar({
               <EasyBillLogoMark size={44} className="drop-shadow-sm" />
             </div>
             <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-[0.34em] text-white/60">easyBILL</p>
+              <p className="text-xs font-semibold tracking-[0.2em] text-white/70">easyBILL</p>
               <p className="text-sm font-semibold text-white/90">Invoice workspace</p>
             </div>
           </div>

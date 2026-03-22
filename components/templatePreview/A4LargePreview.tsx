@@ -4,6 +4,7 @@ import { createElement, useLayoutEffect, useMemo, useRef, useState } from "react
 import { templates as templateEngines } from "@/components/invoiceTemplates"
 import { previewTemplateProps } from "@/lib/templatePreviewData"
 import { resolveTemplateId } from "@/lib/templateIds"
+import { cn } from "@/lib/utils"
 
 const A4_WIDTH_PX = 794
 const A4_HEIGHT_PX = 1123
@@ -45,11 +46,14 @@ export default function A4LargePreview({
   fontFamily,
   fontSize,
   viewportMaxHeight,
+  className,
 }: {
   template: string
   fontFamily: string
   fontSize: number
   viewportMaxHeight?: number
+  /** Merged onto the scroll/viewport root (e.g. embed on marketing page). */
+  className?: string
 }) {
   const wrapRef = useRef<HTMLDivElement | null>(null)
   const measureRef = useRef<HTMLDivElement | null>(null)
@@ -122,10 +126,10 @@ export default function A4LargePreview({
   return (
     <div
       ref={wrapRef}
-      className={`rounded-[18px] border border-slate-200 bg-slate-100 ${outerOverflowClass}`}
+      className={cn("max-w-full overflow-x-hidden rounded-[18px] border border-slate-200 bg-slate-100", outerOverflowClass, className)}
       style={{ height: viewportHeight }}
     >
-      <div className="relative mx-auto" style={{ width: A4_WIDTH_PX * scale }}>
+      <div className="relative mx-auto max-w-full" style={{ width: A4_WIDTH_PX * scale }}>
         <div className="pointer-events-none absolute left-[-99999px] top-0 h-0 w-0 overflow-hidden">
           <div ref={measureRef} style={{ width: A4_WIDTH_PX, padding: PAGE_PADDING_PX }}>
             {templateElement()}

@@ -252,8 +252,8 @@ export default function CreateInvoiceClient() {
       showAlert({
         tone: "info",
         title: "Syncing your account…",
-        message: "Please wait a moment while easyBILL loads your saved data from the cloud, then try again.",
-        primaryLabel: "OK",
+        actionHint: "Wait a few seconds, then try your action again.",
+        message: "easyBILL is still loading your saved data from the cloud.",
       })
       return
     }
@@ -263,6 +263,7 @@ export default function CreateInvoiceClient() {
       showAlert({
         tone: "warning",
         title: "Invoice limit reached (Free plan)",
+        actionHint: "Upgrade for unlimited invoices, or free up space by removing old drafts.",
         message: "You’ve reached the Free plan limit of 10 invoices. Upgrade to Plus to create more invoices.",
         primaryLabel: "Upgrade to Plus",
         secondaryLabel: "Not now",
@@ -276,8 +277,8 @@ export default function CreateInvoiceClient() {
       showAlert({
         tone: "danger",
         title: "Business profile needs attention",
+        actionHint: "Open Business Profile, complete the required details, then try creating the invoice again.",
         message: businessError,
-        primaryLabel: "OK",
       })
       return
     }
@@ -302,8 +303,8 @@ export default function CreateInvoiceClient() {
       showAlert({
         tone: "danger",
         title: "Missing or invalid invoice details",
+        actionHint: "Check required fields (including invoice date), fix any issues, then save again.",
         message: invoiceError,
-        primaryLabel: "OK",
       })
       return
     }
@@ -314,8 +315,8 @@ export default function CreateInvoiceClient() {
         showAlert({
           tone: "warning",
           title: "Check the invoice date",
+          actionHint: "Pick a date on or after your last invoice, then save again.",
           message: "Invoice date can’t be earlier than the previous invoice date.",
-          primaryLabel: "OK",
         })
         return
       }
@@ -328,6 +329,7 @@ export default function CreateInvoiceClient() {
     showAlert({
       tone: "success",
       title: "Invoice saved",
+      actionHint: "Open your list to view, print, or share the PDF.",
       message: "Your invoice is saved and ready to view, print, or download as PDF.",
       primaryLabel: "Go to invoices",
       onPrimary: () => router.push("/dashboard/invoices"),

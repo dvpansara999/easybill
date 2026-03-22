@@ -13,7 +13,7 @@ const templates = templateRegistry.filter((t)=>t.category === "minimal")
 
 return(
 
-<div className="space-y-5 xl:space-y-8">
+<div className="min-w-0 space-y-5 xl:space-y-8">
 
 <button
 type="button"
@@ -24,13 +24,25 @@ className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bord
 Back to Templates
 </button>
 
-<section className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(360px,0.8fr)] xl:gap-6">
-<div className="rounded-[22px] border border-slate-200/80 bg-gradient-to-br from-emerald-50/90 via-white to-slate-50/80 p-4 shadow-[0_12px_40px_rgba(15,23,42,0.06)] xl:rounded-none xl:border-0 xl:bg-transparent xl:p-0 xl:shadow-none">
-<p className="text-[10px] font-semibold uppercase tracking-[0.34em] text-emerald-700 xl:text-xs">Minimal Collection</p>
-<h1 className="font-display mt-2 text-2xl leading-[1.15] text-slate-950 sm:text-3xl xl:mt-3 xl:text-[2.45rem] xl:leading-[1.08]">Explore minimal templates shaped around clarity and calm.</h1>
-<p className="mt-2 max-w-2xl text-xs leading-6 text-slate-600 sm:text-sm sm:leading-7 xl:mt-3 xl:text-slate-500">
-Browse our minimal layouts, preview them instantly, and choose a cleaner invoice direction with less visual noise.
-</p>
+<section className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,min(360px,40vw))] xl:gap-6">
+<div className="soft-card relative min-w-0 overflow-hidden rounded-[22px] p-5 sm:p-6 xl:rounded-[28px] xl:p-8">
+  <div
+    className="pointer-events-none absolute inset-0 rounded-[22px] bg-gradient-to-br from-emerald-50/45 via-white/40 to-slate-50/35 xl:rounded-[28px]"
+    aria-hidden
+  />
+  <div className="relative">
+    <p className="text-[10px] font-semibold tracking-[0.24em] text-emerald-700 xl:text-xs">
+      <span className="text-slate-500">Templates</span>
+      <span className="mx-1.5 text-slate-300">/</span>
+      <span>Minimal</span>
+    </p>
+    <h1 className="font-display mt-2 text-3xl leading-[1.12] text-slate-950 sm:text-4xl xl:mt-3 xl:text-[2.65rem] xl:leading-[1.06]">
+      Minimal templates
+    </h1>
+    <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-700 sm:text-base xl:mt-4">
+      Explore minimal templates shaped around clarity and calm. Browse layouts, preview instantly, and choose a cleaner invoice with less visual noise.
+    </p>
+  </div>
 </div>
 
 <div className="soft-card rounded-[22px] p-4 sm:p-5 xl:rounded-[28px] xl:p-6">

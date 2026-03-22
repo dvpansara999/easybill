@@ -82,6 +82,7 @@ export default function TemplateBrowser({ templates }: { templates: TemplateEntr
       showAlert({
         tone: "warning",
         title: "Template locked (Free plan)",
+        actionHint: "Upgrade to Plus to unlock this template, or pick another style.",
         message: "This template is available on Plus. Upgrade to unlock it.",
         primaryLabel: "Upgrade to Plus",
         secondaryLabel: "Not now",
@@ -96,13 +97,13 @@ export default function TemplateBrowser({ templates }: { templates: TemplateEntr
     showAlert({
       tone: "success",
       title: "Template applied",
+      actionHint: "Create or preview an invoice to see it in action.",
       message: "This template will be used for new invoices (and previews) in easyBILL.",
-      primaryLabel: "OK",
     })
   }
 
   return (
-    <div className="grid gap-6 pb-28 xl:grid-cols-[minmax(0,1fr)_420px] xl:items-start xl:gap-8 xl:pb-0">
+    <div className="grid min-w-0 gap-6 pb-28 xl:grid-cols-[minmax(0,1fr)_minmax(0,420px)] xl:items-start xl:gap-8 xl:pb-0">
       <div className="min-w-0">
         <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4">
           {pagedTemplates.map((template) => {
@@ -203,7 +204,7 @@ export default function TemplateBrowser({ templates }: { templates: TemplateEntr
         ) : null}
       </div>
 
-      <div className="soft-card flex w-full max-w-full flex-col rounded-[22px] p-4 sm:p-5 xl:sticky xl:top-8 xl:max-w-[420px] xl:justify-self-end xl:rounded-[28px] xl:p-6">
+      <div className="soft-card flex w-full min-w-0 max-w-full flex-col overflow-hidden rounded-[22px] p-4 sm:p-5 xl:sticky xl:top-8 xl:max-w-[min(420px,100%)] xl:justify-self-end xl:rounded-[28px] xl:p-6">
         <div className="mb-3 xl:mb-4">
           <h2 className="section-title text-lg sm:text-xl xl:text-2xl">Live Preview</h2>
           <p className="mt-1 text-xs text-slate-500 sm:text-sm">Preview exactly how your PDF will look on A4.</p>

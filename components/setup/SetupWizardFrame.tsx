@@ -51,7 +51,7 @@ export default function SetupWizardFrame({
             <div className="hidden sm:block">
               <div className="flex items-center gap-2">
                 <EasyBillLogoMark size={22} className="opacity-90" />
-                <p className="text-xs font-semibold uppercase tracking-[0.32em] text-slate-500">easyBILL setup</p>
+                <p className="text-xs font-semibold tracking-[0.2em] text-slate-500">easyBILL setup</p>
               </div>
               <p className="text-sm font-semibold text-slate-950">
                 Step {step} — <span className="text-slate-600">of {totalSteps}</span>

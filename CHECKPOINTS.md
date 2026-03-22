@@ -1,5 +1,20 @@
 # Project Safe Points
 
+## SAFE_POINT: Fix full try-09 v0.1
+
+Created: 2026-03-22
+
+Meaning of this checkpoint:
+- **Sign-in / landing (`/`)**: Vertical stack (logo + Log in, hero, real invoice preview via `LandingInvoicePreview` + `A4LargePreview`, dense feature grid, sign-up CTA); glass utilities (`auth-glass-*`, `auth-desktop-depth`).
+- **Desktop app theme (lg+)**: `app-shell` indigo/sky gradient + depth + dot layers; glass rules scoped to `main` and `.app-shell`; frosted `.app-shell .soft-card`; `eb-desktop-public` on terms + finalizing.
+- **Layout / overflow**: Dashboard `overflow-x-hidden` + `min-w-0` chain; template grids use `minmax(0,…)` / `minmax(0,420px)`; `A4LargePreview` + live-preview cards clipped with `max-w-full` / `overflow-hidden`.
+- **Branding**: UI copy uses **easyBILL**; removed `uppercase` from logo wordmark lines that forced “EASYBILL”; fixed **easyBiLL** typo in business profile copy.
+- **Templates**: Clear page titles (main **Templates** + Modern/Minimal/Classic heroes); hero blocks use **`soft-card`** + inner gradient overlay at all breakpoints (removed `xl:bg-transparent` strip that looked like a flat white band).
+
+How to use:
+- If user says exactly: `Fix full try-09 v0.1`
+- Treat this as a restore target for this UI/theme/templates/branding/overflow state.
+
 ## SAFE_POINT: before chaos
 
 Created: 2026-03-20

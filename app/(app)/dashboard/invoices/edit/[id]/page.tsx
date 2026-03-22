@@ -146,6 +146,7 @@ export default function EditInvoice() {
       showAlert({
         tone: "warning",
         title: "Editing is locked on the Free plan",
+        actionHint: "Upgrade to Plus to unlock editing, or go back to your list.",
         message: "Upgrade to Plus to edit invoices.",
         primaryLabel: "Upgrade to Plus",
         secondaryLabel: "Back",
@@ -254,8 +255,8 @@ export default function EditInvoice() {
       showAlert({
         tone: "danger",
         title: "Business profile needs attention",
+        actionHint: "Open Business Profile, complete the required details, then come back to this invoice.",
         message: businessError,
-        primaryLabel: "OK",
       })
       return
     }
@@ -266,6 +267,7 @@ export default function EditInvoice() {
       showAlert({
         tone: "danger",
         title: "Invoice not found",
+        actionHint: "Return to your invoice list and pick a valid invoice.",
         message: "This invoice could not be found in your current account.",
         primaryLabel: "Back",
         onPrimary: () => router.push(returnTo),
@@ -292,8 +294,8 @@ export default function EditInvoice() {
       showAlert({
         tone: "danger",
         title: "Missing or invalid invoice details",
+        actionHint: "Check required fields (including invoice date), fix any issues, then save again.",
         message: invoiceError,
-        primaryLabel: "OK",
       })
       return
     }
@@ -306,6 +308,7 @@ export default function EditInvoice() {
     showAlert({
       tone: "success",
       title: "Invoice updated",
+      actionHint: "View, print, or download the PDF anytime from your list.",
       message: "Your changes have been saved.",
       primaryLabel: "Back to invoices",
       onPrimary: () => router.push(returnTo),

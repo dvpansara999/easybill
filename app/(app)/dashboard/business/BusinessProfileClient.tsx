@@ -143,8 +143,8 @@ export default function BusinessProfileClient() {
       showAlert({
         tone: "warning",
         title: "Logo too large",
+        actionHint: "Choose a smaller image (under 150KB), then upload again.",
         message: "Please upload a logo smaller than 150KB.",
-        primaryLabel: "OK",
       })
       return
     }
@@ -194,14 +194,14 @@ export default function BusinessProfileClient() {
         showAlert({
           tone: "danger",
           title: "Logo upload failed",
+          actionHint: "Check your connection and file format, then try uploading again.",
           message: err instanceof Error ? err.message : "Unable to upload logo.",
-          primaryLabel: "OK",
         })
         return
       }
     }
 
-    setActiveOrGlobalItem("businessProfile", JSON.stringify(nextProfile))
+    // Persist via context so `terms` and all fields stay in sync (setBusiness normalizes + writes KV).
     setBusiness(nextProfile)
     setProfile(nextProfile)
     setLogoSource("")
@@ -215,8 +215,8 @@ export default function BusinessProfileClient() {
     showAlert({
       tone: "success",
       title: "Business profile saved",
+      actionHint: "You can keep editing or continue invoicing — changes apply everywhere.",
       message: "Your business details are saved and will be used across templates, print, and PDF exports.",
-      primaryLabel: "OK",
     })
   }
 
@@ -241,7 +241,7 @@ export default function BusinessProfileClient() {
             Shape the identity that appears across your invoices.
           </h1>
           <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-500">
-            easyBiLL will use these below info for generating your invoices only.
+            easyBILL will use the information below only for generating your invoices.
           </p>
           <p className="mt-2 text-xs leading-6 text-slate-500">
             Sensitive data including bank details, are end-to-end encrypted.

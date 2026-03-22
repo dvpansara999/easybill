@@ -25,9 +25,9 @@ export default function UpgradeClient() {
   }
 
   return (
-    <div className="space-y-6 pb-24 lg:space-y-8 lg:pb-0">
-      <section className="grid gap-4 sm:gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(360px,0.8fr)]">
-        <div>
+    <div className="min-w-0 space-y-6 pb-24 lg:space-y-8 lg:pb-0">
+      <section className="grid min-w-0 gap-4 sm:gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,min(360px,40vw))]">
+        <div className="min-w-0">
           <p className="text-xs uppercase tracking-[0.34em] text-emerald-700">Upgrade</p>
           <h1 className="font-display mt-3 text-3xl text-slate-950 sm:text-4xl">Unlock more room to grow with easyBILL.</h1>
           <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-500">

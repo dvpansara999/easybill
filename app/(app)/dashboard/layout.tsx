@@ -72,18 +72,28 @@ export default function DashboardLayout({
   if (!ready) return null
 
   return (
-    <div className="app-shell flex min-h-screen flex-col lg:flex-row">
-      <div className="hidden lg:block">
-        <Sidebar />
-      </div>
-      <main className="min-w-0 flex-1 overflow-y-auto">
-        <div className="px-3 py-3 sm:px-4 sm:py-4 lg:px-2">
-          <div className="glass-card mx-auto my-2 w-full max-w-[1180px] min-h-[calc(100vh-1rem)] rounded-[24px] px-3 py-3 sm:px-5 sm:py-5 lg:mx-4 lg:my-4 lg:min-h-[calc(100vh-2rem)] lg:rounded-[32px] lg:px-8 lg:py-8">
+    <div className="app-shell relative flex min-h-screen flex-col overflow-hidden lg:flex-row">
+      <div className="auth-desktop-depth pointer-events-none absolute inset-0 z-0" aria-hidden />
+      <div
+        className="pointer-events-none absolute inset-0 z-[1] opacity-[0.32]"
+        style={{
+          backgroundImage: "radial-gradient(rgba(15, 23, 42, 0.045) 1px, transparent 1px)",
+          backgroundSize: "22px 22px",
+        }}
+        aria-hidden
+      />
+      <div className="relative z-[2] flex min-h-screen w-full min-w-0 max-w-full flex-col overflow-x-hidden lg:flex-row">
+        <div className="hidden lg:block">
+          <Sidebar />
+        </div>
+        <main className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
+          <div className="min-w-0 px-3 py-3 sm:px-4 sm:py-4 lg:px-2">
+            <div className="glass-card auth-glass-desktop mx-auto my-2 w-full min-w-0 max-w-[1180px] min-h-[calc(100vh-1rem)] rounded-[24px] px-3 py-3 sm:px-5 sm:py-5 lg:mx-4 lg:my-4 lg:min-h-[calc(100vh-2rem)] lg:rounded-[32px] lg:px-8 lg:py-8">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3 sm:mb-7">
               <div className="flex items-center gap-3">
                 <EasyBillLogoMark size={38} className="drop-shadow-sm" />
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.34em] text-slate-500">easyBILL</p>
+                  <p className="text-xs font-semibold tracking-[0.2em] text-slate-500">easyBILL</p>
                   <p className="mt-1 text-sm text-slate-600">A calm workspace for invoices, customers, and templates.</p>
                 </div>
               </div>
@@ -113,8 +123,9 @@ export default function DashboardLayout({
             </div>
             {children}
           </div>
-        </div>
-      </main>
+          </div>
+        </main>
+      </div>
 
       <Dialog open={menuOpen} onOpenChange={setMenuOpen}>
         <DialogContent className="w-[calc(100%-1.5rem)] max-w-sm max-h-[85vh] overflow-hidden rounded-[28px] border border-slate-200 bg-white/90 p-4 shadow-[0_30px_90px_rgba(15,23,42,0.18)] backdrop-blur">

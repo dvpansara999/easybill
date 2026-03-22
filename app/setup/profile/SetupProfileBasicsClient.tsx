@@ -76,7 +76,7 @@ export default function SetupProfileBasicsClient() {
               eB
             </span>
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.32em] text-slate-500">easyBILL setup</p>
+              <p className="text-xs font-semibold tracking-[0.2em] text-slate-500">easyBILL setup</p>
               <p className="text-sm font-semibold text-slate-950">Step 1 — Identity</p>
             </div>
           </div>

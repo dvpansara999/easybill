@@ -13,6 +13,8 @@ export type BusinessType = {
   accountNumber: string
   ifsc: string
   upi: string
+  /** Invoice terms / payment notes — must persist with profile (templates + PDF). */
+  terms: string
   logo: string
   logoShape: "square" | "round"
 }
@@ -32,6 +34,7 @@ const emptyBusiness: BusinessType = {
   accountNumber: "",
   ifsc: "",
   upi: "",
+  terms: "",
   logo: "",
   logoShape: "square",
 }
@@ -51,6 +54,7 @@ function normalizeBusiness(value: unknown): BusinessType {
     accountNumber: parsed.accountNumber || "",
     ifsc: parsed.ifsc || "",
     upi: parsed.upi || "",
+    terms: typeof parsed.terms === "string" ? parsed.terms : "",
     logo: parsed.logo || "",
     logoShape: parsed.logoShape === "round" ? "round" : "square",
   }

@@ -59,8 +59,8 @@ export default function ProductsPage() {
       showAlert({
         tone: "warning",
         title: "Product limit reached (Free plan)",
+        actionHint: "Delete an existing product or upgrade to Plus to add more.",
         message: "You can save up to 3 products on Free. Delete one to add another, or upgrade to Plus.",
-        primaryLabel: "OK",
       })
       return
     }
@@ -134,7 +134,7 @@ export default function ProductsPage() {
 
   return (
 
-    <div className="space-y-6 pb-24 xl:space-y-8 xl:pb-0">
+    <div className="space-y-6 pb-6 xl:space-y-8 xl:pb-0">
       <section className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
         <div>
           <p className="text-xs uppercase tracking-[0.34em] text-emerald-700">Products</p>
@@ -180,10 +180,11 @@ export default function ProductsPage() {
             </div>
 
             <button
+              type="button"
               onClick={saveProduct}
-              className="hidden items-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 xl:inline-flex"
+              className="mt-1 inline-flex w-full touch-manipulation items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-slate-800 active:scale-[0.99] xl:mt-0 xl:w-auto xl:justify-start xl:py-3"
             >
-              <Plus className="h-4 w-4" />
+              <Plus className="h-4 w-4 shrink-0" />
               {editIndex !== null ? "Update Product" : "Save Product"}
             </button>
           </div>
@@ -287,16 +288,6 @@ export default function ProductsPage() {
           </div>
         </div>
       </section>
-
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200/80 bg-white/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-12px_40px_rgba(15,23,42,0.08)] backdrop-blur-md xl:hidden">
-        <button
-          onClick={saveProduct}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-slate-800"
-        >
-          <Plus className="h-4 w-4" />
-          {editIndex !== null ? "Update Product" : "Save Product"}
-        </button>
-      </div>
     </div>
 
   )

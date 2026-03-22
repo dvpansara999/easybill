@@ -86,7 +86,7 @@ export default function SelectMenu<T extends string>({
           value={value}
           onChange={(e) => onChange(e.target.value as T)}
           disabled={disabled}
-          className={`w-full appearance-none rounded-2xl border px-4 py-3 text-sm shadow-sm outline-none transition ${
+          className={`w-full appearance-none rounded-2xl border px-4 py-3 text-sm shadow-sm outline-none transition-[border-color,box-shadow,background-color,color] duration-200 ease-[cubic-bezier(0.4,0,0.2,1)] ${
             disabled
               ? "cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400"
               : "border-slate-200 bg-white text-slate-900 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
@@ -127,7 +127,7 @@ export default function SelectMenu<T extends string>({
       {open ? (
         <div
           role="listbox"
-          className="absolute z-50 mt-2 w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_18px_44px_rgba(15,23,42,0.14)]"
+          className="absolute z-50 mt-2 w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_14px_40px_rgba(15,23,42,0.08)]"
         >
           <div className="max-h-64 overflow-auto py-1">
             {options.map((opt) => {
@@ -143,7 +143,7 @@ export default function SelectMenu<T extends string>({
                     setOpen(false)
                     buttonRef.current?.focus()
                   }}
-                  className={`flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left text-sm transition ${
+                  className={`flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left text-sm transition-[background-color,color] duration-200 ease-[cubic-bezier(0.4,0,0.2,1)] ${
                     isSelected ? "bg-emerald-50 text-slate-900" : "text-slate-700 hover:bg-slate-50"
                   }`}
                 >

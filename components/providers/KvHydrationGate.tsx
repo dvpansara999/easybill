@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useLayoutEffect, useState, type ReactNode } from "react"
+import { Skeleton } from "@/components/ui/skeleton"
 import { getActiveUserId } from "@/lib/auth"
 import { getAuthMode } from "@/lib/runtimeMode"
 import { isActiveUserKvHydrated } from "@/lib/userStore"
@@ -86,7 +87,18 @@ export default function KvHydrationGate({ children }: { children: ReactNode }) {
   }, [])
 
   if (!ready) {
-    return <div className="min-h-screen" />
+    return (
+      <div className="min-h-screen bg-[linear-gradient(155deg,#eef2fb_0%,#e4eaf7_28%,#eef1fb_55%,#e2e8f8_100%)]">
+        <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-4 px-4 py-10 sm:px-6 lg:px-10 lg:py-12">
+          <Skeleton className="h-9 w-44 rounded-lg" />
+          <Skeleton className="h-[min(52vh,420px)] w-full rounded-2xl lg:rounded-3xl" />
+          <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
+            <Skeleton className="h-10 flex-1 rounded-xl sm:max-w-xs" />
+            <Skeleton className="h-10 flex-1 rounded-xl sm:max-w-[200px]" />
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return <>{children}</>
