@@ -14,6 +14,8 @@ export type PdfApiErrorBody = {
     | "PDF_RENDER"
     | "PDF_BUILD"
     | "INTERNAL"
+    | "EXPORT_STORAGE"
+    | "EXPORT_DB"
 }
 
 export async function parsePdfApiErrorMessage(response: Response): Promise<string> {

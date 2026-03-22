@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { Share2, X } from "lucide-react"
 import { flushSync } from "react-dom"
 import { useParams } from "next/navigation"
 import { useSettings } from "@/context/SettingsContext"
@@ -98,6 +99,18 @@ export default function ViewInvoice() {
   const [downloadError, setDownloadError] = useState("")
   const [downloadNotice, setDownloadNotice] = useState("")
   const [downloadNoticeTone, setDownloadNoticeTone] = useState<"success" | "info">("success")
+  const [exportSheetOpen, setExportSheetOpen] = useState(false)
+  const [exportedPdfUrl, setExportedPdfUrl] = useState("")
+  const [isNarrowViewport, setIsNarrowViewport] = useState(false)
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const mq = window.matchMedia("(max-width: 767px)")
+    const apply = () => setIsNarrowViewport(mq.matches)
+    apply()
+    mq.addEventListener("change", apply)
+    return () => mq.removeEventListener("change", apply)
+  }, [])
 
   // Stay in sync with Templates page + KV (template, typography, invoices) without full remount.
   useEffect(() => {
@@ -296,6 +309,141 @@ export default function ViewInvoice() {
     }
   }
 
+  async function downloadPdfFromRemoteUrl(url: string, invoiceNumber: string) {
+    const res = await fetch(url)
+    if (!res.ok) throw new Error("Could not download PDF from link.")
+    const blob = await res.blob()
+    const objectUrl = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = objectUrl
+    a.download = `Invoice-${invoiceNumber}.pdf`
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(objectUrl)
+  }
+
+  /** Original vector Playwright PDF + html2canvas fallback (unchanged behaviour). */
+  async function downloadInvoiceDirect() {
+    if (!invoice) return
+
+    flushSync(() => {
+      setViewState(readInvoiceViewState(invoiceId))
+    })
+    await new Promise<void>((resolve) => {
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+    })
+
+    const fresh = readInvoiceViewState(invoiceId)
+    const templateIdForPdf = fresh.template
+    const typoForPdf = fresh.typography
+
+    let vectorOk = false
+    let res: Response | undefined
+    try {
+      res = await fetch("/api/invoice-pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          invoiceId,
+          mode: "download",
+          templateId: templateIdForPdf,
+          fontId: typoForPdf.fontId,
+          fontSize: typoForPdf.fontSize,
+          fontFamily: typoForPdf.fontFamily,
+        }),
+      })
+
+      if (res.ok && res.status === 200) {
+        const extracted = await extractPdfBufferFromResponse(res)
+        if (extracted.ok && extracted.bytes.byteLength >= 8) {
+          const pdfSlice = extracted.bytes.slice()
+          const blob = new Blob([pdfSlice], { type: "application/pdf" })
+          const url = URL.createObjectURL(blob)
+          const a = document.createElement("a")
+          a.href = url
+          a.download = `Invoice-${invoice.invoiceNumber}.pdf`
+          document.body.appendChild(a)
+          a.click()
+          a.remove()
+          URL.revokeObjectURL(url)
+          vectorOk = true
+          setDownloadNoticeTone("success")
+          setDownloadNotice("Your PDF is ready and downloaded successfully.")
+          window.setTimeout(() => setDownloadNotice(""), 9000)
+        } else if (!extracted.ok) {
+          console.warn("[invoice-pdf] non-pdf response", {
+            reason: extracted.reason,
+            contentType: extracted.contentType,
+            byteLength: extracted.byteLength,
+            sampleHex: extracted.sampleHex,
+            status: res.status,
+          })
+        }
+      }
+
+      if (!vectorOk && res) {
+        const reason =
+          res.status === 204
+            ? "Server returned HTTP 204 (empty body). If this persists, check the terminal running `next dev` for [invoice-pdf] lines, or run `npm run build` then `npm start`."
+            : res.ok
+              ? "Server returned a non-PDF body (see console for reason)."
+              : await parsePdfApiErrorMessage(res)
+        await downloadInvoiceFallback()
+        setDownloadNoticeTone("info")
+        setDownloadNotice(`We downloaded a backup PDF from your screen preview (${reason}).`)
+        window.setTimeout(() => setDownloadNotice(""), 12000)
+      }
+    } catch {
+      await downloadInvoiceFallback()
+      setDownloadNoticeTone("info")
+      setDownloadNotice(
+        "Vector PDF is temporarily unavailable. We downloaded a backup PDF from your screen preview."
+      )
+      window.setTimeout(() => setDownloadNotice(""), 12000)
+    }
+  }
+
+  async function shareExportedPdf() {
+    if (!exportedPdfUrl || !invoice) return
+    try {
+      const res = await fetch(exportedPdfUrl)
+      if (!res.ok) throw new Error("fetch failed")
+      const blob = await res.blob()
+      const file = new File([blob], `Invoice-${invoice.invoiceNumber}.pdf`, { type: "application/pdf" })
+
+      const canShareFiles =
+        typeof navigator.canShare === "function" ? navigator.canShare({ files: [file] }) : true
+
+      if (typeof navigator.share === "function" && canShareFiles) {
+        try {
+          await navigator.share({ files: [file], title: "Invoice" })
+          setExportSheetOpen(false)
+          return
+        } catch {
+          // User cancelled or share failed — fall through to new tab.
+        }
+      }
+      window.open(exportedPdfUrl, "_blank", "noopener,noreferrer")
+    } catch {
+      window.open(exportedPdfUrl, "_blank", "noopener,noreferrer")
+    }
+    setExportSheetOpen(false)
+  }
+
+  async function downloadExportedFromSheet() {
+    if (!exportedPdfUrl || !invoice) return
+    try {
+      await downloadPdfFromRemoteUrl(exportedPdfUrl, invoice.invoiceNumber)
+      setDownloadNoticeTone("success")
+      setDownloadNotice("PDF downloaded.")
+      window.setTimeout(() => setDownloadNotice(""), 6000)
+    } catch {
+      setDownloadError("Could not download PDF. Try opening in browser.")
+    }
+    setExportSheetOpen(false)
+  }
+
   async function downloadInvoice() {
     if (downloadingPdf || !invoice) {
       return
@@ -305,9 +453,10 @@ export default function ViewInvoice() {
     setDownloadError("")
     setDownloadNotice("")
     setDownloadNoticeTone("success")
+    setExportSheetOpen(false)
+    setExportedPdfUrl("")
 
     try {
-      // Same source as Templates page + preview: flush so we send the template id the user sees.
       flushSync(() => {
         setViewState(readInvoiceViewState(invoiceId))
       })
@@ -319,73 +468,39 @@ export default function ViewInvoice() {
       const templateIdForPdf = fresh.template
       const typoForPdf = fresh.typography
 
-      let vectorOk = false
-      try {
-        const res = await fetch("/api/invoice-pdf", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            invoiceId,
-            mode: "download",
-            templateId: templateIdForPdf,
-            // Must match on-screen invoice — server KV can lag behind local cache / debounced sync.
-            fontId: typoForPdf.fontId,
-            fontSize: typoForPdf.fontSize,
-            fontFamily: typoForPdf.fontFamily,
-          }),
-        })
+      const exportRes = await fetch("/api/invoice-pdf-export", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          invoiceId,
+          templateId: templateIdForPdf,
+          fontId: typoForPdf.fontId,
+          fontSize: typoForPdf.fontSize,
+          fontFamily: typoForPdf.fontFamily,
+        }),
+      })
 
-        // 204 No Content is still `res.ok` — never treat as PDF. We only accept explicit 200 + body.
-        if (res.ok && res.status === 200) {
-          const extracted = await extractPdfBufferFromResponse(res)
-          if (extracted.ok && extracted.bytes.byteLength >= 8) {
-            const pdfSlice = extracted.bytes.slice()
-            const blob = new Blob([pdfSlice], { type: "application/pdf" })
-            const url = URL.createObjectURL(blob)
-            const a = document.createElement("a")
-            a.href = url
-            a.download = `Invoice-${invoice.invoiceNumber}.pdf`
-            document.body.appendChild(a)
-            a.click()
-            a.remove()
-            URL.revokeObjectURL(url)
-            vectorOk = true
+      if (exportRes.ok) {
+        const data = (await exportRes.json().catch(() => null)) as { url?: string } | null
+        if (data?.url && typeof data.url === "string") {
+          if (isNarrowViewport) {
+            setExportedPdfUrl(data.url)
+            setExportSheetOpen(true)
             setDownloadNoticeTone("success")
-            setDownloadNotice("Your PDF is ready and downloaded successfully.")
-            window.setTimeout(() => setDownloadNotice(""), 9000)
-          } else if (!extracted.ok) {
-            console.warn("[invoice-pdf] non-pdf response", {
-              reason: extracted.reason,
-              contentType: extracted.contentType,
-              byteLength: extracted.byteLength,
-              sampleHex: extracted.sampleHex,
-              status: res.status,
-            })
+            setDownloadNotice("PDF is ready — share or download below.")
+            window.setTimeout(() => setDownloadNotice(""), 8000)
+            return
           }
-        }
 
-        if (!vectorOk) {
-          const reason =
-            res.status === 204
-              ? "Server returned HTTP 204 (empty body). If this persists, check the terminal running `next dev` for [invoice-pdf] lines, or run `npm run build` then `npm start`."
-              : res.ok
-                ? "Server returned a non-PDF body (see console for reason)."
-                : await parsePdfApiErrorMessage(res)
-          await downloadInvoiceFallback()
-          setDownloadNoticeTone("info")
-          setDownloadNotice(
-            `We downloaded a backup PDF from your screen preview (${reason}).`
-          )
-          window.setTimeout(() => setDownloadNotice(""), 12000)
+          await downloadPdfFromRemoteUrl(data.url, invoice.invoiceNumber)
+          setDownloadNoticeTone("success")
+          setDownloadNotice("Your PDF is ready and downloaded successfully.")
+          window.setTimeout(() => setDownloadNotice(""), 9000)
+          return
         }
-      } catch {
-        await downloadInvoiceFallback()
-        setDownloadNoticeTone("info")
-        setDownloadNotice(
-          "Vector PDF is temporarily unavailable. We downloaded a backup PDF from your screen preview."
-        )
-        window.setTimeout(() => setDownloadNotice(""), 12000)
       }
+
+      await downloadInvoiceDirect()
     } catch (err) {
       setDownloadError(
         err instanceof Error && err.message
@@ -413,7 +528,7 @@ export default function ViewInvoice() {
               : "bg-black hover:bg-slate-800"
           }`}
         >
-          {downloadingPdf ? "Downloading..." : "Download PDF"}
+          {downloadingPdf ? "Preparing PDF..." : "Download PDF"}
         </button>
       </div>
       {downloadError ? (
@@ -428,6 +543,55 @@ export default function ViewInvoice() {
           }`}
         >
           {downloadNotice}
+        </div>
+      ) : null}
+
+      {exportSheetOpen && exportedPdfUrl ? (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="export-sheet-title"
+        >
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/45"
+            aria-label="Close"
+            onClick={() => setExportSheetOpen(false)}
+          />
+          <div className="relative z-10 w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-5 shadow-xl">
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <h2 id="export-sheet-title" className="text-lg font-semibold text-slate-950">
+                PDF ready
+              </h2>
+              <button
+                type="button"
+                onClick={() => setExportSheetOpen(false)}
+                className="rounded-full p-1 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+                aria-label="Close"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <p className="mb-4 text-sm text-slate-600">Share with a client or save the file to your device.</p>
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => void shareExportedPdf()}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+              >
+                <Share2 className="h-4 w-4" />
+                Share PDF
+              </button>
+              <button
+                type="button"
+                onClick={() => void downloadExportedFromSheet()}
+                className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-800 transition hover:bg-slate-50"
+              >
+                Download PDF
+              </button>
+            </div>
+          </div>
         </div>
       ) : null}
 

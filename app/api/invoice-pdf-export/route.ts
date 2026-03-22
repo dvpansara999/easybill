@@ -1,0 +1,116 @@
+import { randomBytes } from "node:crypto"
+import { NextResponse } from "next/server"
+import { pdfError } from "@/lib/server/invoicePdfRouteHelpers"
+import { generateInvoicePdfForUser } from "@/lib/server/invoicePdfGenerationCore"
+import {
+  INVOICE_PDF_BUCKET,
+  sanitizeInvoicePdfFileBase,
+} from "@/lib/server/invoicePdfExportConfig"
+import { createSupabaseServerClient } from "@/lib/supabase/server"
+
+process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH =
+  "C:\\Users\\dvpan\\AppData\\Local\\ms-playwright\\chromium-1208\\chrome-win64\\chrome.exe"
+
+export const maxDuration = 60
+export const dynamic = "force-dynamic"
+export const runtime = "nodejs"
+
+type ExportBody = {
+  invoiceId?: string
+  templateId?: string
+  fontId?: string
+  fontSize?: number | string
+  fontFamily?: string
+}
+
+function logExport(event: string, meta: Record<string, unknown>) {
+  console.info("[invoice-pdf-export]", event, meta)
+}
+
+export async function POST(req: Request) {
+  const body = (await req.json().catch(() => ({}))) as ExportBody
+  const supabase = await createSupabaseServerClient()
+  const reqUrl = new URL(req.url)
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) {
+    return pdfError("Sign in to download invoices.", "UNAUTHORIZED", 401)
+  }
+
+  const gen = await generateInvoicePdfForUser(
+    supabase,
+    {
+      invoiceId: body.invoiceId,
+      templateId: body.templateId,
+      fontId: body.fontId,
+      fontSize: body.fontSize,
+      fontFamily: body.fontFamily,
+    },
+    reqUrl.origin,
+    (ev, meta) => logExport(ev, meta)
+  )
+
+  if (!gen.ok) {
+    return pdfError(gen.message, gen.code, gen.httpStatus)
+  }
+
+  const safeBase = sanitizeInvoicePdfFileBase(gen.fileInvoiceNumber)
+  const randomPart = randomBytes(12).toString("hex")
+  const storagePath = `${user.id}/${safeBase}-${Date.now()}-${randomPart}.pdf`
+  const pdfBuffer = Buffer.from(gen.pdfBytes)
+
+  const { error: uploadError } = await supabase.storage.from(INVOICE_PDF_BUCKET).upload(storagePath, pdfBuffer, {
+    contentType: "application/pdf",
+    upsert: false,
+    cacheControl: "3600",
+  })
+
+  if (uploadError) {
+    logExport("upload-failed", { message: uploadError.message, path: storagePath })
+    return pdfError(
+      "Could not store PDF. Check that the invoice-pdfs bucket exists and policies allow uploads.",
+      "EXPORT_STORAGE",
+      500
+    )
+  }
+
+  const { data: pub } = supabase.storage.from(INVOICE_PDF_BUCKET).getPublicUrl(storagePath)
+  const publicUrl = pub?.publicUrl || ""
+
+  if (!publicUrl) {
+    await supabase.storage.from(INVOICE_PDF_BUCKET).remove([storagePath]).catch(() => {})
+    return pdfError("Storage returned no public URL for the PDF.", "EXPORT_STORAGE", 500)
+  }
+
+  const { data: inserted, error: insertError } = await supabase
+    .from("invoice_pdf_exports")
+    .insert({
+      user_id: user.id,
+      invoice_number: gen.fileInvoiceNumber,
+      storage_path: storagePath,
+      public_url: publicUrl,
+    })
+    .select("id, created_at")
+    .maybeSingle()
+
+  if (insertError || !inserted) {
+    logExport("db-insert-failed", { message: insertError?.message })
+    await supabase.storage.from(INVOICE_PDF_BUCKET).remove([storagePath]).catch(() => {})
+    return pdfError(
+      insertError?.message?.includes("does not exist") || insertError?.code === "42P01"
+        ? 'Run the SQL in supabase/invoice_pdf_exports.sql (table "invoice_pdf_exports").'
+        : "Could not save PDF metadata.",
+      "EXPORT_DB",
+      500
+    )
+  }
+
+  logExport("ok", { path: storagePath, userSuffix: user.id.slice(-6) })
+
+  return NextResponse.json({
+    url: publicUrl,
+    createdAt: inserted.created_at,
+  })
+}

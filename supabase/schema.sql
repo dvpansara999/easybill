@@ -56,3 +56,5 @@ using (auth.uid() = user_id);
 -- Set bucket privacy to: public OR private (private is safer).
 -- If private, we'll use signed URLs.
 
+-- 4) Invoice PDF export (storage + metadata + cron purge): see invoice_pdf_exports.sql
+
