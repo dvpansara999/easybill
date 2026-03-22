@@ -4,6 +4,7 @@ import { pdfError } from "@/lib/server/invoicePdfRouteHelpers"
 import { generateInvoicePdfForUser } from "@/lib/server/invoicePdfGenerationCore"
 import {
   INVOICE_PDF_BUCKET,
+  INVOICE_PDF_RETENTION_DAYS,
   sanitizeInvoicePdfFileBase,
 } from "@/lib/server/invoicePdfExportConfig"
 import { createSupabaseServerClient } from "@/lib/supabase/server"
@@ -39,6 +40,38 @@ export async function POST(req: Request) {
     return pdfError("Sign in to download invoices.", "UNAUTHORIZED", 401)
   }
 
+  const invoiceNumberKey = String(body.invoiceId || "").trim()
+  if (!invoiceNumberKey) {
+    return pdfError(
+      "Invoice id is required. PDFs are generated only from your saved account data.",
+      "INVOICE_ID_REQUIRED",
+      400
+    )
+  }
+
+  const retentionCutoffIso = new Date(
+    Date.now() - INVOICE_PDF_RETENTION_DAYS * 24 * 60 * 60 * 1000
+  ).toISOString()
+
+  const { data: cached } = await supabase
+    .from("invoice_pdf_exports")
+    .select("public_url, created_at")
+    .eq("user_id", user.id)
+    .eq("invoice_number", invoiceNumberKey)
+    .gte("created_at", retentionCutoffIso)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (cached?.public_url) {
+    logExport("cache-hit", { invoiceNumber: invoiceNumberKey, userSuffix: user.id.slice(-6) })
+    return NextResponse.json({
+      url: cached.public_url,
+      createdAt: cached.created_at,
+      cached: true,
+    })
+  }
+
   const gen = await generateInvoicePdfForUser(
     supabase,
     {
@@ -54,6 +87,30 @@ export async function POST(req: Request) {
 
   if (!gen.ok) {
     return pdfError(gen.message, gen.code, gen.httpStatus)
+  }
+
+  if (gen.fileInvoiceNumber !== invoiceNumberKey) {
+    logExport("invoice-number-mismatch", {
+      request: invoiceNumberKey,
+      resolved: gen.fileInvoiceNumber,
+    })
+  }
+
+  const numberKeys = [...new Set([invoiceNumberKey, gen.fileInvoiceNumber])]
+
+  const { data: staleRows } = await supabase
+    .from("invoice_pdf_exports")
+    .select("id, storage_path")
+    .eq("user_id", user.id)
+    .in("invoice_number", numberKeys)
+
+  if (staleRows?.length) {
+    const paths = staleRows.map((r) => r.storage_path).filter(Boolean) as string[]
+    if (paths.length) {
+      await supabase.storage.from(INVOICE_PDF_BUCKET).remove(paths).catch(() => {})
+    }
+    const ids = staleRows.map((r) => r.id)
+    await supabase.from("invoice_pdf_exports").delete().in("id", ids)
   }
 
   const safeBase = sanitizeInvoicePdfFileBase(gen.fileInvoiceNumber)
@@ -107,10 +164,11 @@ export async function POST(req: Request) {
     )
   }
 
-  logExport("ok", { path: storagePath, userSuffix: user.id.slice(-6) })
+  logExport("ok", { path: storagePath, userSuffix: user.id.slice(-6), cached: false })
 
   return NextResponse.json({
     url: publicUrl,
     createdAt: inserted.created_at,
+    cached: false,
   })
 }

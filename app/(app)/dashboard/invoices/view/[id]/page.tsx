@@ -22,6 +22,7 @@ import html2canvas from "html2canvas"
 import jsPDF from "jspdf"
 
 import { appendCanvasToPdfPages } from "@/lib/canvasRasterPdf"
+import { cn } from "@/lib/utils"
 import { extractPdfBufferFromResponse, parsePdfApiErrorMessage } from "@/lib/pdfApiContract"
 import { templates } from "@/components/invoiceTemplates"
 import { DEFAULT_TEMPLATE_ID, resolveTemplateId } from "@/lib/templateIds"
@@ -101,6 +102,7 @@ export default function ViewInvoice() {
   const [downloadNoticeTone, setDownloadNoticeTone] = useState<"success" | "info">("success")
   const [exportSheetOpen, setExportSheetOpen] = useState(false)
   const [exportedPdfUrl, setExportedPdfUrl] = useState("")
+  const [exportSheetBusy, setExportSheetBusy] = useState<null | "share" | "download">(null)
   const [isNarrowViewport, setIsNarrowViewport] = useState(false)
 
   useEffect(() => {
@@ -405,7 +407,8 @@ export default function ViewInvoice() {
   }
 
   async function shareExportedPdf() {
-    if (!exportedPdfUrl || !invoice) return
+    if (!exportedPdfUrl || !invoice || exportSheetBusy) return
+    setExportSheetBusy("share")
     try {
       const res = await fetch(exportedPdfUrl)
       if (!res.ok) throw new Error("fetch failed")
@@ -425,23 +428,30 @@ export default function ViewInvoice() {
         }
       }
       window.open(exportedPdfUrl, "_blank", "noopener,noreferrer")
+      setExportSheetOpen(false)
     } catch {
       window.open(exportedPdfUrl, "_blank", "noopener,noreferrer")
+      setExportSheetOpen(false)
+    } finally {
+      setExportSheetBusy(null)
     }
-    setExportSheetOpen(false)
   }
 
   async function downloadExportedFromSheet() {
-    if (!exportedPdfUrl || !invoice) return
+    if (!exportedPdfUrl || !invoice || exportSheetBusy) return
+    setExportSheetBusy("download")
     try {
       await downloadPdfFromRemoteUrl(exportedPdfUrl, invoice.invoiceNumber)
       setDownloadNoticeTone("success")
       setDownloadNotice("PDF downloaded.")
       window.setTimeout(() => setDownloadNotice(""), 6000)
+      setExportSheetOpen(false)
     } catch {
       setDownloadError("Could not download PDF. Try opening in browser.")
+      setExportSheetOpen(false)
+    } finally {
+      setExportSheetBusy(null)
     }
-    setExportSheetOpen(false)
   }
 
   async function downloadInvoice() {
@@ -455,6 +465,7 @@ export default function ViewInvoice() {
     setDownloadNoticeTone("success")
     setExportSheetOpen(false)
     setExportedPdfUrl("")
+    setExportSheetBusy(null)
 
     try {
       flushSync(() => {
@@ -557,7 +568,11 @@ export default function ViewInvoice() {
             type="button"
             className="absolute inset-0 bg-black/45"
             aria-label="Close"
-            onClick={() => setExportSheetOpen(false)}
+            disabled={exportSheetBusy !== null}
+            onClick={() => {
+              if (exportSheetBusy) return
+              setExportSheetOpen(false)
+            }}
           />
           <div className="relative z-10 w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-5 shadow-xl">
             <div className="mb-4 flex items-start justify-between gap-3">
@@ -566,8 +581,17 @@ export default function ViewInvoice() {
               </h2>
               <button
                 type="button"
-                onClick={() => setExportSheetOpen(false)}
-                className="rounded-full p-1 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+                onClick={() => {
+                  if (exportSheetBusy) return
+                  setExportSheetOpen(false)
+                }}
+                disabled={exportSheetBusy !== null}
+                className={cn(
+                  "rounded-full p-1 text-slate-500 transition",
+                  exportSheetBusy
+                    ? "cursor-not-allowed opacity-40"
+                    : "hover:bg-slate-100 hover:text-slate-900"
+                )}
                 aria-label="Close"
               >
                 <X className="h-5 w-5" />
@@ -578,17 +602,33 @@ export default function ViewInvoice() {
               <button
                 type="button"
                 onClick={() => void shareExportedPdf()}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+                disabled={exportSheetBusy !== null}
+                className={cn(
+                  "inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-white transition",
+                  exportSheetBusy === "share"
+                    ? "cursor-not-allowed bg-slate-400"
+                    : exportSheetBusy === "download"
+                      ? "cursor-not-allowed bg-slate-950 opacity-50"
+                      : "bg-slate-950 hover:bg-slate-800"
+                )}
               >
-                <Share2 className="h-4 w-4" />
-                Share PDF
+                <Share2 className="h-4 w-4 shrink-0" />
+                {exportSheetBusy === "share" ? "Sharing..." : "Share PDF"}
               </button>
               <button
                 type="button"
                 onClick={() => void downloadExportedFromSheet()}
-                className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-800 transition hover:bg-slate-50"
+                disabled={exportSheetBusy !== null}
+                className={cn(
+                  "rounded-xl border px-4 py-3 text-sm font-semibold transition",
+                  exportSheetBusy === "download"
+                    ? "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-500"
+                    : exportSheetBusy === "share"
+                      ? "cursor-not-allowed border-slate-200 bg-white text-slate-800 opacity-50"
+                      : "border-slate-200 bg-white text-slate-800 hover:bg-slate-50"
+                )}
               >
-                Download PDF
+                {exportSheetBusy === "download" ? "Downloading..." : "Download PDF"}
               </button>
             </div>
           </div>
