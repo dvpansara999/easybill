@@ -319,7 +319,7 @@ export default function InvoicesClient() {
                     </div>
                     <div className="text-right">
                       <p className="truncate text-sm font-semibold text-slate-950">{money(invoice.grandTotal || 0)}</p>
-                      <p className="mt-1 text-xs text-slate-500">{String(invoice.date || "").slice(2)}</p>
+                      <p className="mt-1 text-xs text-slate-500">{formatDate(invoice.date, dateFormat)}</p>
                     </div>
                   </div>
 

@@ -116,6 +116,26 @@ export default function InvoicePdfRenderPage() {
   }, [payload])
 
   useLayoutEffect(() => {
+    if (!payload?.business?.logo) return
+    const logo = String(payload.business.logo).trim()
+    if (!logo.startsWith("http://") && !logo.startsWith("https://")) return
+
+    const id = "easybill-pdf-logo-preload"
+    if (document.getElementById(id)) return
+
+    const link = document.createElement("link")
+    link.id = id
+    link.rel = "preload"
+    link.as = "image"
+    link.href = logo
+    document.head.appendChild(link)
+
+    return () => {
+      link.remove()
+    }
+  }, [payload])
+
+  useLayoutEffect(() => {
     const el = measureRef.current
     if (!el || !templateData) return
 

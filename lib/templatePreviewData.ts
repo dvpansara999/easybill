@@ -52,7 +52,7 @@ export const previewInvoice = {
 }
 
 function previewMoney(value: number) {
-  return `Rs ${value}`
+  return `₹ ${value}`
 }
 
 function previewGstDisplay(rate: string | number | null | undefined, amount: number) {

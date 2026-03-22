@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { useSettings } from "@/context/SettingsContext"
 import { formatDate } from "@/lib/dateFormat"
 import { getActiveUserId } from "@/lib/auth"
-import { formatCurrency } from "@/lib/formatCurrency"
+import { formatCurrency, formatCurrencyQuickStatsMobile } from "@/lib/formatCurrency"
 import { getAuthMode } from "@/lib/runtimeMode"
 import { isActiveUserKvHydrated } from "@/lib/userStore"
 import { normalizeInvoiceRecord, type InvoiceRecord } from "@/lib/invoice"
@@ -324,6 +324,16 @@ export default function Dashboard() {
 
   function money(value: number) {
     return formatCurrency(
+      value,
+      currencySymbol,
+      currencyPosition,
+      showDecimals,
+      amountFormat
+    )
+  }
+
+  function moneyQuickStatsMobile(value: number) {
+    return formatCurrencyQuickStatsMobile(
       value,
       currencySymbol,
       currencyPosition,
@@ -667,31 +677,77 @@ export default function Dashboard() {
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-1">
             <div className="rounded-3xl bg-slate-50 p-4">
               <p className="text-xs uppercase tracking-[0.28em] text-slate-400">Last Month</p>
-              <AutoFitText
-                wrapperClassName="mt-2"
-                spanClassName="text-base font-semibold text-slate-950 sm:text-xl"
-                minPx={12}
-              >
-                {snapshot.revenueLastMonth ? money(snapshot.revenueLastMonth) : "-"}
-              </AutoFitText>
+              {snapshot.revenueLastMonth ? (
+                <>
+                  <AutoFitText
+                    wrapperClassName="mt-2 lg:hidden"
+                    spanClassName="text-base font-semibold text-slate-950 sm:text-xl"
+                    minPx={12}
+                  >
+                    {moneyQuickStatsMobile(snapshot.revenueLastMonth)}
+                  </AutoFitText>
+                  <AutoFitText
+                    wrapperClassName="mt-2 hidden lg:block"
+                    spanClassName="text-base font-semibold text-slate-950 sm:text-xl"
+                    minPx={12}
+                  >
+                    {money(snapshot.revenueLastMonth)}
+                  </AutoFitText>
+                </>
+              ) : (
+                <AutoFitText
+                  wrapperClassName="mt-2"
+                  spanClassName="text-base font-semibold text-slate-950 sm:text-xl"
+                  minPx={12}
+                >
+                  -
+                </AutoFitText>
+              )}
             </div>
 
             <div className="rounded-3xl bg-slate-50 p-4">
               <p className="text-xs uppercase tracking-[0.28em] text-slate-400">This Month</p>
-              <AutoFitText
-                wrapperClassName="mt-2"
-                spanClassName="text-base font-semibold text-slate-950 sm:text-xl"
-                minPx={12}
-              >
-                {snapshot.revenueThisMonth ? money(snapshot.revenueThisMonth) : "-"}
-              </AutoFitText>
+              {snapshot.revenueThisMonth ? (
+                <>
+                  <AutoFitText
+                    wrapperClassName="mt-2 lg:hidden"
+                    spanClassName="text-base font-semibold text-slate-950 sm:text-xl"
+                    minPx={12}
+                  >
+                    {moneyQuickStatsMobile(snapshot.revenueThisMonth)}
+                  </AutoFitText>
+                  <AutoFitText
+                    wrapperClassName="mt-2 hidden lg:block"
+                    spanClassName="text-base font-semibold text-slate-950 sm:text-xl"
+                    minPx={12}
+                  >
+                    {money(snapshot.revenueThisMonth)}
+                  </AutoFitText>
+                </>
+              ) : (
+                <AutoFitText
+                  wrapperClassName="mt-2"
+                  spanClassName="text-base font-semibold text-slate-950 sm:text-xl"
+                  minPx={12}
+                >
+                  -
+                </AutoFitText>
+              )}
             </div>
 
             {snapshot.growthPercent !== null && (
               <div className="rounded-3xl bg-emerald-50 p-4">
                 <p className="text-xs uppercase tracking-[0.28em] text-emerald-700">Growth This Month</p>
                 <AutoFitText
-                  wrapperClassName="mt-2"
+                  wrapperClassName="mt-2 lg:hidden"
+                  spanClassName="text-base font-semibold text-slate-950 sm:text-xl"
+                  minPx={12}
+                >
+                  {snapshot.growthAmount && snapshot.growthAmount > 0 ? "+" : ""}
+                  {moneyQuickStatsMobile(snapshot.growthAmount || 0)}
+                </AutoFitText>
+                <AutoFitText
+                  wrapperClassName="mt-2 hidden lg:block"
                   spanClassName="text-base font-semibold text-slate-950 sm:text-xl"
                   minPx={12}
                 >
@@ -708,7 +764,14 @@ export default function Dashboard() {
             <div className="rounded-3xl bg-slate-50 p-4">
               <p className="text-xs uppercase tracking-[0.28em] text-slate-400">GST This Year</p>
               <AutoFitText
-                wrapperClassName="mt-2"
+                wrapperClassName="mt-2 lg:hidden"
+                spanClassName="text-base font-semibold text-slate-950 sm:text-xl"
+                minPx={12}
+              >
+                {moneyQuickStatsMobile(snapshot.gstYear)}
+              </AutoFitText>
+              <AutoFitText
+                wrapperClassName="mt-2 hidden lg:block"
                 spanClassName="text-base font-semibold text-slate-950 sm:text-xl"
                 minPx={12}
               >
@@ -718,13 +781,32 @@ export default function Dashboard() {
 
             <div className="rounded-3xl bg-slate-950 p-4 text-white">
               <p className="text-xs uppercase tracking-[0.28em] text-slate-400">This Year Revenue</p>
-              <AutoFitText
-                wrapperClassName="mt-2"
-                spanClassName="text-xl font-semibold sm:text-2xl"
-                minPx={12}
-              >
-                {snapshot.revenueYear ? money(snapshot.revenueYear) : "-"}
-              </AutoFitText>
+              {snapshot.revenueYear ? (
+                <>
+                  <AutoFitText
+                    wrapperClassName="mt-2 lg:hidden"
+                    spanClassName="text-xl font-semibold sm:text-2xl"
+                    minPx={12}
+                  >
+                    {moneyQuickStatsMobile(snapshot.revenueYear)}
+                  </AutoFitText>
+                  <AutoFitText
+                    wrapperClassName="mt-2 hidden lg:block"
+                    spanClassName="text-xl font-semibold sm:text-2xl"
+                    minPx={12}
+                  >
+                    {money(snapshot.revenueYear)}
+                  </AutoFitText>
+                </>
+              ) : (
+                <AutoFitText
+                  wrapperClassName="mt-2"
+                  spanClassName="text-xl font-semibold sm:text-2xl"
+                  minPx={12}
+                >
+                  -
+                </AutoFitText>
+              )}
             </div>
           </div>
         </div>

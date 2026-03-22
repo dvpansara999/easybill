@@ -206,7 +206,10 @@ const LandingStack = memo(function LandingStack({
               <div
                 key={item.title}
                 title={item.desc}
-                className="auth-glass-tile flex min-h-[5.75rem] flex-col items-center justify-center gap-1.5 rounded-xl px-2 py-2.5 text-center transition-opacity duration-200 ease-out hover:opacity-92 sm:min-h-[6.25rem] sm:rounded-2xl sm:px-2.5 sm:py-3"
+                className={cn(
+                  "auth-glass-tile min-h-[5.75rem] flex-col items-center justify-center gap-1.5 rounded-xl px-2 py-2.5 text-center transition-opacity duration-200 ease-out hover:opacity-92 sm:min-h-[6.25rem] sm:rounded-2xl sm:px-2.5 sm:py-3",
+                  item.title === "Instant download" ? "hidden sm:flex" : "flex"
+                )}
               >
                 <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl sm:h-10 sm:w-10 ${toneClasses}`}>
                   <Icon className="h-4 w-4 sm:h-[1.125rem] sm:w-[1.125rem]" aria-hidden />

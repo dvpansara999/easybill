@@ -79,7 +79,11 @@ export async function generateInvoicePdfBuffer(params: { url: string }): Promise
         httpStatus: 504,
       }
     }
-    await page.waitForTimeout(100)
+
+    // Give remote images (e.g. Supabase logo URL) time to finish without failing the run:
+    // optional network idle, capped; never reject the PDF path.
+    await page.waitForLoadState("networkidle", { timeout: 5000 }).catch(() => {})
+    await page.waitForTimeout(400)
 
     try {
       const pdf = await page.pdf({

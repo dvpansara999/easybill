@@ -364,26 +364,31 @@ export default function EditInvoice() {
           </div>
         </div>
 
-        <div className="grid gap-3 sm:gap-4 lg:grid-cols-2 xl:grid-cols-[1.15fr_0.8fr_1.25fr_1fr_220px]">
-          <div>
+        <div className="grid min-w-0 gap-3 sm:gap-4 lg:grid-cols-2 xl:grid-cols-[1.15fr_0.8fr_1.25fr_1fr_220px] [&>*]:min-w-0">
+          <div className="min-w-0">
             <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Client Name *</label>
             <input placeholder="Client Name" className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100" value={clientName} onChange={(event) => setClientName(event.target.value)} />
           </div>
-          <div>
+          <div className="min-w-0">
             <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Client Phone</label>
             <input placeholder="Client Phone" className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100" value={clientPhone} onChange={(event) => setClientPhone(event.target.value)} />
           </div>
-          <div>
+          <div className="min-w-0">
             <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Client Email</label>
             <input placeholder="Client Email" className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100" value={clientEmail} onChange={(event) => setClientEmail(event.target.value)} />
           </div>
-          <div>
+          <div className="min-w-0">
             <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Client GSTIN</label>
             <input placeholder="Client GSTIN" className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100" value={clientGST} onChange={(event) => setClientGST(event.target.value)} />
           </div>
-          <div>
+          <div className="min-w-0">
             <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Invoice Date *</label>
-            <input type="date" className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm text-slate-500 outline-none" value={date} readOnly />
+            <input
+              type="date"
+              className="box-border h-[54px] w-full max-w-full min-w-0 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm text-slate-500 outline-none [appearance:textfield]"
+              value={date}
+              readOnly
+            />
           </div>
         </div>
 

@@ -381,8 +381,8 @@ export default function CreateInvoiceClient() {
           </div>
         </div>
 
-        <div className="grid gap-3 sm:gap-4 lg:grid-cols-2 xl:grid-cols-[1.15fr_0.8fr_1.25fr_1fr_220px]">
-          <div className="relative">
+        <div className="grid min-w-0 gap-3 sm:gap-4 lg:grid-cols-2 xl:grid-cols-[1.15fr_0.8fr_1.25fr_1fr_220px] [&>*]:min-w-0">
+          <div className="relative min-w-0">
             <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Client Name *</label>
             <input
               placeholder="Client Name"
@@ -401,7 +401,7 @@ export default function CreateInvoiceClient() {
             ) : null}
           </div>
 
-          <div className="relative">
+          <div className="relative min-w-0">
             <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Client Phone</label>
             <input
               placeholder="Client Phone"
@@ -420,19 +420,19 @@ export default function CreateInvoiceClient() {
             ) : null}
           </div>
 
-          <div>
+          <div className="min-w-0">
             <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Client Email</label>
             <input placeholder="Client Email" className="h-[54px] w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm leading-5 outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100" value={clientEmail} onChange={(e) => setClientEmail(e.target.value)} />
           </div>
-          <div>
+          <div className="min-w-0">
             <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Client GSTIN</label>
             <input placeholder="Client GSTIN" className="h-[54px] w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm leading-5 outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100" value={clientGST} onChange={(e) => setClientGST(e.target.value)} />
           </div>
-          <div>
+          <div className="min-w-0">
             <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Invoice Date *</label>
             <input
               type="date"
-              className="h-[54px] w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm leading-5 outline-none transition [appearance:textfield] focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+              className="box-border h-[54px] w-full max-w-full min-w-0 rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm leading-5 outline-none transition [appearance:textfield] focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
               value={date}
               onChange={(e) => setDate(e.target.value)}
             />

@@ -165,19 +165,34 @@ export default function CustomerDetails() {
           </h1>
 
           <div className="mt-6 grid grid-cols-2 gap-2.5 sm:mt-8 sm:gap-3">
-            <div className="rounded-[24px] border border-white/10 bg-white/5 p-3 sm:p-4">
+            <div className="col-span-2 rounded-[24px] border border-white/10 bg-white/5 p-3 sm:hidden">
               <p className="text-xs uppercase tracking-[0.28em] text-slate-400">Phone</p>
-              <div className="mt-2 flex items-center gap-3 text-slate-100">
-                <Phone className="h-4 w-4 text-emerald-300" />
-                <span className="break-words leading-snug">{customer?.phone || phone}</span>
+              <div className="mt-2 flex min-w-0 items-center gap-3 text-slate-100">
+                <Phone className="h-4 w-4 shrink-0 text-emerald-300" />
+                <span className="min-w-0 break-words leading-snug">{customer?.phone || phone}</span>
+              </div>
+              <div className="mt-4 border-t border-white/10 pt-4">
+                <p className="text-xs uppercase tracking-[0.28em] text-slate-400">Email</p>
+                <div className="mt-2 flex min-w-0 items-center gap-3 text-slate-100">
+                  <Mail className="h-4 w-4 shrink-0 text-emerald-300" />
+                  <span className="min-w-0 break-all leading-snug">{customer?.email || "Not added yet"}</span>
+                </div>
               </div>
             </div>
 
-            <div className="rounded-[24px] border border-white/10 bg-white/5 p-3 sm:p-4">
+            <div className="hidden rounded-[24px] border border-white/10 bg-white/5 p-3 sm:block sm:p-4">
+              <p className="text-xs uppercase tracking-[0.28em] text-slate-400">Phone</p>
+              <div className="mt-2 flex min-w-0 items-center gap-3 text-slate-100">
+                <Phone className="h-4 w-4 shrink-0 text-emerald-300" />
+                <span className="min-w-0 break-words leading-snug">{customer?.phone || phone}</span>
+              </div>
+            </div>
+
+            <div className="hidden rounded-[24px] border border-white/10 bg-white/5 p-3 sm:block sm:p-4">
               <p className="text-xs uppercase tracking-[0.28em] text-slate-400">Email</p>
-              <div className="mt-2 flex items-center gap-3 text-slate-100">
-                <Mail className="h-4 w-4 text-emerald-300" />
-                <span className="break-words leading-snug">{customer?.email || "Not added yet"}</span>
+              <div className="mt-2 flex min-w-0 items-center gap-3 text-slate-100">
+                <Mail className="h-4 w-4 shrink-0 text-emerald-300" />
+                <span className="min-w-0 break-words leading-snug">{customer?.email || "Not added yet"}</span>
               </div>
             </div>
 
