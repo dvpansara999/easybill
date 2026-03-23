@@ -1,5 +1,6 @@
 import "./globals.css"
 import type { Metadata } from "next"
+import { siteOrigin } from "@/lib/marketing/siteOrigin"
 import { BusinessProvider } from "@/context/BusinessContext"
 import { SettingsProvider } from "@/context/SettingsContext"
 import { Manrope, Fraunces } from "next/font/google"
@@ -19,6 +20,7 @@ const fraunces = Fraunces({
 })
 
 export const metadata: Metadata = {
+  metadataBase: new URL(siteOrigin()),
   title: "easyBILL",
   description: "easyBILL — modern invoice workspace",
   manifest: "/manifest.webmanifest",

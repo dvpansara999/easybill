@@ -1,5 +1,18 @@
-export const metadata = {
+import type { Metadata } from "next"
+
+export const metadata: Metadata = {
   title: "Terms and Conditions | easyBILL",
+  description:
+    "easyBILL terms of service: acceptable use, accounts, billing, data responsibilities, liability limits, and contact information.",
+  alternates: { canonical: "/terms" },
+  openGraph: {
+    title: "Terms and Conditions | easyBILL",
+    description:
+      "Read the easyBILL terms of service, acceptable use, billing, and data responsibilities.",
+    url: "/terms",
+    siteName: "easyBILL",
+    type: "website",
+  },
 }
 
 export default function TermsPage() {
