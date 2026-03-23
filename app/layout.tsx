@@ -23,9 +23,12 @@ export const metadata: Metadata = {
   description: "easyBILL — modern invoice workspace",
   manifest: "/manifest.webmanifest",
   icons: {
-    icon: [{ url: "/icon", type: "image/png" }],
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icon", type: "image/png" },
+    ],
     apple: [{ url: "/apple-icon", type: "image/png" }],
-    shortcut: ["/icon"],
+    shortcut: ["/favicon.ico"],
   },
 }
 
