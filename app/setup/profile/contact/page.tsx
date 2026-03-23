@@ -104,6 +104,9 @@ export default function SetupProfileContactPage() {
                 onChange={(e) => handleChange("gst", e.target.value)}
                 className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
               />
+              <p className="mt-2 text-xs leading-5 text-rose-600">
+                GST numbers are end-to-end encrypted for your account.
+              </p>
             </div>
           </div>
 

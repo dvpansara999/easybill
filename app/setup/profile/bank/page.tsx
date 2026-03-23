@@ -79,6 +79,9 @@ export default function SetupProfileBankPage() {
         <div className="border-b border-slate-200 px-4 py-5 sm:px-7 sm:py-6">
           <p className="text-sm font-semibold text-slate-900">Payment details</p>
           <p className="mt-1 text-sm leading-6 text-slate-500">These can appear on your invoice templates.</p>
+          <p className="mt-2 text-xs leading-5 text-rose-600">
+            Your bank details are end-to-end encrypted for your account.
+          </p>
         </div>
 
         <div className="grid gap-4 px-4 py-6 sm:px-7 sm:py-7 md:grid-cols-2">
