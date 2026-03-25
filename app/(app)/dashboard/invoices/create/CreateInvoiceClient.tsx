@@ -5,17 +5,19 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { useSettings } from "@/context/SettingsContext"
 import { formatCurrency } from "@/lib/formatCurrency"
 import { generateInvoiceNumber } from "@/lib/invoiceNumber"
-import { getActiveOrGlobalItem, isActiveUserKvHydrated, setActiveOrGlobalItem } from "@/lib/userStore"
+import { getActiveOrGlobalItem, isActiveUserKvHydrated } from "@/lib/userStore"
 import { bumpInvoiceUsageCount, canCreateAnotherInvoice } from "@/lib/plans"
 import { useAppAlert } from "@/components/providers/AppAlertProvider"
 import { getAuthMode } from "@/lib/runtimeMode"
 import {
+  createInvoiceId,
   createEmptyInvoiceItem,
   type CustomDetail,
   type InvoiceItem,
-  type InvoiceRecord,
   getStoredBusinessRecord,
   normalizeInvoiceRecord,
+  readStoredInvoices,
+  writeStoredInvoices,
   validateBusinessRecord,
   validateInvoiceRecord,
 } from "@/lib/invoice"
@@ -42,21 +44,22 @@ type CustomerRecord = {
 type CreateInvoiceState = {
   products: ProductRecord[]
   items: InvoiceItem[]
-  invoiceNumber: string
   customers: CustomerRecord[]
 }
 
-function readCreateInvoiceState(params: URLSearchParams, numbering: {
-  invoicePrefix: string
-  invoicePadding: number
-  invoiceStartNumber: number
-  resetYearly: boolean
-}): CreateInvoiceState {
+function getTodayLocalDate() {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, "0")
+  const day = String(now.getDate()).padStart(2, "0")
+  return `${year}-${month}-${day}`
+}
+
+function readCreateInvoiceState(): CreateInvoiceState {
   const savedProducts = getActiveOrGlobalItem("products")
-  const savedInvoices = getActiveOrGlobalItem("invoices")
 
   const products = savedProducts ? (JSON.parse(savedProducts) as ProductRecord[]) : []
-  const invoices = savedInvoices ? (JSON.parse(savedInvoices) as InvoiceRecord[]) : []
+  const invoices = readStoredInvoices()
   const customerMap: Record<string, CustomerRecord> = {}
 
   invoices.forEach((invoice) => {
@@ -73,16 +76,6 @@ function readCreateInvoiceState(params: URLSearchParams, numbering: {
   return {
     products,
     items: [createEmptyInvoiceItem()],
-    invoiceNumber:
-      invoices.length > 0
-        ? generateInvoiceNumber(
-            invoices,
-            numbering.invoicePrefix,
-            numbering.invoicePadding,
-            numbering.invoiceStartNumber,
-            numbering.resetYearly
-          )
-        : `${numbering.invoicePrefix}${String(numbering.invoiceStartNumber).padStart(numbering.invoicePadding, "0")}`,
     customers: Object.values(customerMap),
   }
 }
@@ -93,6 +86,7 @@ export default function CreateInvoiceClient() {
     invoicePadding,
     invoiceStartNumber,
     resetYearly,
+    invoiceResetMonthDay,
     amountFormat,
     showDecimals,
     currencySymbol,
@@ -105,27 +99,20 @@ export default function CreateInvoiceClient() {
   const dropdownRef = useRef<HTMLDivElement>(null)
 
   const initialState = useMemo(
-    () =>
-      readCreateInvoiceState(searchParams, {
-        invoicePrefix,
-        invoicePadding,
-        invoiceStartNumber,
-        resetYearly,
-      }),
-    [invoicePadding, invoicePrefix, invoiceStartNumber, resetYearly, searchParams]
+    () => readCreateInvoiceState(),
+    []
   )
 
   const [products] = useState(initialState.products)
   const [customers] = useState(initialState.customers)
   const [items, setItems] = useState<InvoiceItem[]>(initialState.items)
-  const [invoiceNumber] = useState(initialState.invoiceNumber)
 
   const [clientName, setClientName] = useState(searchParams.get("name") || "")
   const [clientPhone, setClientPhone] = useState(searchParams.get("phone") || "")
   const [clientEmail, setClientEmail] = useState(searchParams.get("email") || "")
   const [clientGST, setClientGST] = useState(searchParams.get("gstin") || "")
   const [clientAddress, setClientAddress] = useState(searchParams.get("address") || "")
-  const [date, setDate] = useState("")
+  const [date, setDate] = useState(() => getTodayLocalDate())
 
   const [customDetails, setCustomDetails] = useState<CustomDetail[]>([])
   const [suggestions, setSuggestions] = useState<ProductRecord[]>([])
@@ -246,6 +233,18 @@ export default function CreateInvoiceClient() {
   const sgstTotal = items.reduce((sum, item) => sum + Number(item.qty || 0) * Number(item.price || 0) * (Number(item.sgst || 0) / 100), 0)
   const igstTotal = items.reduce((sum, item) => sum + Number(item.qty || 0) * Number(item.price || 0) * (Number(item.igst || 0) / 100), 0)
   const grandTotal = subtotal + cgstTotal + sgstTotal + igstTotal
+  const invoiceNumber = useMemo(() => {
+    const invoices = readStoredInvoices()
+    return generateInvoiceNumber(
+      invoices,
+      invoicePrefix,
+      invoicePadding,
+      invoiceStartNumber,
+      resetYearly,
+      invoiceResetMonthDay,
+      date
+    )
+  }, [date, invoicePadding, invoicePrefix, invoiceResetMonthDay, invoiceStartNumber, resetYearly])
 
   function saveInvoice() {
     if (getAuthMode() === "supabase" && !isActiveUserKvHydrated()) {
@@ -283,10 +282,19 @@ export default function CreateInvoiceClient() {
       return
     }
 
-    const saved = getActiveOrGlobalItem("invoices")
-    const invoices = saved ? (JSON.parse(saved) as InvoiceRecord[]) : []
+    const invoices = readStoredInvoices()
+    const nextInvoiceNumber = generateInvoiceNumber(
+      invoices,
+      invoicePrefix,
+      invoicePadding,
+      invoiceStartNumber,
+      resetYearly,
+      invoiceResetMonthDay,
+      date
+    )
     const invoiceRecord = normalizeInvoiceRecord({
-      invoiceNumber,
+      id: createInvoiceId(),
+      invoiceNumber: nextInvoiceNumber,
       clientName,
       clientPhone,
       clientEmail,
@@ -323,7 +331,7 @@ export default function CreateInvoiceClient() {
     }
 
     invoices.push(invoiceRecord)
-    setActiveOrGlobalItem("invoices", JSON.stringify(invoices))
+    writeStoredInvoices(invoices)
     bumpInvoiceUsageCount(1)
 
     showAlert({

@@ -3,17 +3,7 @@
 import { useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { ChevronRight, IndianRupee, Search, TrendingUp, Users } from "lucide-react"
-import { getActiveOrGlobalItem } from "@/lib/userStore"
-
-type InvoiceSummary = {
-  clientName?: string
-  clientPhone?: string
-  date?: string
-  invoiceNumber?: string
-  total?: number
-  grandTotal?: number
-  amount?: number
-}
+import { readStoredInvoices, type InvoiceRecord } from "@/lib/invoice"
 
 type CustomerRow = {
   name: string
@@ -27,8 +17,7 @@ type CustomerRow = {
 function readCustomerRows(): CustomerRow[] {
   if (typeof window === "undefined") return []
 
-  const invoicesRaw = getActiveOrGlobalItem("invoices") || "[]"
-  const invoices = JSON.parse(invoicesRaw) as InvoiceSummary[]
+  const invoices = readStoredInvoices() as Array<InvoiceRecord & { total?: number; amount?: number }>
   const map: Record<string, CustomerRow> = {}
 
   invoices.forEach((invoice) => {

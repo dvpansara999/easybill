@@ -16,6 +16,7 @@ export type InvoiceItem = {
 }
 
 export type InvoiceRecord = {
+  id: string
   invoiceNumber: string
   clientName: string
   clientPhone: string
@@ -26,6 +27,46 @@ export type InvoiceRecord = {
   customDetails: CustomDetail[]
   items: InvoiceItem[]
   grandTotal: number
+}
+
+type InvoiceRecordInput = Partial<InvoiceRecord>
+
+function hashString(input: string) {
+  let hash = 2166136261
+  for (let i = 0; i < input.length; i += 1) {
+    hash ^= input.charCodeAt(i)
+    hash = Math.imul(hash, 16777619)
+  }
+  return (hash >>> 0).toString(36)
+}
+
+function normalizeInvoiceId(id: unknown, invoice: InvoiceRecordInput, legacyIndex: number) {
+  if (typeof id === "string" && id.trim()) return id.trim()
+
+  const legacySeed = JSON.stringify({
+    legacyIndex,
+    invoiceNumber: invoice.invoiceNumber?.trim() || "",
+    clientName: invoice.clientName?.trim() || "",
+    clientPhone: invoice.clientPhone?.trim() || "",
+    clientEmail: invoice.clientEmail?.trim() || "",
+    clientGST: invoice.clientGST?.trim() || "",
+    clientAddress: invoice.clientAddress?.trim() || "",
+    date: invoice.date?.trim() || "",
+    grandTotal: Number(invoice.grandTotal) || 0,
+    customDetails: Array.isArray(invoice.customDetails) ? invoice.customDetails : [],
+    items: Array.isArray(invoice.items) ? invoice.items : [],
+  })
+
+  return `inv_legacy_${hashString(legacySeed)}`
+}
+
+export function createInvoiceId() {
+  const raw =
+    typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`
+
+  return `inv_${raw.replace(/[^a-zA-Z0-9_-]/g, "")}`
 }
 
 export type BusinessRecord = {
@@ -80,7 +121,7 @@ export function normalizeInvoiceItem(item: Partial<InvoiceItem>): InvoiceItem {
   }
 }
 
-export function normalizeInvoiceRecord(invoice: Partial<InvoiceRecord>): InvoiceRecord {
+export function normalizeInvoiceRecord(invoice: InvoiceRecordInput, legacyIndex = 0): InvoiceRecord {
   const items = Array.isArray(invoice.items)
     ? invoice.items.map((item) => normalizeInvoiceItem(item))
     : []
@@ -90,6 +131,7 @@ export function normalizeInvoiceRecord(invoice: Partial<InvoiceRecord>): Invoice
     items.reduce((sum, item) => sum + Number(item.total || 0), 0)
 
   return {
+    id: normalizeInvoiceId(invoice.id, invoice, legacyIndex),
     invoiceNumber: invoice.invoiceNumber?.trim() || "",
     clientName: invoice.clientName?.trim() || "",
     clientPhone: invoice.clientPhone?.trim() || "",
@@ -108,6 +150,62 @@ export function normalizeInvoiceRecord(invoice: Partial<InvoiceRecord>): Invoice
     items,
     grandTotal,
   }
+}
+
+export function normalizeInvoiceRecords(invoices: unknown) {
+  if (!Array.isArray(invoices)) {
+    return { invoices: [] as InvoiceRecord[], changed: false }
+  }
+
+  let changed = false
+  const normalized = invoices.map((invoice, index) => {
+    const raw = typeof invoice === "object" && invoice !== null ? (invoice as InvoiceRecordInput) : {}
+    const next = normalizeInvoiceRecord(raw, index)
+    if (!raw.id || raw.id !== next.id) {
+      changed = true
+    }
+    return next
+  })
+
+  return { invoices: normalized, changed }
+}
+
+export function findInvoiceById(invoices: InvoiceRecord[], invoiceId: string) {
+  return invoices.find((invoice) => invoice.id === invoiceId) ?? null
+}
+
+export function findInvoiceByIdentity(invoices: InvoiceRecord[], value: string) {
+  return (
+    invoices.find((invoice) => invoice.id === value) ??
+    invoices.find((invoice) => invoice.invoiceNumber === value) ??
+    null
+  )
+}
+
+export function readStoredInvoices() {
+  if (typeof window === "undefined") return [] as InvoiceRecord[]
+
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { getActiveOrGlobalItem, setActiveOrGlobalItem } = require("@/lib/userStore") as typeof import("@/lib/userStore")
+  const raw = getActiveOrGlobalItem("invoices")
+  if (!raw) return [] as InvoiceRecord[]
+
+  try {
+    const parsed = JSON.parse(raw) as unknown
+    const { invoices, changed } = normalizeInvoiceRecords(parsed)
+    if (changed) {
+      setActiveOrGlobalItem("invoices", JSON.stringify(invoices))
+    }
+    return invoices
+  } catch {
+    return [] as InvoiceRecord[]
+  }
+}
+
+export function writeStoredInvoices(invoices: InvoiceRecord[]) {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { setActiveOrGlobalItem } = require("@/lib/userStore") as typeof import("@/lib/userStore")
+  setActiveOrGlobalItem("invoices", JSON.stringify(invoices))
 }
 
 export function getStoredBusinessRecord(): BusinessRecord | null {

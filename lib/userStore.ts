@@ -17,6 +17,7 @@ const BUNDLED_KEYS = new Set([
   "invoicePadding",
   "invoiceStartNumber",
   "resetYearly",
+  "invoiceResetMonthDay",
   "currencySymbol",
   "currencyPosition",
   "invoiceVisibility",

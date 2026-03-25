@@ -8,7 +8,7 @@ import { getActiveUserId } from "@/lib/auth"
 import { formatCurrency, formatCurrencyQuickStatsMobile } from "@/lib/formatCurrency"
 import { getAuthMode } from "@/lib/runtimeMode"
 import { isActiveUserKvHydrated } from "@/lib/userStore"
-import { normalizeInvoiceRecord, type InvoiceRecord } from "@/lib/invoice"
+import { readStoredInvoices, type InvoiceRecord } from "@/lib/invoice"
 import {
   ArrowRight,
   BarChart3,
@@ -95,18 +95,6 @@ const MONTH_LABELS_FULL_MAP: Record<string, string> = {
   Dec: "December",
 }
 
-function safeParseInvoices(raw: string | null): InvoiceRecord[] {
-  if (!raw) return []
-
-  try {
-    const parsed = JSON.parse(raw) as unknown
-    if (!Array.isArray(parsed)) return []
-    return parsed.map((invoice) => normalizeInvoiceRecord(invoice as Partial<InvoiceRecord>))
-  } catch {
-    return []
-  }
-}
-
 function safeParseProducts(raw: string | null): ProductRecord[] {
   if (!raw) return []
 
@@ -135,7 +123,7 @@ function sortInvoicesByDate(invoices: InvoiceRecord[]) {
 function buildDashboardSnapshot(): DashboardSnapshot {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { getActiveOrGlobalItem } = require("@/lib/userStore") as typeof import("@/lib/userStore")
-  const invoices = safeParseInvoices(getActiveOrGlobalItem("invoices"))
+  const invoices = readStoredInvoices()
   const products = safeParseProducts(getActiveOrGlobalItem("products"))
 
   if (invoices.length === 0) {
@@ -481,11 +469,11 @@ export default function Dashboard() {
               No recent invoices
             </div>
           ) : (
-            snapshot.recentInvoices.map((invoice, index) => (
+            snapshot.recentInvoices.map((invoice) => (
               <button
-                key={`${invoice.invoiceNumber}-${index}`}
+                key={invoice.id}
                 type="button"
-                onClick={() => router.push(`/dashboard/invoices/view/${invoice.invoiceNumber}`)}
+                onClick={() => router.push(`/dashboard/invoices/view/${encodeURIComponent(invoice.id)}`)}
                 className="w-full rounded-[24px] border border-slate-200/70 bg-white p-4 text-left transition hover:bg-slate-50/70 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-100"
               >
                 <div className="flex items-start justify-between gap-4">
@@ -522,11 +510,11 @@ export default function Dashboard() {
                 </tr>
               </thead>
               <tbody>
-                {snapshot.recentInvoices.map((invoice, index) => (
+                {snapshot.recentInvoices.map((invoice) => (
                   <tr
-                    key={`${invoice.invoiceNumber}-${index}`}
+                    key={invoice.id}
                     className="cursor-pointer border-b border-slate-100 transition hover:bg-slate-50/70"
-                    onClick={() => router.push(`/dashboard/invoices/view/${invoice.invoiceNumber}`)}
+                    onClick={() => router.push(`/dashboard/invoices/view/${encodeURIComponent(invoice.id)}`)}
                   >
                     <td className="px-4 py-4 font-medium text-slate-900">{invoice.invoiceNumber}</td>
                     <td className="px-4 py-4">{invoice.clientName}</td>

@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { useSettings } from "@/context/SettingsContext"
 import { generateInvoiceNumber } from "@/lib/invoiceNumber"
 import { getInvoicePrefixError } from "@/lib/invoicePrefixValidation"
+import { formatResetMonthLabel, RESET_MONTH_DAY_OPTIONS } from "@/lib/invoiceResetDate"
 import {
   getActiveAuthRecord,
   requestEmailChangeOtp,
@@ -16,7 +17,7 @@ import {
 import { flushCloudKeyNow, setActiveOrGlobalItem } from "@/lib/userStore"
 import { getSupabaseUser } from "@/lib/supabase/browser"
 import SelectMenu from "@/components/ui/SelectMenu"
-import { normalizeInvoiceRecord, type InvoiceRecord } from "@/lib/invoice"
+import { readStoredInvoices, type InvoiceRecord } from "@/lib/invoice"
 import { useAppAlert } from "@/components/providers/AppAlertProvider"
 
 type EmailChangePolicy = {
@@ -48,6 +49,8 @@ export default function SettingsClient() {
     updateInvoiceStartNumber,
     resetYearly,
     updateResetYearly,
+    invoiceResetMonthDay,
+    updateInvoiceResetMonthDay,
     currencySymbol,
     updateCurrencySymbol,
     currencyPosition,
@@ -61,6 +64,7 @@ export default function SettingsClient() {
   const [draftInvoicePadding, setDraftInvoicePadding] = useState(invoicePadding)
   const [draftInvoiceStartNumber, setDraftInvoiceStartNumber] = useState(invoiceStartNumber)
   const [draftResetYearly, setDraftResetYearly] = useState(resetYearly)
+  const [draftInvoiceResetMonthDay, setDraftInvoiceResetMonthDay] = useState(invoiceResetMonthDay)
   const [draftCurrencySymbol, setDraftCurrencySymbol] = useState(currencySymbol)
   const [draftCurrencyPosition, setDraftCurrencyPosition] = useState(currencyPosition)
   const [ready, setReady] = useState(false)
@@ -118,18 +122,11 @@ export default function SettingsClient() {
     setDraftInvoicePadding(invoicePadding)
     setDraftInvoiceStartNumber(invoiceStartNumber)
     setDraftResetYearly(resetYearly)
+    setDraftInvoiceResetMonthDay(invoiceResetMonthDay)
     setDraftCurrencySymbol(currencySymbol)
     setDraftCurrencyPosition(currencyPosition)
 
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { getActiveOrGlobalItem } = require("@/lib/userStore") as typeof import("@/lib/userStore")
-    const savedInvoices = getActiveOrGlobalItem("invoices")
-    try {
-      const parsed = savedInvoices ? (JSON.parse(savedInvoices) as unknown) : []
-      setInvoiceHistory(Array.isArray(parsed) ? parsed.map((invoice) => normalizeInvoiceRecord(invoice as Partial<InvoiceRecord>)) : [])
-    } catch {
-      setInvoiceHistory([])
-    }
+    setInvoiceHistory(readStoredInvoices())
 
     const auth = getActiveAuthRecord()
     if (auth) {
@@ -159,6 +156,7 @@ export default function SettingsClient() {
     invoicePadding,
     invoiceStartNumber,
     resetYearly,
+    invoiceResetMonthDay,
     currencySymbol,
     currencyPosition,
   ])
@@ -172,9 +170,10 @@ export default function SettingsClient() {
       draftInvoicePrefix,
       draftInvoicePadding,
       Math.max(1, Number.isFinite(draftInvoiceStartNumber) ? draftInvoiceStartNumber : 1),
-      draftResetYearly
+      draftResetYearly,
+      draftInvoiceResetMonthDay
     )
-  }, [invoiceHistory, draftInvoicePrefix, draftInvoicePadding, draftInvoiceStartNumber, draftResetYearly])
+  }, [invoiceHistory, draftInvoicePrefix, draftInvoicePadding, draftInvoiceStartNumber, draftResetYearly, draftInvoiceResetMonthDay])
   const invoicePrefixError = getInvoicePrefixError(draftInvoicePrefix)
 
   const hasPendingChanges =
@@ -185,6 +184,7 @@ export default function SettingsClient() {
     draftInvoicePadding !== invoicePadding ||
     draftInvoiceStartNumber !== invoiceStartNumber ||
     draftResetYearly !== resetYearly ||
+    draftInvoiceResetMonthDay !== invoiceResetMonthDay ||
     draftCurrencySymbol !== currencySymbol ||
     draftCurrencyPosition !== currencyPosition
 
@@ -218,6 +218,7 @@ export default function SettingsClient() {
     updateInvoicePadding(draftInvoicePadding)
     updateInvoiceStartNumber(Math.max(1, draftInvoiceStartNumber || 1))
     updateResetYearly(draftResetYearly)
+    updateInvoiceResetMonthDay(draftInvoiceResetMonthDay)
     updateCurrencySymbol(draftCurrencySymbol)
     updateCurrencyPosition(draftCurrencyPosition)
 
@@ -874,6 +875,20 @@ export default function SettingsClient() {
               ]}
             />
           </div>
+
+          {draftResetYearly ? (
+            <div className="md:col-span-2">
+              <p className="mb-2 text-sm font-medium text-slate-900">Reset Date</p>
+              <SelectMenu
+                value={draftInvoiceResetMonthDay}
+                onChange={setDraftInvoiceResetMonthDay}
+                options={RESET_MONTH_DAY_OPTIONS}
+              />
+              <p className="mt-2 text-xs leading-5 text-slate-500">
+                Invoices dated on or after the 1st of {formatResetMonthLabel(draftInvoiceResetMonthDay)} start again from your starting number.
+              </p>
+            </div>
+          ) : null}
         </div>
 
         <div className="mt-6 rounded-[24px] border border-slate-200 bg-slate-50/80 p-5">

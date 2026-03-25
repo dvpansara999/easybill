@@ -6,28 +6,8 @@ import { useSettings } from "@/context/SettingsContext"
 import { formatDate } from "@/lib/dateFormat"
 import { formatCurrency } from "@/lib/formatCurrency"
 import { ArrowLeft, FilePlus2, Mail, MapPin, Phone, ReceiptIndianRupee } from "lucide-react"
-import { getActiveOrGlobalItem } from "@/lib/userStore"
+import { readStoredInvoices, type InvoiceRecord } from "@/lib/invoice"
 import SelectMenu from "@/components/ui/SelectMenu"
-
-type InvoiceItem = {
-  qty?: number
-  price?: number
-  cgst?: number | string
-  sgst?: number | string
-  igst?: number | string
-}
-
-type InvoiceRecord = {
-  invoiceNumber: string
-  clientName: string
-  clientPhone: string
-  clientEmail: string
-  clientGST: string
-  clientAddress: string
-  date: string
-  grandTotal: number
-  items?: InvoiceItem[]
-}
 
 type CustomerSummary = {
   name: string
@@ -38,17 +18,7 @@ type CustomerSummary = {
 }
 
 function readInvoicesFromStore(): InvoiceRecord[] {
-  if (typeof window === "undefined") return []
-
-  const saved = getActiveOrGlobalItem("invoices")
-  if (!saved) return []
-
-  try {
-    const parsed = JSON.parse(saved) as unknown
-    return Array.isArray(parsed) ? (parsed as InvoiceRecord[]) : []
-  } catch {
-    return []
-  }
+  return readStoredInvoices()
 }
 
 function sortInvoicesNewestFirst(invoices: InvoiceRecord[]) {
@@ -305,11 +275,11 @@ export default function CustomerDetails() {
               No invoices found for this customer.
             </div>
           ) : (
-            filteredInvoices.map((invoice, index) => (
+            filteredInvoices.map((invoice) => (
               <button
-                key={`${invoice.invoiceNumber}-${index}`}
+                key={invoice.id}
                 type="button"
-                onClick={() => router.push(`/dashboard/invoices/view/${invoice.invoiceNumber}`)}
+                onClick={() => router.push(`/dashboard/invoices/view/${encodeURIComponent(invoice.id)}`)}
                 className="w-full rounded-[22px] border border-slate-200/70 bg-white p-4 text-left transition hover:bg-slate-50/70 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-100"
               >
                 <div className="grid grid-cols-2 gap-4">
@@ -346,10 +316,10 @@ export default function CustomerDetails() {
                 </tr>
               ) : null}
 
-              {filteredInvoices.map((invoice, index) => (
+              {filteredInvoices.map((invoice) => (
                 <tr
-                  key={`${invoice.invoiceNumber}-${index}`}
-                  onClick={() => router.push(`/dashboard/invoices/view/${invoice.invoiceNumber}`)}
+                  key={invoice.id}
+                  onClick={() => router.push(`/dashboard/invoices/view/${encodeURIComponent(invoice.id)}`)}
                   className="cursor-pointer border-b border-slate-100 transition hover:bg-slate-50/70"
                 >
                   <td className="px-4 py-4 font-medium text-slate-900">{invoice.invoiceNumber}</td>

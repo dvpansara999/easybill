@@ -8,6 +8,7 @@ import {
   DEFAULT_INVOICE_VISIBILITY,
   type InvoiceVisibilitySettings,
 } from "@/lib/invoiceVisibilityShared"
+import { DEFAULT_RESET_MONTH_DAY, normalizeResetMonthDay } from "@/lib/invoiceResetDate"
 
 export type { InvoiceVisibilitySettings }
 export { DEFAULT_INVOICE_VISIBILITY }
@@ -27,6 +28,8 @@ type SettingsContextType = {
   updateInvoiceStartNumber: (value: number) => void
   resetYearly: boolean
   updateResetYearly: (value: boolean) => void
+  invoiceResetMonthDay: string
+  updateInvoiceResetMonthDay: (value: string) => void
   currencySymbol: string
   updateCurrencySymbol: (value: string) => void
   currencyPosition: "before" | "after"
@@ -43,6 +46,7 @@ type SettingsSnapshot = {
   invoicePadding: number
   invoiceStartNumber: number
   resetYearly: boolean
+  invoiceResetMonthDay: string
   currencySymbol: string
   currencyPosition: "before" | "after"
   invoiceVisibility: InvoiceVisibilitySettings
@@ -56,6 +60,7 @@ const defaultSettings: SettingsSnapshot = {
   invoicePadding: 4,
   invoiceStartNumber: 1,
   resetYearly: true,
+  invoiceResetMonthDay: DEFAULT_RESET_MONTH_DAY,
   currencySymbol: "₹",
   currencyPosition: "before",
   invoiceVisibility: DEFAULT_INVOICE_VISIBILITY,
@@ -73,6 +78,7 @@ function readSettingsFromStorage() {
   const savedPadding = getActiveOrGlobalItem("invoicePadding")
   const savedStart = getActiveOrGlobalItem("invoiceStartNumber")
   const savedReset = getActiveOrGlobalItem("resetYearly")
+  const savedResetMonthDay = getActiveOrGlobalItem("invoiceResetMonthDay")
   const savedCurrency = getActiveOrGlobalItem("currencySymbol")
   const savedCurrencyPos = getActiveOrGlobalItem("currencyPosition")
   const savedInvoiceVisibility = getActiveOrGlobalItem("invoiceVisibility")
@@ -95,6 +101,7 @@ function readSettingsFromStorage() {
     invoicePadding: savedPadding ? Number(savedPadding) : defaultSettings.invoicePadding,
     invoiceStartNumber: savedStart ? Number(savedStart) : defaultSettings.invoiceStartNumber,
     resetYearly: savedReset ? savedReset === "true" : defaultSettings.resetYearly,
+    invoiceResetMonthDay: normalizeResetMonthDay(savedResetMonthDay),
     currencySymbol: savedCurrency || defaultSettings.currencySymbol,
     currencyPosition: savedCurrencyPos === "after" ? "after" : defaultSettings.currencyPosition,
     invoiceVisibility,
@@ -112,6 +119,7 @@ function writeMissingDefaults(snapshot: SettingsSnapshot) {
     ["invoicePadding", String(snapshot.invoicePadding)],
     ["invoiceStartNumber", String(snapshot.invoiceStartNumber)],
     ["resetYearly", String(snapshot.resetYearly)],
+    ["invoiceResetMonthDay", snapshot.invoiceResetMonthDay],
     ["currencySymbol", snapshot.currencySymbol],
     ["currencyPosition", snapshot.currencyPosition],
     ["invoiceVisibility", JSON.stringify(snapshot.invoiceVisibility)],
@@ -173,6 +181,11 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       updateResetYearly(next: boolean) {
         setSettings((prev) => ({ ...prev, resetYearly: next }))
         setActiveOrGlobalItem("resetYearly", String(next))
+      },
+      updateInvoiceResetMonthDay(next: string) {
+        const normalized = normalizeResetMonthDay(next)
+        setSettings((prev) => ({ ...prev, invoiceResetMonthDay: normalized }))
+        setActiveOrGlobalItem("invoiceResetMonthDay", normalized)
       },
       updateCurrencySymbol(next: string) {
         setSettings((prev) => ({ ...prev, currencySymbol: next }))

@@ -1,4 +1,7 @@
 import type { Metadata } from "next"
+import { BRAND_NAME, defaultMetadataImages } from "@/lib/marketing/siteMetadata"
+
+const metadataImages = defaultMetadataImages()
 
 export const metadata: Metadata = {
   title: "Terms and Conditions | easyBILL",
@@ -10,8 +13,16 @@ export const metadata: Metadata = {
     description:
       "Read the easyBILL terms of service, acceptable use, billing, and data responsibilities.",
     url: "/terms",
-    siteName: "easyBILL",
+    siteName: BRAND_NAME,
     type: "website",
+    images: metadataImages,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Terms and Conditions | easyBILL",
+    description:
+      "Read the easyBILL terms of service, acceptable use, billing, and data responsibilities.",
+    images: metadataImages.map((image) => image.url),
   },
 }
 

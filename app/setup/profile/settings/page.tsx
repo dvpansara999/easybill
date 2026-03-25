@@ -8,9 +8,11 @@ import { useSettings } from "@/context/SettingsContext"
 import { getSetupProfileDraft } from "@/lib/setupProfileDraft"
 import { generateInvoiceNumber } from "@/lib/invoiceNumber"
 import { getInvoicePrefixError } from "@/lib/invoicePrefixValidation"
-import { flushCloudKeyNow, getActiveOrGlobalItem, setActiveOrGlobalItem } from "@/lib/userStore"
+import { formatResetMonthLabel, RESET_MONTH_DAY_OPTIONS } from "@/lib/invoiceResetDate"
+import { flushCloudKeyNow, setActiveOrGlobalItem } from "@/lib/userStore"
 import SelectMenu from "@/components/ui/SelectMenu"
 import { useAppAlert } from "@/components/providers/AppAlertProvider"
+import { readStoredInvoices } from "@/lib/invoice"
 
 type InvoiceHistoryRecord = {
   invoiceNumber: string
@@ -36,6 +38,8 @@ export default function SetupProfileSettingsPage() {
     updateInvoiceStartNumber,
     resetYearly,
     updateResetYearly,
+    invoiceResetMonthDay,
+    updateInvoiceResetMonthDay,
     currencySymbol,
     updateCurrencySymbol,
     currencyPosition,
@@ -43,10 +47,7 @@ export default function SetupProfileSettingsPage() {
   } = useSettings()
 
   const [draftProfile] = useState(() => getSetupProfileDraft())
-  const [invoiceHistory] = useState<InvoiceHistoryRecord[]>(() => {
-    const savedInvoices = getActiveOrGlobalItem("invoices")
-    return savedInvoices ? (JSON.parse(savedInvoices) as InvoiceHistoryRecord[]) : []
-  })
+  const [invoiceHistory] = useState<InvoiceHistoryRecord[]>(() => readStoredInvoices())
   const [draftDateFormat, setDraftDateFormat] = useState(dateFormat)
   const [draftAmountFormat, setDraftAmountFormat] = useState(amountFormat)
   const [draftShowDecimals, setDraftShowDecimals] = useState(showDecimals)
@@ -54,6 +55,7 @@ export default function SetupProfileSettingsPage() {
   const [draftInvoicePadding, setDraftInvoicePadding] = useState(invoicePadding)
   const [draftInvoiceStartNumber, setDraftInvoiceStartNumber] = useState(invoiceStartNumber)
   const [draftResetYearly, setDraftResetYearly] = useState(resetYearly)
+  const [draftInvoiceResetMonthDay, setDraftInvoiceResetMonthDay] = useState(invoiceResetMonthDay)
   const [draftCurrencySymbol, setDraftCurrencySymbol] = useState(currencySymbol)
   const [draftCurrencyPosition, setDraftCurrencyPosition] = useState(currencyPosition)
   const [finishing, setFinishing] = useState(false)
@@ -69,9 +71,10 @@ export default function SetupProfileSettingsPage() {
       draftInvoicePrefix,
       draftInvoicePadding,
       Math.max(1, Number.isFinite(draftInvoiceStartNumber) ? draftInvoiceStartNumber : 1),
-      draftResetYearly
+      draftResetYearly,
+      draftInvoiceResetMonthDay
     )
-  }, [invoiceHistory, draftInvoicePadding, draftInvoicePrefix, draftInvoiceStartNumber, draftResetYearly])
+  }, [invoiceHistory, draftInvoicePadding, draftInvoicePrefix, draftInvoiceStartNumber, draftResetYearly, draftInvoiceResetMonthDay])
   const invoicePrefixError = getInvoicePrefixError(draftInvoicePrefix)
 
   if (!draftProfile.businessName || !draftProfile.email) {
@@ -103,6 +106,7 @@ export default function SetupProfileSettingsPage() {
     updateInvoicePadding(draftInvoicePadding)
     updateInvoiceStartNumber(Math.max(1, draftInvoiceStartNumber || 1))
     updateResetYearly(draftResetYearly)
+    updateInvoiceResetMonthDay(draftInvoiceResetMonthDay)
     updateCurrencySymbol(draftCurrencySymbol)
     updateCurrencyPosition(draftCurrencyPosition)
 
@@ -201,6 +205,19 @@ export default function SetupProfileSettingsPage() {
               />
               <p className="mt-2 text-xs leading-5 text-slate-500">Reset is common if you want neat yearly sequences.</p>
             </div>
+            {draftResetYearly ? (
+              <div className="md:col-span-2">
+                <p className="mb-2 text-sm font-medium text-slate-900">Reset Date</p>
+                <SelectMenu
+                  value={draftInvoiceResetMonthDay}
+                  onChange={setDraftInvoiceResetMonthDay}
+                  options={RESET_MONTH_DAY_OPTIONS}
+                />
+                <p className="mt-2 text-xs leading-5 text-slate-500">
+                  Invoices dated on or after the 1st of {formatResetMonthLabel(draftInvoiceResetMonthDay)} restart from your starting number.
+                </p>
+              </div>
+            ) : null}
           </div>
         </section>
 

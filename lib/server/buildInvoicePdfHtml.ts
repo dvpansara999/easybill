@@ -222,7 +222,6 @@ function resolvePdfTheme(templateId: string): ResolvedPdfTheme {
 }
 
 type HeaderCtx = {
-  theme: ResolvedPdfTheme
   logoHtml: string
   businessTitle: string
   businessContactLight: string
@@ -234,7 +233,6 @@ type HeaderCtx = {
 
 function buildHeaderSectionHtml(layout: PdfHeaderLayout, ctx: HeaderCtx): string {
   const {
-    theme,
     logoHtml,
     businessTitle,
     businessContactLight,
@@ -556,7 +554,6 @@ export function buildInvoicePdfHtml(input: BuildInvoicePdfHtmlInput): string {
   const dateStr = formatDate(inv.date || "", input.dateFormat)
 
   const headerHtml = buildHeaderSectionHtml(theme.headerLayout, {
-    theme,
     logoHtml,
     businessTitle: biz.businessName || "INVOICE",
     businessContactLight,

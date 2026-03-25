@@ -1,15 +1,16 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { Share2, X } from "lucide-react"
+import { ArrowLeft, Share2, X } from "lucide-react"
 import { flushSync } from "react-dom"
-import { useParams } from "next/navigation"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { useSettings } from "@/context/SettingsContext"
 import { formatDate } from "@/lib/dateFormat"
 import { formatCurrency } from "@/lib/formatCurrency"
 import {
+  findInvoiceByIdentity,
   getStoredBusinessRecord,
-  normalizeInvoiceRecord,
+  readStoredInvoices,
   type BusinessRecord,
   type InvoiceRecord,
 } from "@/lib/invoice"
@@ -50,18 +51,6 @@ function getInvoiceIdFromParams(id: string | string[] | undefined) {
   return id ?? ""
 }
 
-function safeParseInvoices(raw: string | null): InvoiceRecord[] {
-  if (!raw) return []
-
-  try {
-    const parsed = JSON.parse(raw) as unknown
-    if (!Array.isArray(parsed)) return []
-    return parsed.map((invoice) => normalizeInvoiceRecord(invoice as Partial<InvoiceRecord>))
-  } catch {
-    return []
-  }
-}
-
 function resolveTemplateKey(templateId: string): TemplateKey {
   if (templateId.startsWith("modern")) return "modern"
   if (templateId.startsWith("minimal")) return "minimal"
@@ -70,8 +59,8 @@ function resolveTemplateKey(templateId: string): TemplateKey {
 }
 
 function readInvoiceViewState(invoiceId: string): InvoiceViewState {
-  const invoices = safeParseInvoices(getActiveOrGlobalItem("invoices"))
-  const invoice = invoices.find((entry) => entry.invoiceNumber === invoiceId) ?? null
+  const invoices = readStoredInvoices()
+  const invoice = findInvoiceByIdentity(invoices, invoiceId)
   const template = resolveTemplateId(getActiveOrGlobalItem("invoiceTemplate") || DEFAULT_TEMPLATE_ID)
 
   return {
@@ -93,7 +82,10 @@ export default function ViewInvoice() {
   } = useSettings()
 
   const params = useParams()
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const invoiceId = getInvoiceIdFromParams(params?.id)
+  const returnTo = searchParams.get("returnTo") || "/dashboard/invoices"
 
   const [viewState, setViewState] = useState<InvoiceViewState>(() => readInvoiceViewState(invoiceId))
   const [downloadingPdf, setDownloadingPdf] = useState(false)
@@ -529,11 +521,20 @@ export default function ViewInvoice() {
 
   return (
     <div className="p-4">
-      <div className="mb-6 flex justify-end gap-3">
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <button
+          type="button"
+          onClick={() => router.push(returnTo)}
+          className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-600 transition hover:bg-slate-50 hover:text-slate-950 sm:w-auto sm:justify-start sm:rounded-full sm:py-2"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to invoices
+        </button>
+
         <button
           onClick={downloadInvoice}
           disabled={downloadingPdf}
-          className={`rounded px-4 py-2 text-white transition ${
+          className={`w-full rounded-2xl px-4 py-3 text-sm font-semibold text-white transition sm:w-auto sm:rounded-xl sm:px-5 sm:py-2.5 ${
             downloadingPdf
               ? "cursor-not-allowed bg-slate-400"
               : "bg-black hover:bg-slate-800"

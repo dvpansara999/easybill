@@ -25,6 +25,7 @@ export const KV_KEYS = [
   "invoicePadding",
   "invoiceStartNumber",
   "resetYearly",
+  "invoiceResetMonthDay",
   "currencySymbol",
   "currencyPosition",
   "emailChangeAudit",

@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto"
 import { generateInvoicePdfBuffer } from "@/lib/server/generateInvoicePdfBuffer"
 import { parseJsonLoose } from "@/lib/server/invoicePdfRouteHelpers"
+import { findInvoiceByIdentity, normalizeInvoiceRecords } from "@/lib/invoice"
 import { normalizeInvoiceForPdf } from "@/lib/server/normalizeInvoiceForPdf"
 import { revealSensitiveDataFromStorage } from "@/lib/sensitiveData"
 import type { InvoiceVisibilitySettings } from "@/lib/invoiceVisibilityShared"
@@ -82,6 +83,7 @@ export type InvoicePdfGenSuccess = {
 export type InvoicePdfGenResult = InvoicePdfGenSuccess | InvoicePdfGenFailure
 
 export type ResolvedInvoicePdfSource = {
+  invoiceRecordId: string
   fileInvoiceNumber: string
   renderUrl: string
   sourceFingerprint: string
@@ -246,9 +248,8 @@ export async function resolveInvoicePdfSourceForUser(
   const invoicesRaw = toRawString(getKvOrBundle("invoices"))
   const invoicesDecrypted = invoicesRaw ? revealSensitiveDataFromStorage("invoices", invoicesRaw) : null
   const invoicesParsed = parseJsonLoose(invoicesDecrypted) || []
-  const found = Array.isArray(invoicesParsed)
-    ? invoicesParsed.find((inv: { invoiceNumber?: string }) => String(inv?.invoiceNumber || "") === String(body.invoiceId))
-    : null
+  const { invoices } = normalizeInvoiceRecords(invoicesParsed)
+  const found = findInvoiceByIdentity(invoices, String(body.invoiceId))
 
   if (!found) {
     return { ok: false, message: "Invoice not found.", code: "NOT_FOUND", httpStatus: 404 }
@@ -348,6 +349,7 @@ export async function resolveInvoicePdfSourceForUser(
   return {
     ok: true,
     source: {
+      invoiceRecordId: found.id,
       fileInvoiceNumber,
       renderUrl,
       sourceFingerprint,

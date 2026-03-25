@@ -4,12 +4,15 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter, useParams, useSearchParams } from "next/navigation"
 import { useSettings } from "@/context/SettingsContext"
 import { formatCurrency } from "@/lib/formatCurrency"
-import { getActiveOrGlobalItem, setActiveOrGlobalItem } from "@/lib/userStore"
+import { getActiveOrGlobalItem } from "@/lib/userStore"
 import { useAppAlert } from "@/components/providers/AppAlertProvider"
 import {
   createEmptyInvoiceItem,
+  findInvoiceByIdentity,
   getStoredBusinessRecord,
   normalizeInvoiceRecord,
+  readStoredInvoices,
+  writeStoredInvoices,
   validateBusinessRecord,
   validateInvoiceRecord,
   type CustomDetail,
@@ -57,22 +60,10 @@ function safeParseProducts(raw: string | null): ProductRecord[] {
   }
 }
 
-function safeParseInvoices(raw: string | null): InvoiceRecord[] {
-  if (!raw) return []
-
-  try {
-    const parsed = JSON.parse(raw) as unknown
-    if (!Array.isArray(parsed)) return []
-    return parsed.map((invoice) => normalizeInvoiceRecord(invoice as Partial<InvoiceRecord>))
-  } catch {
-    return []
-  }
-}
-
 function readEditInvoiceState(invoiceId: string): EditInvoiceState {
   const products = safeParseProducts(getActiveOrGlobalItem("products"))
-  const invoices = safeParseInvoices(getActiveOrGlobalItem("invoices"))
-  const invoice = invoices.find((entry) => entry.invoiceNumber === invoiceId) ?? null
+  const invoices = readStoredInvoices()
+  const invoice = findInvoiceByIdentity(invoices, invoiceId)
 
   return {
     products,
@@ -261,7 +252,7 @@ export default function EditInvoice() {
       return
     }
 
-    const index = initialState.invoices.findIndex((invoice) => invoice.invoiceNumber === invoiceNumber)
+    const index = initialState.invoices.findIndex((invoice) => invoice.id === invoiceId)
 
     if (index === -1) {
       showAlert({
@@ -276,6 +267,7 @@ export default function EditInvoice() {
     }
 
     const invoiceRecord = normalizeInvoiceRecord({
+      id: invoiceId,
       invoiceNumber,
       clientName,
       clientPhone,
@@ -303,7 +295,7 @@ export default function EditInvoice() {
     const updatedInvoices = [...initialState.invoices]
     updatedInvoices[index] = invoiceRecord
 
-    setActiveOrGlobalItem("invoices", JSON.stringify(updatedInvoices))
+    writeStoredInvoices(updatedInvoices)
 
     showAlert({
       tone: "success",

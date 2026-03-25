@@ -2,11 +2,9 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "functions": {
     "app/api/invoice-pdf/route.ts": {
-      "memory": 1536,
       "maxDuration": 60
     },
     "app/api/invoice-pdf-export/route.ts": {
-      "memory": 1536,
       "maxDuration": 60
     },
     "app/api/cron/purge-invoice-pdfs/route.ts": {

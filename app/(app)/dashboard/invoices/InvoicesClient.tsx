@@ -6,17 +6,10 @@ import { useSettings } from "@/context/SettingsContext"
 import { formatDate } from "@/lib/dateFormat"
 import { formatCurrency } from "@/lib/formatCurrency"
 import { CalendarRange, FilePlus2, PencilLine, Search, Trash2 } from "lucide-react"
-import { getActiveOrGlobalItem, setActiveOrGlobalItem } from "@/lib/userStore"
+import { readStoredInvoices, writeStoredInvoices, type InvoiceRecord } from "@/lib/invoice"
 import { canEditInvoices } from "@/lib/plans"
 import SelectMenu from "@/components/ui/SelectMenu"
 import { useAppAlert } from "@/components/providers/AppAlertProvider"
-
-type InvoiceRecord = {
-  invoiceNumber: string
-  clientName: string
-  date: string
-  grandTotal: number
-}
 
 function parseInvoiceNumber(invoiceNumber: string) {
   const match = invoiceNumber.match(/^(.*?)(\d+)$/)
@@ -93,17 +86,7 @@ function sortInvoicesNewestFirst(invoices: InvoiceRecord[]) {
 }
 
 function readInvoices(): InvoiceRecord[] {
-  if (typeof window === "undefined") return []
-
-  const saved = getActiveOrGlobalItem("invoices")
-  if (!saved) return []
-
-  try {
-    const parsed = JSON.parse(saved) as unknown
-    return Array.isArray(parsed) ? sortInvoicesNewestFirst(parsed as InvoiceRecord[]) : []
-  } catch {
-    return []
-  }
+  return sortInvoicesNewestFirst(readStoredInvoices())
 }
 
 export default function InvoicesClient() {
@@ -128,7 +111,7 @@ export default function InvoicesClient() {
   const [searchQuery, setSearchQuery] = useState(() => searchParams.get("search") || "")
 
   const rowsPerPage = 15
-  const latestInvoiceNumber = invoices[0]?.invoiceNumber || null
+  const latestInvoiceId = invoices[0]?.id || null
 
   const years = Array.from(new Set(invoices.map((invoice) => Number(invoice.date.split("-")[0]))))
   const months = [
@@ -173,12 +156,9 @@ export default function InvoicesClient() {
   const rangeSummary = buildRangeSummary(paginatedInvoices)
 
   function deleteLast() {
-    const saved = getActiveOrGlobalItem("invoices")
-    if (!saved) return
-
-    const parsed = sortInvoicesNewestFirst(JSON.parse(saved) as InvoiceRecord[])
+    const parsed = sortInvoicesNewestFirst(readStoredInvoices())
     parsed.shift()
-    setActiveOrGlobalItem("invoices", JSON.stringify(parsed))
+    writeStoredInvoices(parsed)
     setInvoices(parsed)
   }
 
@@ -297,17 +277,17 @@ export default function InvoicesClient() {
             <div className="rounded-[24px] border border-slate-200/70 bg-white p-6 text-center text-sm text-slate-500">No invoices in this range</div>
           ) : (
             paginatedInvoices.map((invoice) => {
-              const isLatestInvoice = invoice.invoiceNumber === latestInvoiceNumber
+              const isLatestInvoice = invoice.id === latestInvoiceId
 
               return (
                 <div
-                  key={invoice.invoiceNumber}
+                  key={invoice.id}
                   role="button"
                   tabIndex={0}
-                  onClick={() => router.push(`/dashboard/invoices/view/${invoice.invoiceNumber}`)}
+                  onClick={() => router.push(`/dashboard/invoices/view/${encodeURIComponent(invoice.id)}`)}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" || e.key === " ") {
-                      router.push(`/dashboard/invoices/view/${invoice.invoiceNumber}`)
+                      router.push(`/dashboard/invoices/view/${encodeURIComponent(invoice.id)}`)
                     }
                   }}
                   className="cursor-pointer rounded-[24px] border border-slate-200/70 bg-white p-4 transition hover:bg-slate-50/70 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-100"
@@ -339,7 +319,7 @@ export default function InvoicesClient() {
                           })
                           return
                         }
-                        router.push(`/dashboard/invoices/edit/${invoice.invoiceNumber}?returnTo=${encodeURIComponent(returnTo)}`)
+                        router.push(`/dashboard/invoices/edit/${encodeURIComponent(invoice.id)}?returnTo=${encodeURIComponent(returnTo)}`)
                       }}
                       className={`inline-flex h-9 w-9 items-center justify-center rounded-full border transition ${
                         canEditInvoices()
@@ -384,13 +364,13 @@ export default function InvoicesClient() {
             </thead>
             <tbody>
               {paginatedInvoices.map((invoice) => {
-                const isLatestInvoice = invoice.invoiceNumber === latestInvoiceNumber
+                const isLatestInvoice = invoice.id === latestInvoiceId
 
                 return (
                   <tr
-                    key={invoice.invoiceNumber}
+                    key={invoice.id}
                     className="cursor-pointer border-b border-slate-100 transition hover:bg-slate-50/70"
-                    onClick={() => router.push(`/dashboard/invoices/view/${invoice.invoiceNumber}`)}
+                    onClick={() => router.push(`/dashboard/invoices/view/${encodeURIComponent(invoice.id)}`)}
                   >
                     <td className="px-4 py-4 font-medium text-slate-900">{invoice.invoiceNumber}</td>
                     <td className="px-4 py-4">{invoice.clientName}</td>
@@ -412,7 +392,7 @@ export default function InvoicesClient() {
                               })
                               return
                             }
-                            router.push(`/dashboard/invoices/edit/${invoice.invoiceNumber}?returnTo=${encodeURIComponent(returnTo)}`)
+                            router.push(`/dashboard/invoices/edit/${encodeURIComponent(invoice.id)}?returnTo=${encodeURIComponent(returnTo)}`)
                           }}
                           className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold transition ${
                             canEditInvoices()

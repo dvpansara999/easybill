@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { createServerClient } from "@supabase/ssr"
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const response = NextResponse.next()
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -24,7 +24,6 @@ export async function middleware(request: NextRequest) {
     },
   })
 
-  // Refresh session if needed.
   await supabase.auth.getUser()
 
   return response
@@ -33,11 +32,9 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     /*
-      Session refresh is only needed for HTML navigations — not for API routes (PDF, etc.)
-      or static assets. Broad middleware was adding a Supabase round-trip to every API call
-      and slowing normal browsing on mobile/slow networks.
+      Session refresh is only needed for HTML navigations.
+      Skip API routes, Next internals, and asset files so PDFs/icons don't pay an auth round-trip.
     */
-    "/((?!api/|_next/static|_next/image|favicon.ico).*)",
+    "/((?!api/|_next/|.*\\..*).*)",
   ],
 }
-

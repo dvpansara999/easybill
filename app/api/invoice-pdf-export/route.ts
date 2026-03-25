@@ -37,6 +37,12 @@ function extractFingerprintFromStoragePath(storagePath: string | null | undefine
   return match?.[1]?.toLowerCase() || null
 }
 
+function extractInvoiceIdFromStoragePath(storagePath: string | null | undefined) {
+  if (!storagePath) return null
+  const match = storagePath.match(/--iid-([a-z0-9_-]+)--/i)
+  return match?.[1] || null
+}
+
 export async function POST(req: Request) {
   const body = (await req.json().catch(() => ({}))) as ExportBody
   const supabase = await createSupabaseServerClient()
@@ -49,8 +55,8 @@ export async function POST(req: Request) {
     return pdfError("Sign in to download invoices.", "UNAUTHORIZED", 401)
   }
 
-  const invoiceNumberKey = String(body.invoiceId || "").trim()
-  if (!invoiceNumberKey) {
+  const invoiceRecordId = String(body.invoiceId || "").trim()
+  if (!invoiceRecordId) {
     return pdfError(
       "Invoice id is required. PDFs are generated only from your saved account data.",
       "INVOICE_ID_REQUIRED",
@@ -79,20 +85,28 @@ export async function POST(req: Request) {
     return pdfError(resolvedSource.message, resolvedSource.code, resolvedSource.httpStatus)
   }
 
-  const { data: cached } = await supabase
+  const { data: cachedRows } = await supabase
     .from("invoice_pdf_exports")
     .select("public_url, created_at, storage_path")
     .eq("user_id", user.id)
-    .eq("invoice_number", invoiceNumberKey)
+    .eq("invoice_number", resolvedSource.source.fileInvoiceNumber)
     .gte("created_at", retentionCutoffIso)
     .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle()
+    .limit(20)
+
+  const cached =
+    cachedRows?.find(
+      (row) => extractInvoiceIdFromStoragePath(row.storage_path) === resolvedSource.source.invoiceRecordId
+    ) || null
 
   const cachedFingerprint = extractFingerprintFromStoragePath(cached?.storage_path)
 
   if (cached?.public_url && cachedFingerprint && cachedFingerprint === resolvedSource.source.sourceFingerprint) {
-    logExport("cache-hit", { invoiceNumber: invoiceNumberKey, userSuffix: user.id.slice(-6) })
+    logExport("cache-hit", {
+      invoiceId: resolvedSource.source.invoiceRecordId,
+      invoiceNumber: resolvedSource.source.fileInvoiceNumber,
+      userSuffix: user.id.slice(-6),
+    })
     return NextResponse.json({
       url: cached.public_url,
       createdAt: cached.created_at,
@@ -102,7 +116,8 @@ export async function POST(req: Request) {
 
   if (cached?.public_url) {
     logExport("cache-stale", {
-      invoiceNumber: invoiceNumberKey,
+      invoiceId: resolvedSource.source.invoiceRecordId,
+      invoiceNumber: resolvedSource.source.fileInvoiceNumber,
       userSuffix: user.id.slice(-6),
       cachedFingerprint,
       currentFingerprint: resolvedSource.source.sourceFingerprint,
@@ -111,7 +126,7 @@ export async function POST(req: Request) {
 
   const gen = await generateInvoicePdfFromResolvedSource(
     resolvedSource.source,
-    invoiceNumberKey,
+    invoiceRecordId,
     (ev, meta) => logExport(ev, meta)
   )
 
@@ -119,33 +134,32 @@ export async function POST(req: Request) {
     return pdfError(gen.message, gen.code, gen.httpStatus)
   }
 
-  if (gen.fileInvoiceNumber !== invoiceNumberKey) {
-    logExport("invoice-number-mismatch", {
-      request: invoiceNumberKey,
-      resolved: gen.fileInvoiceNumber,
-    })
-  }
-
-  const numberKeys = [...new Set([invoiceNumberKey, gen.fileInvoiceNumber])]
-
   const { data: staleRows } = await supabase
     .from("invoice_pdf_exports")
     .select("id, storage_path")
     .eq("user_id", user.id)
-    .in("invoice_number", numberKeys)
+    .eq("invoice_number", gen.fileInvoiceNumber)
 
-  if (staleRows?.length) {
-    const paths = staleRows.map((r) => r.storage_path).filter(Boolean) as string[]
+  const matchedStaleRows =
+    staleRows?.filter(
+      (row) => {
+        const storedInvoiceId = extractInvoiceIdFromStoragePath(row.storage_path)
+        return !storedInvoiceId || storedInvoiceId === resolvedSource.source.invoiceRecordId
+      }
+    ) || []
+
+  if (matchedStaleRows.length) {
+    const paths = matchedStaleRows.map((r) => r.storage_path).filter(Boolean) as string[]
     if (paths.length) {
       await supabase.storage.from(INVOICE_PDF_BUCKET).remove(paths).catch(() => {})
     }
-    const ids = staleRows.map((r) => r.id)
+    const ids = matchedStaleRows.map((r) => r.id)
     await supabase.from("invoice_pdf_exports").delete().in("id", ids)
   }
 
   const safeBase = sanitizeInvoicePdfFileBase(gen.fileInvoiceNumber)
   const randomPart = randomBytes(12).toString("hex")
-  const storagePath = `${user.id}/${safeBase}--fp-${gen.sourceFingerprint}--${Date.now()}-${randomPart}.pdf`
+  const storagePath = `${user.id}/${safeBase}--iid-${resolvedSource.source.invoiceRecordId}--fp-${gen.sourceFingerprint}--${Date.now()}-${randomPart}.pdf`
   const pdfBuffer = Buffer.from(gen.pdfBytes)
 
   const { error: uploadError } = await supabase.storage.from(INVOICE_PDF_BUCKET).upload(storagePath, pdfBuffer, {
