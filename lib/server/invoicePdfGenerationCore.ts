@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto"
 import { generateInvoicePdfBuffer } from "@/lib/server/generateInvoicePdfBuffer"
 import { parseJsonLoose } from "@/lib/server/invoicePdfRouteHelpers"
 import { normalizeInvoiceForPdf } from "@/lib/server/normalizeInvoiceForPdf"
@@ -75,16 +76,112 @@ export type InvoicePdfGenSuccess = {
   ok: true
   pdfBytes: Uint8Array
   fileInvoiceNumber: string
+  sourceFingerprint: string
 }
 
 export type InvoicePdfGenResult = InvoicePdfGenSuccess | InvoicePdfGenFailure
 
-export async function generateInvoicePdfForUser(
+export type ResolvedInvoicePdfSource = {
+  fileInvoiceNumber: string
+  renderUrl: string
+  sourceFingerprint: string
+  templateId: string
+}
+
+export type InvoicePdfResolveSuccess = {
+  ok: true
+  source: ResolvedInvoicePdfSource
+}
+
+export type InvoicePdfResolveResult = InvoicePdfResolveSuccess | InvoicePdfGenFailure
+
+function stableSerialize(value: unknown): string {
+  if (value === null || typeof value !== "object") {
+    return JSON.stringify(value)
+  }
+
+  if (Array.isArray(value)) {
+    return `[${value.map((item) => stableSerialize(item)).join(",")}]`
+  }
+
+  const entries = Object.entries(value as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b))
+  return `{${entries
+    .map(([key, entryValue]) => `${JSON.stringify(key)}:${stableSerialize(entryValue)}`)
+    .join(",")}}`
+}
+
+function createPdfSourceFingerprint(payload: PdfRenderPayload): string {
+  return createHash("sha256").update(stableSerialize(payload)).digest("hex").slice(0, 24)
+}
+
+export async function generateInvoicePdfFromResolvedSource(
+  source: ResolvedInvoicePdfSource,
+  invoiceId: string,
+  log?: (event: string, meta: Record<string, unknown>) => void
+): Promise<InvoicePdfGenResult> {
+  const result = await generateInvoicePdfBuffer({ url: source.renderUrl })
+
+  if (!result.ok) {
+    log?.("engine-error", {
+      invoiceId,
+      templateId: source.templateId,
+      code: result.code,
+      httpStatus: result.httpStatus,
+      message: result.message,
+    })
+    const codeMap: Record<string, PdfApiErrorBody["code"]> = {
+      PDF_NAV_TIMEOUT: "PDF_NAV_TIMEOUT",
+      PDF_ENGINE: "PDF_ENGINE",
+      PDF_RENDER: "PDF_RENDER",
+    }
+    return {
+      ok: false,
+      message: result.message,
+      code: codeMap[result.code] ?? "PDF_BUILD",
+      httpStatus: result.httpStatus,
+    }
+  }
+
+  if (result.pdfBytes.byteLength < 8) {
+    log?.("invalid-pdf-empty", {
+      invoiceId,
+      templateId: source.templateId,
+      byteLength: result.pdfBytes.byteLength,
+    })
+    return { ok: false, message: "PDF engine returned an empty document.", code: "PDF_BUILD", httpStatus: 500 }
+  }
+
+  const [b0, b1, b2, b3] = result.pdfBytes
+  const looksLikePdf = b0 === 0x25 && b1 === 0x50 && b2 === 0x44 && b3 === 0x46
+  if (!looksLikePdf) {
+    log?.("invalid-pdf-magic", {
+      invoiceId,
+      templateId: source.templateId,
+      byteLength: result.pdfBytes.byteLength,
+    })
+    return { ok: false, message: "PDF engine returned non-PDF bytes.", code: "PDF_BUILD", httpStatus: 500 }
+  }
+
+  log?.("pdf-success", {
+    invoiceId,
+    templateId: source.templateId,
+    byteLength: result.pdfBytes.byteLength,
+  })
+
+  return {
+    ok: true,
+    pdfBytes: result.pdfBytes,
+    fileInvoiceNumber: source.fileInvoiceNumber,
+    sourceFingerprint: source.sourceFingerprint,
+  }
+}
+
+export async function resolveInvoicePdfSourceForUser(
   supabase: SupabaseClient,
   body: InvoicePdfRequestBody,
   requestOrigin: string,
   log?: (event: string, meta: Record<string, unknown>) => void
-): Promise<InvoicePdfGenResult> {
+): Promise<InvoicePdfResolveResult> {
   const sanitizeTemplateId = (v: unknown): string | null => {
     if (typeof v !== "string") return null
     const s = v.trim()
@@ -244,57 +341,35 @@ export async function generateInvoicePdfForUser(
     fontSize: typography.fontSize,
     totals,
   }
+  const sourceFingerprint = createPdfSourceFingerprint(payload)
   const payloadEncoded = Buffer.from(JSON.stringify(payload), "utf-8").toString("base64url")
   const renderUrl = `${requestOrigin}/invoice-pdf?payload=${encodeURIComponent(payloadEncoded)}`
 
-  const result = await generateInvoicePdfBuffer({ url: renderUrl })
-
-  if (!result.ok) {
-    log?.("engine-error", {
-      invoiceId: body.invoiceId,
+  return {
+    ok: true,
+    source: {
+      fileInvoiceNumber,
+      renderUrl,
+      sourceFingerprint,
       templateId,
-      code: result.code,
-      httpStatus: result.httpStatus,
-      message: result.message,
-    })
-    const codeMap: Record<string, PdfApiErrorBody["code"]> = {
-      PDF_NAV_TIMEOUT: "PDF_NAV_TIMEOUT",
-      PDF_ENGINE: "PDF_ENGINE",
-      PDF_RENDER: "PDF_RENDER",
-    }
-    return {
-      ok: false,
-      message: result.message,
-      code: codeMap[result.code] ?? "PDF_BUILD",
-      httpStatus: result.httpStatus,
-    }
+    },
+  }
+}
+
+export async function generateInvoicePdfForUser(
+  supabase: SupabaseClient,
+  body: InvoicePdfRequestBody,
+  requestOrigin: string,
+  log?: (event: string, meta: Record<string, unknown>) => void
+): Promise<InvoicePdfGenResult> {
+  const resolved = await resolveInvoicePdfSourceForUser(supabase, body, requestOrigin, log)
+  if (!resolved.ok) {
+    return resolved
   }
 
-  if (result.pdfBytes.byteLength < 8) {
-    log?.("invalid-pdf-empty", {
-      invoiceId: body.invoiceId,
-      templateId,
-      byteLength: result.pdfBytes.byteLength,
-    })
-    return { ok: false, message: "PDF engine returned an empty document.", code: "PDF_BUILD", httpStatus: 500 }
-  }
-
-  const [b0, b1, b2, b3] = result.pdfBytes
-  const looksLikePdf = b0 === 0x25 && b1 === 0x50 && b2 === 0x44 && b3 === 0x46
-  if (!looksLikePdf) {
-    log?.("invalid-pdf-magic", {
-      invoiceId: body.invoiceId,
-      templateId,
-      byteLength: result.pdfBytes.byteLength,
-    })
-    return { ok: false, message: "PDF engine returned non-PDF bytes.", code: "PDF_BUILD", httpStatus: 500 }
-  }
-
-  log?.("pdf-success", {
-    invoiceId: body.invoiceId,
-    templateId,
-    byteLength: result.pdfBytes.byteLength,
-  })
-
-  return { ok: true, pdfBytes: result.pdfBytes, fileInvoiceNumber }
+  return generateInvoicePdfFromResolvedSource(
+    resolved.source,
+    String(body.invoiceId || ""),
+    log
+  )
 }

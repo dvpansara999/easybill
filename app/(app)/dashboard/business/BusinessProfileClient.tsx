@@ -9,9 +9,9 @@ import { type ChangeEvent, useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useBusiness } from "@/context/BusinessContext"
 import { Building2, Check, Circle, Landmark, ScrollText, Square, Upload } from "lucide-react"
-import { getActiveOrGlobalItem, setActiveOrGlobalItem } from "@/lib/userStore"
+import { flushCloudKeyNow, getActiveOrGlobalItem } from "@/lib/userStore"
 import { useAppAlert } from "@/components/providers/AppAlertProvider"
-import { MAX_LOGO_BYTES, uploadLogoToSupabase } from "@/lib/logoUpload"
+import { deleteLogoFromSupabase, MAX_LOGO_BYTES, uploadLogoToSupabase } from "@/lib/logoUpload"
 
 type BusinessProfile = {
   businessName: string
@@ -180,6 +180,8 @@ export default function BusinessProfileClient() {
   const saveProfile = async () => {
     setSavingProfile(true)
     let nextProfile = { ...profile }
+    const previousRemoteLogo = profile.logo.startsWith("http://") || profile.logo.startsWith("https://") ? profile.logo : ""
+    let uploadedRemoteLogo = ""
 
     if (logoSource) {
       try {
@@ -188,6 +190,7 @@ export default function BusinessProfileClient() {
         const blob = await res.blob()
         const file = new File([blob], "logo.webp", { type: blob.type || "image/webp" })
         const { publicUrl } = await uploadLogoToSupabase(file)
+        uploadedRemoteLogo = publicUrl
         nextProfile = { ...nextProfile, logo: publicUrl }
       } catch (err) {
         setSavingProfile(false)
@@ -201,8 +204,17 @@ export default function BusinessProfileClient() {
       }
     }
 
+    if (!nextProfile.logo && previousRemoteLogo) {
+      await deleteLogoFromSupabase(previousRemoteLogo)
+    }
+
+    if (uploadedRemoteLogo && previousRemoteLogo && previousRemoteLogo !== uploadedRemoteLogo) {
+      await deleteLogoFromSupabase(previousRemoteLogo)
+    }
+
     // Persist via context so `terms` and all fields stay in sync (setBusiness normalizes + writes KV).
     setBusiness(nextProfile)
+    await flushCloudKeyNow("businessProfile").catch(() => {})
     setProfile(nextProfile)
     setLogoSource("")
     setSavingProfile(false)

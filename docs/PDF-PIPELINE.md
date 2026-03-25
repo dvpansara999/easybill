@@ -29,3 +29,10 @@
 
 - `app/(app)/dashboard/invoices/view/[id]/page.tsx` downloads the API response.
 - Fallback remains available (`html2canvas + jsPDF`) only when server PDF fails.
+
+## Export Cache Safety
+
+- `POST /api/invoice-pdf-export` caches exported PDFs in Supabase Storage.
+- Cached exports are reused only when the current invoice render payload matches the fingerprint embedded in the stored file path.
+- Reused invoice numbers, edited invoices, or template/font changes produce a different fingerprint, so stale cached PDFs are deleted and regenerated.
+- Older cached rows without a fingerprint marker are treated as stale and replaced on the next export.

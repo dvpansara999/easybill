@@ -9,7 +9,7 @@ import { type ChangeEvent, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import SetupWizardFrame from "@/components/setup/SetupWizardFrame"
 import { getSetupProfileDraft, saveSetupProfileDraft } from "@/lib/setupProfileDraft"
-import { uploadLogoToSupabase, MAX_LOGO_BYTES } from "@/lib/logoUpload"
+import { deleteLogoFromSupabase, uploadLogoToSupabase, MAX_LOGO_BYTES } from "@/lib/logoUpload"
 import { setActiveOrGlobalItem } from "@/lib/userStore"
 import { Check, Circle, ImagePlus, Square } from "lucide-react"
 
@@ -133,6 +133,7 @@ export default function SetupProfileLogoPage() {
   }
 
   async function saveAndContinue() {
+    const previousRemoteLogo = draft.logo.startsWith("http://") || draft.logo.startsWith("https://") ? draft.logo : ""
     const croppedLogo = draft.logoSource
       ? await getCroppedLogo(draft.logoSource, croppedAreaPixels)
       : ""
@@ -153,6 +154,14 @@ export default function SetupProfileLogoPage() {
         // Don't block setup; fall back to storing the cropped logo locally for now.
         setLogoError(e instanceof Error ? e.message : "Unable to upload logo. Using local logo instead.")
       }
+    }
+
+    if (!uploadedUrl && !croppedLogo && previousRemoteLogo) {
+      await deleteLogoFromSupabase(previousRemoteLogo)
+    }
+
+    if (uploadedUrl && previousRemoteLogo && previousRemoteLogo !== uploadedUrl) {
+      await deleteLogoFromSupabase(previousRemoteLogo)
     }
 
     const nextDraft = {

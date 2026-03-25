@@ -7,8 +7,10 @@ import { useBusiness } from "@/context/BusinessContext"
 import { useSettings } from "@/context/SettingsContext"
 import { getSetupProfileDraft } from "@/lib/setupProfileDraft"
 import { generateInvoiceNumber } from "@/lib/invoiceNumber"
-import { getActiveOrGlobalItem, setActiveOrGlobalItem } from "@/lib/userStore"
+import { getInvoicePrefixError } from "@/lib/invoicePrefixValidation"
+import { flushCloudKeyNow, getActiveOrGlobalItem, setActiveOrGlobalItem } from "@/lib/userStore"
 import SelectMenu from "@/components/ui/SelectMenu"
+import { useAppAlert } from "@/components/providers/AppAlertProvider"
 
 type InvoiceHistoryRecord = {
   invoiceNumber: string
@@ -18,6 +20,7 @@ type InvoiceHistoryRecord = {
 export default function SetupProfileSettingsPage() {
   const router = useRouter()
   const { setBusiness } = useBusiness()
+  const { showAlert } = useAppAlert()
   const {
     dateFormat,
     updateDateFormat,
@@ -54,6 +57,7 @@ export default function SetupProfileSettingsPage() {
   const [draftCurrencySymbol, setDraftCurrencySymbol] = useState(currencySymbol)
   const [draftCurrencyPosition, setDraftCurrencyPosition] = useState(currencyPosition)
   const [finishing, setFinishing] = useState(false)
+  const [prefixErrorMessage, setPrefixErrorMessage] = useState("")
 
   useEffect(() => {
     setActiveOrGlobalItem("setupResumePath", "/setup/profile/settings")
@@ -68,6 +72,7 @@ export default function SetupProfileSettingsPage() {
       draftResetYearly
     )
   }, [invoiceHistory, draftInvoicePadding, draftInvoicePrefix, draftInvoiceStartNumber, draftResetYearly])
+  const invoicePrefixError = getInvoicePrefixError(draftInvoicePrefix)
 
   if (!draftProfile.businessName || !draftProfile.email) {
     router.push("/setup/profile")
@@ -77,9 +82,20 @@ export default function SetupProfileSettingsPage() {
   const selectStyle =
     "w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
 
-  function finishSetup() {
+  async function finishSetup() {
     if (finishing) return
+    if (invoicePrefixError) {
+      setPrefixErrorMessage(invoicePrefixError)
+      showAlert({
+        tone: "danger",
+        title: "Invalid invoice prefix",
+        actionHint: "Use only supported characters, then try finishing setup again.",
+        message: invoicePrefixError,
+      })
+      return
+    }
     setFinishing(true)
+    setPrefixErrorMessage("")
     updateDateFormat(draftDateFormat)
     updateAmountFormat(draftAmountFormat)
     updateShowDecimals(draftShowDecimals)
@@ -92,6 +108,7 @@ export default function SetupProfileSettingsPage() {
 
     setActiveOrGlobalItem("businessProfile", JSON.stringify(draftProfile))
     setBusiness(draftProfile)
+    await flushCloudKeyNow("businessProfile").catch(() => {})
     // Route to a finalizing step that blocks until cloud sync is completed.
     router.push("/setup/profile/finalizing")
   }
@@ -133,8 +150,21 @@ export default function SetupProfileSettingsPage() {
           <div className="grid gap-5 px-4 py-6 sm:px-7 sm:py-7 md:grid-cols-2">
             <div>
               <p className="mb-2 text-sm font-medium text-slate-900">Invoice Prefix</p>
-              <input value={draftInvoicePrefix} onChange={(e) => setDraftInvoicePrefix(e.target.value)} className={selectStyle} />
-              <p className="mt-2 text-xs leading-5 text-slate-500">Examples: INV-, TAX-, 2026-</p>
+              <input
+                value={draftInvoicePrefix}
+                onChange={(e) => {
+                  setDraftInvoicePrefix(e.target.value)
+                  setPrefixErrorMessage("")
+                }}
+                className={`${selectStyle} ${invoicePrefixError ? "border-rose-300 focus:border-rose-400 focus:ring-rose-100" : ""}`}
+              />
+              {invoicePrefixError ? (
+                <p className="mt-2 text-xs leading-5 text-rose-600">
+                  {prefixErrorMessage || invoicePrefixError}
+                </p>
+              ) : (
+                <p className="mt-2 text-xs leading-5 text-slate-500">Examples: INV-, DOC_, BILL(2026)-</p>
+              )}
             </div>
             <div>
               <p className="mb-2 text-sm font-medium text-slate-900">Number Format</p>
@@ -255,7 +285,9 @@ export default function SetupProfileSettingsPage() {
         <button
           onClick={finishSetup}
           disabled={finishing}
-          className="w-full sm:w-auto rounded-2xl bg-slate-950 px-6 py-3 text-sm font-semibold text-white shadow-[0_18px_44px_rgba(15,23,42,0.18)] transition hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-100"
+          className={`w-full sm:w-auto rounded-2xl px-6 py-3 text-sm font-semibold text-white shadow-[0_18px_44px_rgba(15,23,42,0.18)] transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-100 ${
+            finishing ? "cursor-not-allowed bg-slate-400" : "bg-slate-950 hover:bg-slate-800"
+          }`}
         >
           {finishing ? "Finishing..." : "Finish Setup"}
         </button>

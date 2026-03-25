@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useSettings } from "@/context/SettingsContext"
 import { generateInvoiceNumber } from "@/lib/invoiceNumber"
+import { getInvoicePrefixError } from "@/lib/invoicePrefixValidation"
 import {
   getActiveAuthRecord,
   requestEmailChangeOtp,
@@ -16,6 +17,7 @@ import { flushCloudKeyNow, setActiveOrGlobalItem } from "@/lib/userStore"
 import { getSupabaseUser } from "@/lib/supabase/browser"
 import SelectMenu from "@/components/ui/SelectMenu"
 import { normalizeInvoiceRecord, type InvoiceRecord } from "@/lib/invoice"
+import { useAppAlert } from "@/components/providers/AppAlertProvider"
 
 type EmailChangePolicy = {
   canChange: boolean
@@ -29,6 +31,7 @@ export default function SettingsClient() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const setupMode = searchParams.get("setup") === "1"
+  const { showAlert } = useAppAlert()
 
   const {
     dateFormat,
@@ -86,6 +89,7 @@ export default function SettingsClient() {
   const [passwordOtpVerified, setPasswordOtpVerified] = useState(false)
   const [emailPolicy, setEmailPolicy] = useState<EmailChangePolicy | null>(null)
   const [emailPolicyLoading, setEmailPolicyLoading] = useState(true)
+  const [prefixErrorMessage, setPrefixErrorMessage] = useState("")
 
   async function refreshEmailPolicy() {
     setEmailPolicyLoading(true)
@@ -171,6 +175,7 @@ export default function SettingsClient() {
       draftResetYearly
     )
   }, [invoiceHistory, draftInvoicePrefix, draftInvoicePadding, draftInvoiceStartNumber, draftResetYearly])
+  const invoicePrefixError = getInvoicePrefixError(draftInvoicePrefix)
 
   const hasPendingChanges =
     draftDateFormat !== dateFormat ||
@@ -194,6 +199,18 @@ export default function SettingsClient() {
   const newEmailIsValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail.trim())
 
   function saveChanges() {
+    if (invoicePrefixError) {
+      setPrefixErrorMessage(invoicePrefixError)
+      showAlert({
+        tone: "danger",
+        title: "Invalid invoice prefix",
+        actionHint: "Use only supported characters, then save again.",
+        message: invoicePrefixError,
+      })
+      return
+    }
+
+    setPrefixErrorMessage("")
     updateDateFormat(draftDateFormat)
     updateAmountFormat(draftAmountFormat)
     updateShowDecimals(draftShowDecimals)
@@ -804,7 +821,21 @@ export default function SettingsClient() {
         <div className="mt-6 grid gap-5 md:grid-cols-2">
           <div>
             <p className="mb-2 text-sm font-medium text-slate-900">Invoice Prefix</p>
-            <input value={draftInvoicePrefix} onChange={(e) => setDraftInvoicePrefix(e.target.value)} className={selectStyle} />
+            <input
+              value={draftInvoicePrefix}
+              onChange={(e) => {
+                setDraftInvoicePrefix(e.target.value)
+                setPrefixErrorMessage("")
+              }}
+              className={`${selectStyle} ${invoicePrefixError ? "border-rose-300 focus:border-rose-400 focus:ring-rose-100" : ""}`}
+            />
+            {invoicePrefixError ? (
+              <p className="mt-2 text-xs leading-5 text-rose-600">
+                {prefixErrorMessage || invoicePrefixError}
+              </p>
+            ) : (
+              <p className="mt-2 text-xs leading-5 text-slate-500">Examples: INV-, DOC_, BILL(2026)-</p>
+            )}
           </div>
 
           <div>

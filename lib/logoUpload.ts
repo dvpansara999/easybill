@@ -4,6 +4,7 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/browser"
 import { getActiveUserId } from "@/lib/auth"
 
 export const MAX_LOGO_BYTES = 150 * 1024
+const LOGO_BUCKET = "logos"
 
 async function fileToImage(file: File) {
   const dataUrl = await new Promise<string>((resolve, reject) => {
@@ -68,17 +69,46 @@ export async function uploadLogoToSupabase(file: File) {
   }
 
   const supabase = createSupabaseBrowserClient()
-  const path = `${userId}/logo.webp`
+  const suffix =
+    typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : Math.random().toString(36).slice(2)
+  const path = `${userId}/logo-${Date.now()}-${suffix}.webp`
 
-  const { error } = await supabase.storage.from("logos").upload(path, blob, {
-    upsert: true,
+  const { error } = await supabase.storage.from(LOGO_BUCKET).upload(path, blob, {
+    upsert: false,
     contentType: "image/webp",
     cacheControl: "3600",
   })
   if (error) throw new Error(error.message)
 
   // Cheapest: use a public bucket and store public URL.
-  const { data } = supabase.storage.from("logos").getPublicUrl(path)
+  const { data } = supabase.storage.from(LOGO_BUCKET).getPublicUrl(path)
   return { publicUrl: data.publicUrl, path, size: blob.size }
+}
+
+function toOwnedLogoStoragePath(publicUrl: string, userId: string) {
+  try {
+    const url = new URL(publicUrl)
+    const marker = `/${LOGO_BUCKET}/`
+    const markerIndex = url.pathname.indexOf(marker)
+    if (markerIndex === -1) return null
+    const storagePath = decodeURIComponent(url.pathname.slice(markerIndex + marker.length))
+    if (!storagePath.startsWith(`${userId}/`)) return null
+    return storagePath
+  } catch {
+    return null
+  }
+}
+
+export async function deleteLogoFromSupabase(publicUrl: string | null | undefined) {
+  const userId = getActiveUserId()
+  if (!userId || !publicUrl) return
+
+  const storagePath = toOwnedLogoStoragePath(publicUrl, userId)
+  if (!storagePath) return
+
+  const supabase = createSupabaseBrowserClient()
+  await supabase.storage.from(LOGO_BUCKET).remove([storagePath]).catch(() => {})
 }
 
