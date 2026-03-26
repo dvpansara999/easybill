@@ -277,10 +277,6 @@ export default function CreateInvoiceClient() {
         title: "Syncing your account...",
         actionHint: "Wait a few seconds, then try your action again.",
         message: "easyBILL is still loading your saved data from the cloud.",
-        details: [
-          "This usually settles automatically after your account finishes hydrating.",
-          "Waiting avoids creating or saving against incomplete cloud data.",
-        ],
       })
       return
     }
@@ -292,10 +288,6 @@ export default function CreateInvoiceClient() {
         title: "Invoice limit reached (Free plan)",
         actionHint: "Upgrade for unlimited invoices, or free up space by removing old drafts.",
         message: "You've reached the Free plan limit of 10 invoices. Upgrade to Plus to create more invoices.",
-        details: [
-          "Existing invoices stay available to view, print, and export.",
-          "Upgrading to Plus removes the invoice cap for this workspace.",
-        ],
         primaryLabel: "Upgrade to Plus",
         secondaryLabel: "Not now",
         onPrimary: () => router.push("/dashboard/upgrade"),
@@ -310,10 +302,6 @@ export default function CreateInvoiceClient() {
         title: "Business profile needs attention",
         actionHint: "Open Business Profile, complete the required details, then try creating the invoice again.",
         message: businessError,
-        details: [
-          "Invoices need complete business information so view, print, and PDF export stay accurate.",
-          "Your current invoice draft will still be here after you finish the missing business details.",
-        ],
       })
       return
     }
@@ -359,10 +347,6 @@ export default function CreateInvoiceClient() {
         title: "Missing or invalid invoice details",
         actionHint: "Check required fields (including invoice date), fix any issues, then save again.",
         message: invoiceError,
-        details: [
-          "The invoice is not saved until all required client, date, and item details are valid.",
-          "Review the highlighted inputs and try again once everything looks complete.",
-        ],
       })
       return
     }
@@ -375,10 +359,6 @@ export default function CreateInvoiceClient() {
           title: "Check the invoice date",
           actionHint: "Pick a date on or after your last invoice, then save again.",
           message: "Invoice date can't be earlier than the previous invoice date.",
-          details: [
-            "This keeps invoice chronology predictable when numbering depends on invoice date.",
-            "Choose a later date if this invoice should come after your latest saved invoice.",
-          ],
         })
         return
       }
@@ -394,10 +374,6 @@ export default function CreateInvoiceClient() {
       title: "Invoice saved",
       actionHint: "Open your list to view, print, or share the PDF.",
       message: "Your invoice is saved and ready to view, print, or download as PDF.",
-      details: [
-        "The invoice number is now reserved and locked to this saved record.",
-        "You can open it anytime from the invoice list for view, print, share, or export.",
-      ],
       primaryLabel: "Go to invoices",
       onPrimary: () => router.push("/dashboard/invoices"),
     })

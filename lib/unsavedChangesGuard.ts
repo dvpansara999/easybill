@@ -91,12 +91,6 @@ export function useUnsavedChangesGuard({
         title,
         actionHint,
         message,
-        eyebrow: "Changes waiting to be saved",
-        details: [
-          "Apply changes to keep your latest edits on this page.",
-          "Revert changes if you want to leave without updating anything.",
-        ],
-        footerNote: "Closing the browser tab may still trigger your browser's own leave-page warning.",
         primaryLabel: "Apply changes",
         secondaryLabel: "Revert changes",
         onPrimary: async () => {

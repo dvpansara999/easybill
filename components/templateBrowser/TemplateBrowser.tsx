@@ -84,10 +84,6 @@ export default function TemplateBrowser({ templates }: { templates: TemplateEntr
         title: "Template locked (Free plan)",
         actionHint: "Upgrade to Plus to unlock this template, or pick another style.",
         message: "This template is available on Plus. Upgrade to unlock it.",
-        details: [
-          "Your current template stays active until you choose another available option.",
-          "Upgrade only if you want access to premium template styles.",
-        ],
         primaryLabel: "Upgrade to Plus",
         secondaryLabel: "Not now",
         onPrimary: () => router.push("/dashboard/upgrade"),
@@ -103,10 +99,6 @@ export default function TemplateBrowser({ templates }: { templates: TemplateEntr
       title: "Template applied",
       actionHint: "Create or preview an invoice to see it in action.",
       message: "This template will be used for new invoices (and previews) in easyBILL.",
-      details: [
-        "Invoice view, print, and PDF export will use this updated design.",
-        "You can switch templates again at any time.",
-      ],
     })
   }
 

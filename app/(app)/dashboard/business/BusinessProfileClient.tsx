@@ -165,10 +165,6 @@ export default function BusinessProfileClient() {
           title: "Logo not accepted",
           actionHint: "Use a valid logo file, then upload again.",
           message: error instanceof Error ? error.message : "Unable to use this logo file.",
-          details: [
-            getLogoUploadRuleText(),
-            "Try a clear square or round logo for the best invoice fit.",
-          ],
         })
       })
   }
@@ -211,11 +207,6 @@ export default function BusinessProfileClient() {
           title: "Logo upload failed",
           actionHint: "Check your connection and file format, then try uploading again.",
           message: err instanceof Error ? err.message : "Unable to upload logo.",
-          details: [
-            "Your existing saved logo has not been changed.",
-            "Once the upload succeeds, the new logo will update across templates, invoice view, and PDF exports.",
-          ],
-          footerNote: "If this keeps happening, try a smaller PNG or JPG and upload again.",
         })
         return false
       }
@@ -251,11 +242,6 @@ export default function BusinessProfileClient() {
       title: "Business profile saved",
       actionHint: "You can keep editing or continue invoicing - changes apply everywhere.",
       message: "Your business details are saved and will be used across templates, print, and PDF exports.",
-      details: [
-        "Business identity, payment details, and terms are now aligned across the app.",
-        "Any new invoice or PDF export will use this latest version automatically.",
-      ],
-      footerNote: "You can return here anytime to refine your brand mark, payment details, or invoice terms.",
     })
     return true
   }

@@ -5,8 +5,8 @@
   "/setup/profile/finalizing/page": "app/setup/profile/finalizing/page.js",
   "/(app)/dashboard/business/page": "app/(app)/dashboard/business/page.js",
   "/(app)/dashboard/invoices/view/[id]/page": "app/(app)/dashboard/invoices/view/[id]/page.js",
-  "/(app)/dashboard/settings/page": "app/(app)/dashboard/settings/page.js",
   "/(app)/dashboard/page": "app/(app)/dashboard/page.js",
+  "/(app)/dashboard/settings/page": "app/(app)/dashboard/settings/page.js",
   "/(app)/dashboard/invoices/create/page": "app/(app)/dashboard/invoices/create/page.js",
   "/(app)/dashboard/invoices/page": "app/(app)/dashboard/invoices/page.js",
   "/(app)/dashboard/invoices/edit/[id]/page": "app/(app)/dashboard/invoices/edit/[id]/page.js"

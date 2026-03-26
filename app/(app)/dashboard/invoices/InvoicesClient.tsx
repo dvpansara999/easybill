@@ -313,10 +313,6 @@ export default function InvoicesClient() {
                             title: "Editing is locked on the Free plan",
                             actionHint: "Upgrade to Plus to unlock editing, or stay on the list.",
                             message: "Upgrade to Plus to edit invoices.",
-                            details: [
-                              "You can still view, print, and download your existing invoices on the Free plan.",
-                              "Editing unlocks once the workspace is upgraded to Plus.",
-                            ],
                             primaryLabel: "Upgrade to Plus",
                             secondaryLabel: "Not now",
                             onPrimary: () => router.push("/dashboard/upgrade"),
@@ -395,10 +391,6 @@ export default function InvoicesClient() {
                                 title: "Editing is locked on the Free plan",
                                 actionHint: "Upgrade to Plus to unlock editing, or stay on the list.",
                                 message: "Upgrade to Plus to edit invoices.",
-                                details: [
-                                  "You can still open, print, and export invoices without editing access.",
-                                  "Switch to Plus when you want invoice edits after creation.",
-                                ],
                                 primaryLabel: "Upgrade to Plus",
                                 secondaryLabel: "Not now",
                                 onPrimary: () => router.push("/dashboard/upgrade"),

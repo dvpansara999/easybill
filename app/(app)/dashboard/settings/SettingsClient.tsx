@@ -286,11 +286,6 @@ export default function SettingsClient() {
         title: "Invalid invoice prefix",
         actionHint: "Use only supported characters, then save again.",
         message: invoicePrefixError,
-        details: [
-          "Letters, numbers, and common symbols like -, _, ., (, ) are supported.",
-          "Spaces and URL-sensitive characters can break invoice routes and exports.",
-        ],
-        footerNote: "Your current saved settings are unchanged until this page is saved successfully.",
       })
       return false
     }

@@ -152,10 +152,6 @@ if(!canUseTemplate(previewTemplate)){
     title: "Template locked (Free plan)",
     actionHint: "Upgrade to Plus to unlock this template, or pick another style.",
     message: "This template is available on Plus. Upgrade to unlock it.",
-    details: [
-      "Your currently active template will stay unchanged.",
-      "Plus unlocks the premium template library for future invoices and exports.",
-    ],
     primaryLabel: "Upgrade to Plus",
     secondaryLabel: "Not now",
     onPrimary: () => router.push("/dashboard/upgrade"),
@@ -178,10 +174,6 @@ showAlert({
   title: "Template applied",
   actionHint: "Create or preview an invoice to see it in action.",
   message: "This template will be used for new invoices (and previews) in easyBILL.",
-  details: [
-    "Invoice previews, prints, and PDF exports will use this design going forward.",
-    "You can still change typography and switch templates later without affecting past invoices.",
-  ],
 })
 
 }

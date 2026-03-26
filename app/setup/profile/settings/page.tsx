@@ -140,11 +140,6 @@ export default function SetupProfileSettingsPage() {
         title: "Invalid invoice prefix",
         actionHint: "Use only supported characters, then try finishing setup again.",
         message: invoicePrefixError,
-        details: [
-          "Letters, numbers, and simple separators work best for invoice numbering.",
-          "Spaces and unsupported characters can break invoice links later.",
-        ],
-        footerNote: "Setup will continue once your prefix is valid and the page saves successfully.",
       })
       return
     }

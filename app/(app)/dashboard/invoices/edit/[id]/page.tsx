@@ -144,10 +144,6 @@ export default function EditInvoice() {
         title: "Editing is locked on the Free plan",
         actionHint: "Upgrade to Plus to unlock editing, or go back to your list.",
         message: "Upgrade to Plus to edit invoices.",
-        details: [
-          "You can still view, print, and export this invoice while staying on the Free plan.",
-          "Upgrade only when you need to revise already-saved invoices.",
-        ],
         primaryLabel: "Upgrade to Plus",
         secondaryLabel: "Back",
         onPrimary: () => router.push("/dashboard/upgrade"),
@@ -258,10 +254,6 @@ export default function EditInvoice() {
         title: "Business profile needs attention",
         actionHint: "Open Business Profile, complete the required details, then come back to this invoice.",
         message: businessError,
-        details: [
-          "Business details are used again in invoice view, print, and PDF export.",
-          "This invoice will remain unchanged until the required business fields are complete.",
-        ],
       })
       return
     }
@@ -274,10 +266,6 @@ export default function EditInvoice() {
         title: "Invoice not found",
         actionHint: "Return to your invoice list and pick a valid invoice.",
         message: "This invoice could not be found in your current account.",
-        details: [
-          "The link may be old, or the invoice may have been removed from this account.",
-          "Go back to the invoice list to open the latest saved version.",
-        ],
         primaryLabel: "Back",
         onPrimary: () => router.push(returnTo),
       })
@@ -312,10 +300,6 @@ export default function EditInvoice() {
         title: "Missing or invalid invoice details",
         actionHint: "Check required fields (including invoice date), fix any issues, then save again.",
         message: invoiceError,
-        details: [
-          "Updates are not saved until all required invoice fields pass validation.",
-          "Review client details, invoice items, and any required dates before trying again.",
-        ],
       })
       return
     }
@@ -331,10 +315,6 @@ export default function EditInvoice() {
       title: "Invoice updated",
       actionHint: "View, print, or download the PDF anytime from your list.",
       message: "Your changes have been saved.",
-      details: [
-        "The invoice number stays frozen, while the edited content updates immediately.",
-        "Future invoice view, print, and PDF export will now use these saved changes.",
-      ],
       primaryLabel: "Back to invoices",
       onPrimary: () => router.push(returnTo),
     })
