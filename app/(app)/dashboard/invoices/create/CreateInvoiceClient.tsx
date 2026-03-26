@@ -127,7 +127,7 @@ export default function CreateInvoiceClient() {
   const [clientGST, setClientGST] = useState(duplicateSource?.clientGST || searchParams.get("gstin") || "")
   const [clientAddress, setClientAddress] = useState(duplicateSource?.clientAddress || searchParams.get("address") || "")
   const [date, setDate] = useState(() => getTodayLocalDate())
-  const [notes, setNotes] = useState(duplicateSource?.notes || "")
+  const [notes] = useState(duplicateSource?.notes || "")
 
   const [customDetails, setCustomDetails] = useState<CustomDetail[]>(duplicateSource?.customDetails || [])
   const [suggestions, setSuggestions] = useState<ProductRecord[]>([])
@@ -405,7 +405,7 @@ export default function CreateInvoiceClient() {
         description={
           duplicateSource
             ? "Review the copied details, make any changes you need, and save to issue a new invoice number."
-            : "Build a clean invoice with customer details, line items, taxes, notes, and a ready-to-export PDF."
+            : "Build a clean invoice with customer details, line items, taxes, and a ready-to-export PDF."
         }
         backLabel="Back to invoices"
         onBack={() => router.push("/dashboard/invoices")}
@@ -546,17 +546,6 @@ export default function CreateInvoiceClient() {
           </div>
         </div>
 
-        <div className="mt-4">
-          <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Invoice Notes</label>
-          <div className="rounded-[24px] border border-slate-200 bg-white p-4">
-            <textarea
-              placeholder="Optional internal notes or invoice context"
-              className="min-h-[120px] w-full resize-none bg-transparent px-0 py-0 text-sm outline-none transition placeholder:text-slate-400 focus:border-transparent focus:ring-0"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-            />
-          </div>
-        </div>
       </section>
 
       <section className="soft-card rounded-[24px] p-4 sm:p-6 xl:rounded-[28px]">
