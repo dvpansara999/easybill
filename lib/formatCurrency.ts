@@ -21,7 +21,7 @@ function formatIndianLakhCroreCore(absAmount: number, unit: "L" | "Cr"): string 
 }
 
 /**
- * Dashboard Quick Stats (narrow viewports): full amount below ₹1L; ₹1L–<₹1Cr as X.XXL; ≥₹1Cr as X.XXCr.
+ * Dashboard Quick Stats (narrow viewports): full amount below Rs 1L; Rs 1L to below Rs 1Cr as X.XXL; Rs 1Cr and above as X.XXCr.
  */
 export function formatCurrencyQuickStatsMobile(
   amount: number,
@@ -40,7 +40,7 @@ export function formatCurrencyQuickStatsMobile(
     return formatCurrency(n, symbol, position, showDecimals, amountFormat)
   }
 
-  const normalizedSymbol = symbol === "Rs" ? "₹" : symbol
+  const normalizedSymbol = symbol === "Rs" ? "\u20B9" : symbol
   const sign = n < 0 ? "-" : ""
   const core = abs < 10_000_000 ? formatIndianLakhCroreCore(abs, "L") : formatIndianLakhCroreCore(abs, "Cr")
 
@@ -57,23 +57,21 @@ export function formatCurrency(
   showDecimals: boolean,
   amountFormat: string
 ) {
-
   // Backwards compatibility: older saved preference used "Rs" for Indian Rupee.
-  // Normalize to the correct ₹ symbol so all places render consistently.
-  const normalizedSymbol = symbol === "Rs" ? "₹" : symbol
+  // Normalize to the correct rupee symbol so all places render consistently.
+  const normalizedSymbol = symbol === "Rs" ? "\u20B9" : symbol
 
   const formattedNumber = new Intl.NumberFormat(
     amountFormat === "indian" ? "en-IN" : "en-US",
     {
       minimumFractionDigits: showDecimals ? 2 : 0,
-      maximumFractionDigits: showDecimals ? 2 : 0
+      maximumFractionDigits: showDecimals ? 2 : 0,
     }
   ).format(amount)
 
   if (position === "before") {
     return `${normalizedSymbol}${formattedNumber}`
-  } else {
-    return `${formattedNumber} ${normalizedSymbol}`
   }
 
+  return `${formattedNumber} ${normalizedSymbol}`
 }

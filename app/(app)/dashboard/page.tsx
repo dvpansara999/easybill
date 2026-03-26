@@ -1,13 +1,14 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { startTransition, useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useSettings } from "@/context/SettingsContext"
 import { formatDate } from "@/lib/dateFormat"
 import { getActiveUserId } from "@/lib/auth"
 import { formatCurrency, formatCurrencyQuickStatsMobile } from "@/lib/formatCurrency"
+import { sortInvoicesNewestFirst } from "@/lib/invoiceCollections"
 import { getAuthMode } from "@/lib/runtimeMode"
-import { isActiveUserKvHydrated } from "@/lib/userStore"
+import { getActiveOrGlobalItem, isActiveUserKvHydrated } from "@/lib/userStore"
 import { readStoredInvoices, type InvoiceRecord } from "@/lib/invoice"
 import {
   ArrowRight,
@@ -109,20 +110,7 @@ function safeParseProducts(raw: string | null): ProductRecord[] {
   }
 }
 
-function sortInvoicesByDate(invoices: InvoiceRecord[]) {
-  return [...invoices].sort((a, b) => {
-    const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime()
-    if (dateDiff !== 0) return dateDiff
-
-    const aNum = Number(String(a.invoiceNumber || "").replace(/\D/g, ""))
-    const bNum = Number(String(b.invoiceNumber || "").replace(/\D/g, ""))
-    return bNum - aNum
-  })
-}
-
 function buildDashboardSnapshot(): DashboardSnapshot {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { getActiveOrGlobalItem } = require("@/lib/userStore") as typeof import("@/lib/userStore")
   const invoices = readStoredInvoices()
   const products = safeParseProducts(getActiveOrGlobalItem("products"))
 
@@ -133,7 +121,7 @@ function buildDashboardSnapshot(): DashboardSnapshot {
     }
   }
 
-  const sortedInvoices = sortInvoicesByDate(invoices)
+  const sortedInvoices = sortInvoicesNewestFirst(invoices)
 
   const now = new Date()
   const currentMonth = now.getMonth()
@@ -262,7 +250,20 @@ export default function Dashboard() {
   } = useSettings()
 
   const router = useRouter()
+  const dashboardReturnTo = "/dashboard"
   const [snapshot, setSnapshot] = useState<DashboardSnapshot>(EMPTY_SNAPSHOT)
+  const [loadingSnapshot, setLoadingSnapshot] = useState(true)
+
+  useEffect(() => {
+    router.prefetch("/dashboard/invoices")
+    router.prefetch("/dashboard/invoices/create")
+    router.prefetch("/dashboard/customers")
+    router.prefetch("/dashboard/templates")
+    router.prefetch("/dashboard/settings")
+    snapshot.recentInvoices.slice(0, 8).forEach((invoice) => {
+      router.prefetch(`/dashboard/invoices/view/${encodeURIComponent(invoice.id)}`)
+    })
+  }, [router, snapshot.recentInvoices])
 
   useEffect(() => {
     let initialLoaded = false
@@ -279,15 +280,39 @@ export default function Dashboard() {
       }
 
       initialLoaded = true
-      setSnapshot(buildDashboardSnapshot())
+      startTransition(() => {
+        setSnapshot(buildDashboardSnapshot())
+        setLoadingSnapshot(false)
+      })
     }
 
-    const onCloudSync = () => {
+    const refreshSnapshot = () => {
       initialLoaded = true
-      setSnapshot(buildDashboardSnapshot())
+      setLoadingSnapshot(true)
+      window.requestAnimationFrame(() => {
+        startTransition(() => {
+          setSnapshot(buildDashboardSnapshot())
+          setLoadingSnapshot(false)
+        })
+      })
+    }
+    const onCloudSync = () => refreshSnapshot()
+    const onKvWrite = (event: Event) => {
+      const key = (event as CustomEvent<{ key?: string }>).detail?.key
+      if (key === "invoices" || key === "products") {
+        refreshSnapshot()
+      }
+    }
+    const onStorage = (event: StorageEvent) => {
+      const key = event.key || ""
+      if (key.startsWith("invoices::") || key.startsWith("products::") || key === "invoices" || key === "products") {
+        refreshSnapshot()
+      }
     }
 
     window.addEventListener("easybill:cloud-sync", onCloudSync as EventListener)
+    window.addEventListener("easybill:kv-write", onKvWrite as EventListener)
+    window.addEventListener("storage", onStorage)
 
     loadIfReady()
     let attempts = 0
@@ -300,12 +325,15 @@ export default function Dashboard() {
       attempts += 1
       loadIfReady()
       if (attempts >= 20) {
+        setLoadingSnapshot(false)
         window.clearInterval(intervalId)
       }
     }, 150)
 
     return () => {
       window.removeEventListener("easybill:cloud-sync", onCloudSync as EventListener)
+      window.removeEventListener("easybill:kv-write", onKvWrite as EventListener)
+      window.removeEventListener("storage", onStorage)
       window.clearInterval(intervalId)
     }
   }, [])
@@ -362,6 +390,26 @@ export default function Dashboard() {
     () => snapshot.chartData.reduce((sum, entry) => sum + Number(entry.revenue || 0), 0),
     [snapshot.chartData]
   )
+
+  if (loadingSnapshot) {
+    return (
+      <div className="space-y-6 lg:space-y-8">
+        <section className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+          <div className="soft-card min-h-[220px] animate-pulse rounded-[30px] bg-slate-100" />
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-1">
+            <div className="soft-card min-h-[140px] animate-pulse rounded-[28px] bg-slate-100" />
+            <div className="soft-card min-h-[140px] animate-pulse rounded-[28px] bg-slate-100" />
+          </div>
+        </section>
+        <section className="grid grid-cols-2 gap-4 2xl:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <div key={index} className="soft-card min-h-[150px] animate-pulse rounded-[24px] bg-slate-100" />
+          ))}
+        </section>
+        <section className="soft-card min-h-[320px] animate-pulse rounded-[28px] bg-slate-100" />
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6 lg:space-y-8">
@@ -473,7 +521,11 @@ export default function Dashboard() {
               <button
                 key={invoice.id}
                 type="button"
-                onClick={() => router.push(`/dashboard/invoices/view/${encodeURIComponent(invoice.id)}`)}
+                onClick={() =>
+                  router.push(
+                    `/dashboard/invoices/view/${encodeURIComponent(invoice.id)}?returnTo=${encodeURIComponent(dashboardReturnTo)}`
+                  )
+                }
                 className="w-full rounded-[24px] border border-slate-200/70 bg-white p-4 text-left transition hover:bg-slate-50/70 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-100"
               >
                 <div className="flex items-start justify-between gap-4">
@@ -514,7 +566,11 @@ export default function Dashboard() {
                   <tr
                     key={invoice.id}
                     className="cursor-pointer border-b border-slate-100 transition hover:bg-slate-50/70"
-                    onClick={() => router.push(`/dashboard/invoices/view/${encodeURIComponent(invoice.id)}`)}
+                    onClick={() =>
+                      router.push(
+                        `/dashboard/invoices/view/${encodeURIComponent(invoice.id)}?returnTo=${encodeURIComponent(dashboardReturnTo)}`
+                      )
+                    }
                   >
                     <td className="px-4 py-4 font-medium text-slate-900">{invoice.invoiceNumber}</td>
                     <td className="px-4 py-4">{invoice.clientName}</td>

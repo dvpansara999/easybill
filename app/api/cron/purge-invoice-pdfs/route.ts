@@ -1,6 +1,14 @@
 import { NextResponse } from "next/server"
 import { createSupabaseAdminClient } from "@/lib/supabase/admin"
 import { INVOICE_PDF_BUCKET, INVOICE_PDF_RETENTION_DAYS } from "@/lib/server/invoicePdfExportConfig"
+import { filterDuplicateInvoiceExportRows } from "@/lib/server/invoicePdfExportCache"
+import {
+  buildPdfExportReferenceSet,
+  deleteStorageObjects,
+  fetchAllInvoicePdfExportRows,
+  filterOldUnreferencedObjects,
+  listBucketObjects,
+} from "@/lib/server/storageMaintenance"
 
 export const maxDuration = 60
 export const dynamic = "force-dynamic"
@@ -33,7 +41,10 @@ export async function GET(req: Request) {
   }
 
   const cutoff = new Date(Date.now() - INVOICE_PDF_RETENTION_DAYS * 24 * 60 * 60 * 1000).toISOString()
+  const orphanCutoff = new Date(Date.now() - 60 * 60 * 1000).toISOString()
   let deletedRows = 0
+  let deletedDuplicateRows = 0
+  let deletedOrphanedFiles = 0
   const batchSize = 200
 
   for (;;) {
@@ -64,9 +75,42 @@ export async function GET(req: Request) {
     if (rows.length < batchSize) break
   }
 
+  const allRows = await fetchAllInvoicePdfExportRows(admin)
+  const duplicateRows = filterDuplicateInvoiceExportRows(allRows)
+  if (duplicateRows.length) {
+    const duplicatePaths = duplicateRows.map((row) => row.storage_path).filter((value): value is string => Boolean(value))
+    if (duplicatePaths.length) {
+      await deleteStorageObjects(admin, INVOICE_PDF_BUCKET, duplicatePaths)
+    }
+
+    const duplicateIds = duplicateRows.map((row) => row.id)
+    const { error: duplicateDeleteError } = await admin.from("invoice_pdf_exports").delete().in("id", duplicateIds)
+    if (duplicateDeleteError) {
+      return NextResponse.json(
+        { error: duplicateDeleteError.message, deletedRows, deletedDuplicateRows, deletedOrphanedFiles },
+        { status: 500 }
+      )
+    }
+    deletedDuplicateRows = duplicateRows.length
+  }
+
+  const refreshedRows = await fetchAllInvoicePdfExportRows(admin)
+  const referencedPaths = buildPdfExportReferenceSet(refreshedRows)
+  const bucketObjects = await listBucketObjects(admin, INVOICE_PDF_BUCKET)
+  const orphanedObjects = filterOldUnreferencedObjects(bucketObjects, referencedPaths, orphanCutoff)
+  if (orphanedObjects.length) {
+    deletedOrphanedFiles = await deleteStorageObjects(
+      admin,
+      INVOICE_PDF_BUCKET,
+      orphanedObjects.map((row) => row.name)
+    )
+  }
+
   return NextResponse.json({
     ok: true,
     deletedRows,
+    deletedDuplicateRows,
+    deletedOrphanedFiles,
     retentionDays: INVOICE_PDF_RETENTION_DAYS,
     cutoff,
   })

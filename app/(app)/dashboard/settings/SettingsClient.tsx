@@ -1,9 +1,9 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useSettings } from "@/context/SettingsContext"
-import { generateInvoiceNumber } from "@/lib/invoiceNumber"
+import { buildInvoiceNumberPreviewSeries, generateInvoiceNumber, getFirstRepeatedInvoiceNumberWarning } from "@/lib/invoiceNumber"
 import { getInvoicePrefixError } from "@/lib/invoicePrefixValidation"
 import { formatResetMonthLabel, RESET_MONTH_DAY_OPTIONS } from "@/lib/invoiceResetDate"
 import {
@@ -19,6 +19,7 @@ import { getSupabaseUser } from "@/lib/supabase/browser"
 import SelectMenu from "@/components/ui/SelectMenu"
 import { readStoredInvoices, type InvoiceRecord } from "@/lib/invoice"
 import { useAppAlert } from "@/components/providers/AppAlertProvider"
+import { requestGuardedNavigation, useUnsavedChangesGuard } from "@/lib/unsavedChangesGuard"
 
 type EmailChangePolicy = {
   canChange: boolean
@@ -94,6 +95,13 @@ export default function SettingsClient() {
   const [emailPolicy, setEmailPolicy] = useState<EmailChangePolicy | null>(null)
   const [emailPolicyLoading, setEmailPolicyLoading] = useState(true)
   const [prefixErrorMessage, setPrefixErrorMessage] = useState("")
+  const [savingSettings, setSavingSettings] = useState(false)
+
+  useEffect(() => {
+    router.prefetch("/dashboard")
+    router.prefetch("/dashboard/settings/report")
+    router.prefetch("/dashboard/settings/invoice-visibility")
+  }, [router])
 
   async function refreshEmailPolicy() {
     setEmailPolicyLoading(true)
@@ -174,7 +182,53 @@ export default function SettingsClient() {
       draftInvoiceResetMonthDay
     )
   }, [invoiceHistory, draftInvoicePrefix, draftInvoicePadding, draftInvoiceStartNumber, draftResetYearly, draftInvoiceResetMonthDay])
+  const duplicateCycleWarning = useMemo(() => {
+    return getFirstRepeatedInvoiceNumberWarning(
+      invoiceHistory,
+      {
+        prefix: draftInvoicePrefix,
+        padding: draftInvoicePadding,
+        startNumber: Math.max(1, Number.isFinite(draftInvoiceStartNumber) ? draftInvoiceStartNumber : 1),
+        resetYearly: draftResetYearly,
+        resetMonthDay: draftInvoiceResetMonthDay,
+      }
+    )
+  }, [
+    draftInvoicePadding,
+    draftInvoicePrefix,
+    draftInvoiceResetMonthDay,
+    draftInvoiceStartNumber,
+    draftResetYearly,
+    invoiceHistory,
+  ])
   const invoicePrefixError = getInvoicePrefixError(draftInvoicePrefix)
+  const invoicePreviewSeries = useMemo(() => {
+    return buildInvoiceNumberPreviewSeries(
+      invoiceHistory,
+      {
+        prefix: draftInvoicePrefix,
+        padding: draftInvoicePadding,
+        startNumber: Math.max(1, Number.isFinite(draftInvoiceStartNumber) ? draftInvoiceStartNumber : 1),
+        resetYearly: draftResetYearly,
+        resetMonthDay: draftInvoiceResetMonthDay,
+      },
+      3
+    )
+  }, [
+    draftInvoicePadding,
+    draftInvoicePrefix,
+    draftInvoiceResetMonthDay,
+    draftInvoiceStartNumber,
+    draftResetYearly,
+    invoiceHistory,
+  ])
+  const numberingScopeNotice =
+    invoiceHistory.length > 0 &&
+    (draftInvoicePrefix !== invoicePrefix ||
+      draftResetYearly !== resetYearly ||
+      draftInvoiceResetMonthDay !== invoiceResetMonthDay)
+      ? "This only affects future invoices. Existing invoice numbers stay exactly as they were issued."
+      : ""
 
   const hasPendingChanges =
     draftDateFormat !== dateFormat ||
@@ -198,7 +252,33 @@ export default function SettingsClient() {
 
   const newEmailIsValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail.trim())
 
-  function saveChanges() {
+  const resetDraftsFromSaved = useCallback(() => {
+    setDraftDateFormat(dateFormat)
+    setDraftAmountFormat(amountFormat)
+    setDraftShowDecimals(showDecimals)
+    setDraftInvoicePrefix(invoicePrefix)
+    setDraftInvoicePadding(invoicePadding)
+    setDraftInvoiceStartNumber(invoiceStartNumber)
+    setDraftResetYearly(resetYearly)
+    setDraftInvoiceResetMonthDay(invoiceResetMonthDay)
+    setDraftCurrencySymbol(currencySymbol)
+    setDraftCurrencyPosition(currencyPosition)
+    setPrefixErrorMessage("")
+    setSaveMessage("")
+  }, [
+    amountFormat,
+    currencyPosition,
+    currencySymbol,
+    dateFormat,
+    invoicePadding,
+    invoicePrefix,
+    invoiceResetMonthDay,
+    invoiceStartNumber,
+    resetYearly,
+    showDecimals,
+  ])
+
+  async function saveChanges(options?: { navigateAfterSave?: boolean }) {
     if (invoicePrefixError) {
       setPrefixErrorMessage(invoicePrefixError)
       showAlert({
@@ -206,11 +286,17 @@ export default function SettingsClient() {
         title: "Invalid invoice prefix",
         actionHint: "Use only supported characters, then save again.",
         message: invoicePrefixError,
+        details: [
+          "Letters, numbers, and common symbols like -, _, ., (, ) are supported.",
+          "Spaces and URL-sensitive characters can break invoice routes and exports.",
+        ],
+        footerNote: "Your current saved settings are unchanged until this page is saved successfully.",
       })
-      return
+      return false
     }
 
     setPrefixErrorMessage("")
+    setSavingSettings(true)
     updateDateFormat(draftDateFormat)
     updateAmountFormat(draftAmountFormat)
     updateShowDecimals(draftShowDecimals)
@@ -222,14 +308,27 @@ export default function SettingsClient() {
     updateCurrencySymbol(draftCurrencySymbol)
     updateCurrencyPosition(draftCurrencyPosition)
 
-    if (setupMode) {
+    await new Promise((resolve) => window.setTimeout(resolve, 120))
+
+    if (setupMode && options?.navigateAfterSave !== false) {
+      setSavingSettings(false)
       router.push("/dashboard")
-      return
+      return true
     }
 
     setSaveMessage("Changes saved.")
+    setSavingSettings(false)
     window.setTimeout(() => setSaveMessage(""), 2000)
+    return true
   }
+
+  useUnsavedChangesGuard({
+    hasUnsavedChanges: hasPendingChanges,
+    onApply: () => saveChanges({ navigateAfterSave: false }),
+    onRevert: resetDraftsFromSaved,
+    actionHint: "Apply your settings before leaving, or revert them and continue.",
+    message: "You changed invoice settings on this page.",
+  })
 
   async function updateEmailOnly() {
     setAccountMessage("")
@@ -414,7 +513,17 @@ export default function SettingsClient() {
     setAccountMessage("OTP verified. You can now set a new password.")
   }
 
-  if (!ready) return null
+  if (!ready) {
+    return (
+      <div className="space-y-6">
+        <div className="soft-card min-h-[140px] animate-pulse rounded-[24px] bg-slate-100 sm:rounded-[28px]" />
+        <div className="grid gap-6 xl:grid-cols-2">
+          <div className="soft-card min-h-[260px] animate-pulse rounded-[24px] bg-slate-100 sm:rounded-[28px]" />
+          <div className="soft-card min-h-[260px] animate-pulse rounded-[24px] bg-slate-100 sm:rounded-[28px]" />
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6 pb-24 lg:space-y-8 lg:pb-0">
@@ -432,7 +541,7 @@ export default function SettingsClient() {
         <p className="text-xs uppercase tracking-[0.34em] text-emerald-700">Settings</p>
         <h1 className="font-display mt-3 text-3xl text-slate-950 sm:text-4xl">Fine-tune how easyBILL formats your invoices.</h1>
         <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-500">
-          Control formatting, currency display, and numbering preferences — without changing your invoice workflow.
+          Control formatting, currency display, and numbering preferences - without changing your invoice workflow.
         </p>
       </section>
 
@@ -727,7 +836,7 @@ export default function SettingsClient() {
           </div>
           <button
             type="button"
-            onClick={() => router.push("/dashboard/settings/invoice-visibility")}
+            onClick={() => requestGuardedNavigation(() => router.push("/dashboard/settings/invoice-visibility"))}
             className="w-full rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 sm:w-auto"
           >
             Manage invoice visibility
@@ -885,7 +994,7 @@ export default function SettingsClient() {
                 options={RESET_MONTH_DAY_OPTIONS}
               />
               <p className="mt-2 text-xs leading-5 text-slate-500">
-                Invoices dated on or after the 1st of {formatResetMonthLabel(draftInvoiceResetMonthDay)} start again from your starting number.
+                Reset is based on invoice date. Invoices dated on or after the 1st of {formatResetMonthLabel(draftInvoiceResetMonthDay)} start again from your starting number, while earlier invoices remain in the previous cycle.
               </p>
             </div>
           ) : null}
@@ -897,6 +1006,22 @@ export default function SettingsClient() {
           <p className="mt-2 text-sm text-slate-500">
             This is how the next generated invoice number will look with your current selections.
           </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {invoicePreviewSeries.map((value) => (
+              <span
+                key={value}
+                className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700"
+              >
+                {value}
+              </span>
+            ))}
+          </div>
+          {numberingScopeNotice ? (
+            <p className="mt-3 text-sm leading-6 text-indigo-700">{numberingScopeNotice}</p>
+          ) : null}
+          {duplicateCycleWarning ? (
+            <p className="mt-3 text-sm leading-6 text-amber-700">{duplicateCycleWarning}</p>
+          ) : null}
         </div>
       </div>
 
@@ -916,7 +1041,7 @@ export default function SettingsClient() {
           </p>
           <button
             type="button"
-            onClick={() => router.push("/dashboard/settings/report")}
+            onClick={() => requestGuardedNavigation(() => router.push("/dashboard/settings/report"))}
             className="w-full rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 sm:w-auto"
           >
             Report bug and feedback
@@ -928,20 +1053,27 @@ export default function SettingsClient() {
         <div>
           <p className="text-sm font-semibold text-slate-900">{hasPendingChanges ? "Unsaved changes" : "All changes saved"}</p>
           <p className="text-sm text-slate-500">
-            {hasPendingChanges ? "Your invoice settings will apply only after you save." : saveMessage || "No pending updates right now."}
+            {savingSettings
+              ? "Saving your settings..."
+              : hasPendingChanges
+                ? "Your invoice settings will apply only after you save."
+                : saveMessage || "No pending updates right now."}
           </p>
         </div>
 
         <button
-          onClick={saveChanges}
-          disabled={!hasPendingChanges}
+          onClick={() => void saveChanges()}
+          disabled={!hasPendingChanges || savingSettings}
           className={`rounded-2xl px-5 py-3 text-sm font-semibold transition ${
-            hasPendingChanges ? "bg-slate-950 text-white hover:bg-slate-800" : "bg-slate-200 text-slate-500"
+            hasPendingChanges && !savingSettings
+              ? "bg-slate-950 text-white hover:bg-slate-800"
+              : "bg-slate-200 text-slate-500"
           }`}
         >
-          {setupMode ? "Finish Setup" : "Save Changes"}
+          {savingSettings ? "Saving..." : setupMode ? "Finish Setup" : "Save Changes"}
         </button>
       </div>
     </div>
   )
 }
+

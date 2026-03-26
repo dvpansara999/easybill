@@ -16,7 +16,7 @@
   --warning-soft: rgba(245, 158, 11, 0.14);
   --danger-soft: rgba(239, 68, 68, 0.12);
 
-  /* Motion: one easing + 150–250ms durations site-wide */
+  /* Motion: one easing + 150-250ms durations site-wide */
   --eb-ease: cubic-bezier(0.4, 0, 0.2, 1);
   --eb-duration: 200ms;
   --eb-duration-fast: 150ms;
@@ -52,7 +52,7 @@ h3,
   background: rgba(15, 118, 110, 0.18);
 }
 
-/* Same indigo–sky canvas as marketing (all breakpoints; layout unchanged) */
+/* Same indigo-sky canvas as marketing (all breakpoints; layout unchanged) */
 .app-shell {
   min-height: 100vh;
   background: linear-gradient(155deg, #eef2fb 0%, #e4eaf7 28%, #eef1fb 55%, #e2e8f8 100%);
@@ -100,7 +100,7 @@ h3,
   color: var(--text-secondary);
 }
 
-/* Subtle fade — kept for optional hooks; prefer `eb-page-transition-root` for route changes */
+/* Subtle fade - kept for optional hooks; prefer `eb-page-transition-root` for route changes */
 @keyframes auth-desktop-fade-in {
   from {
     opacity: 0;
@@ -119,7 +119,7 @@ h3,
   }
 }
 
-/* Skeleton shimmer — slow loop; respects reduced motion below */
+/* Skeleton shimmer - slow loop; respects reduced motion below */
 @keyframes eb-skeleton-pulse-kf {
   0%,
   100% {
@@ -186,7 +186,7 @@ h3,
   z-index: 2;
 }
 
-/* main: sign-in home; .app-shell: dashboard + setup — glass utilities (all viewports) */
+/* main: sign-in home; .app-shell: dashboard + setup - glass utilities (all viewports) */
 main .auth-glass-desktop,
 .app-shell .auth-glass-desktop {
   background: rgba(255, 255, 255, 0.11);
@@ -272,6 +272,14 @@ main select:focus-visible {
     box-shadow var(--eb-duration) var(--eb-ease);
 }
 
+.eb-safe-bottom-pad {
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+}
+
+.eb-safe-bottom-page {
+  padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
+}
+
 @media (prefers-reduced-motion: reduce) {
   .eb-page-transition-root,
   .auth-desktop-fade-in {
@@ -300,3 +308,4 @@ main select:focus-visible {
     animation: none !important;
   }
 }
+

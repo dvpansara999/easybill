@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { ArrowLeft, Share2, X } from "lucide-react"
@@ -8,7 +8,7 @@ import { useSettings } from "@/context/SettingsContext"
 import { formatDate } from "@/lib/dateFormat"
 import { formatCurrency } from "@/lib/formatCurrency"
 import {
-  findInvoiceByIdentity,
+  findInvoiceById,
   getStoredBusinessRecord,
   readStoredInvoices,
   type BusinessRecord,
@@ -60,7 +60,7 @@ function resolveTemplateKey(templateId: string): TemplateKey {
 
 function readInvoiceViewState(invoiceId: string): InvoiceViewState {
   const invoices = readStoredInvoices()
-  const invoice = findInvoiceByIdentity(invoices, invoiceId)
+  const invoice = findInvoiceById(invoices, invoiceId)
   const template = resolveTemplateId(getActiveOrGlobalItem("invoiceTemplate") || DEFAULT_TEMPLATE_ID)
 
   return {
@@ -94,8 +94,13 @@ export default function ViewInvoice() {
   const [downloadNoticeTone, setDownloadNoticeTone] = useState<"success" | "info">("success")
   const [exportSheetOpen, setExportSheetOpen] = useState(false)
   const [exportedPdfUrl, setExportedPdfUrl] = useState("")
+  const [exportedPdfFile, setExportedPdfFile] = useState<File | null>(null)
   const [exportSheetBusy, setExportSheetBusy] = useState<null | "share" | "download">(null)
   const [isNarrowViewport, setIsNarrowViewport] = useState(false)
+
+  useEffect(() => {
+    router.prefetch(returnTo)
+  }, [returnTo, router])
 
   useEffect(() => {
     if (typeof window === "undefined") return
@@ -385,40 +390,52 @@ export default function ViewInvoice() {
               : await parsePdfApiErrorMessage(res)
         await downloadInvoiceFallback()
         setDownloadNoticeTone("info")
-        setDownloadNotice(`We downloaded a backup PDF from your screen preview (${reason}).`)
+        setDownloadNotice(`Server PDF was unavailable, so we downloaded a backup PDF from your screen preview (${reason}).`)
         window.setTimeout(() => setDownloadNotice(""), 12000)
       }
     } catch {
       await downloadInvoiceFallback()
       setDownloadNoticeTone("info")
-      setDownloadNotice(
-        "Vector PDF is temporarily unavailable. We downloaded a backup PDF from your screen preview."
-      )
+      setDownloadNotice("Server PDF is temporarily unavailable, so we downloaded a backup PDF from your screen preview.")
       window.setTimeout(() => setDownloadNotice(""), 12000)
     }
+  }
+
+  async function prepareExportedPdfFile(url: string, invoiceNumber: string) {
+    const res = await fetch(url)
+    if (!res.ok) throw new Error("fetch failed")
+    const blob = await res.blob()
+    return new File([blob], `Invoice-${invoiceNumber}.pdf`, { type: "application/pdf" })
   }
 
   async function shareExportedPdf() {
     if (!exportedPdfUrl || !invoice || exportSheetBusy) return
     setExportSheetBusy("share")
     try {
-      const res = await fetch(exportedPdfUrl)
-      if (!res.ok) throw new Error("fetch failed")
-      const blob = await res.blob()
-      const file = new File([blob], `Invoice-${invoice.invoiceNumber}.pdf`, { type: "application/pdf" })
-
+      const file = exportedPdfFile
       const canShareFiles =
-        typeof navigator.canShare === "function" ? navigator.canShare({ files: [file] }) : true
+        file && typeof navigator.canShare === "function" ? navigator.canShare({ files: [file] }) : Boolean(file)
 
-      if (typeof navigator.share === "function" && canShareFiles) {
+      if (typeof navigator.share === "function" && file && canShareFiles) {
         try {
           await navigator.share({ files: [file], title: "Invoice" })
           setExportSheetOpen(false)
           return
         } catch {
-          // User cancelled or share failed — fall through to new tab.
+          // User cancelled or share failed. Fall through to the direct PDF link.
         }
       }
+
+      if (typeof navigator.share === "function") {
+        try {
+          await navigator.share({ url: exportedPdfUrl, title: "Invoice" })
+          setExportSheetOpen(false)
+          return
+        } catch {
+          // User cancelled or share failed. Fall through to a new tab.
+        }
+      }
+
       window.open(exportedPdfUrl, "_blank", "noopener,noreferrer")
       setExportSheetOpen(false)
     } catch {
@@ -457,6 +474,7 @@ export default function ViewInvoice() {
     setDownloadNoticeTone("success")
     setExportSheetOpen(false)
     setExportedPdfUrl("")
+    setExportedPdfFile(null)
     setExportSheetBusy(null)
 
     try {
@@ -487,10 +505,17 @@ export default function ViewInvoice() {
         const data = (await exportRes.json().catch(() => null)) as { url?: string } | null
         if (data?.url && typeof data.url === "string") {
           if (isNarrowViewport) {
+            let preparedFile: File | null = null
+            try {
+              preparedFile = await prepareExportedPdfFile(data.url, invoice.invoiceNumber)
+            } catch {
+              preparedFile = null
+            }
             setExportedPdfUrl(data.url)
+            setExportedPdfFile(preparedFile)
             setExportSheetOpen(true)
             setDownloadNoticeTone("success")
-            setDownloadNotice("PDF is ready — share or download below.")
+            setDownloadNotice("PDF is ready - share or download below.")
             window.setTimeout(() => setDownloadNotice(""), 8000)
             return
           }
@@ -516,7 +541,19 @@ export default function ViewInvoice() {
   }
 
   if (!invoice) {
-    return <div className="p-6 text-sm text-slate-500">Invoice not found in this account.</div>
+    return (
+      <div className="rounded-[24px] border border-slate-200 bg-white p-6 text-center sm:rounded-[28px] sm:p-8">
+        <p className="text-sm font-semibold text-slate-900">Invoice not found</p>
+        <p className="mt-2 text-sm text-slate-500">This invoice is no longer available in the current account.</p>
+        <button
+          type="button"
+          onClick={() => router.push(returnTo)}
+          className="mt-5 inline-flex rounded-full border border-slate-200 px-4 py-2 font-semibold text-slate-700 transition hover:bg-slate-50"
+        >
+          Back to invoices
+        </button>
+      </div>
+    )
   }
 
   return (
@@ -585,6 +622,7 @@ export default function ViewInvoice() {
                 onClick={() => {
                   if (exportSheetBusy) return
                   setExportSheetOpen(false)
+                  setExportedPdfFile(null)
                 }}
                 disabled={exportSheetBusy !== null}
                 className={cn(
@@ -655,3 +693,4 @@ export default function ViewInvoice() {
     </div>
   )
 }
+

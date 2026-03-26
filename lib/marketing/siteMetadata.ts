@@ -22,3 +22,18 @@ export function defaultMetadataImages() {
     },
   ]
 }
+
+export function metadataImagesForPage(title: string, description: string, path: string) {
+  const ogImage = absoluteSiteUrl(
+    `/api/metadata-card?title=${encodeURIComponent(title)}&description=${encodeURIComponent(description)}&path=${encodeURIComponent(path)}`
+  )
+
+  return [
+    {
+      url: ogImage,
+      width: 1200,
+      height: 630,
+      alt: `${BRAND_NAME} preview card`,
+    },
+  ]
+}

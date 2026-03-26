@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["file:///D:/Projects/invoice-app/app/template.tsx"],"sourcesContent":["export default function RootTemplate({ children }: { children: React.ReactNode }) {\n  return <div className=\"eb-page-transition-root min-w-0\">{children}</div>\n}\n"],"names":[],"mappings":";;;;;;AAAe,SAAS,aAAa,EAAE,QAAQ,EAAiC;IAC9E,qBAAO,8OAAC;QAAI,WAAU;kBAAmC;;;;;;AAC3D"}}]
+}

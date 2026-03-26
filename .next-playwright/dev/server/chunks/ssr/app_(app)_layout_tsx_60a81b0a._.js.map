@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["file:///D:/Projects/invoice-app/app/%28app%29/layout.tsx"],"sourcesContent":["export default function AppLayout({\r\n  children,\r\n}: {\r\n  children: React.ReactNode\r\n}) {\r\n  return <>{children}</>\r\n}"],"names":[],"mappings":";;;;;;AAAe,SAAS,UAAU,EAChC,QAAQ,EAGT;IACC,qBAAO;kBAAG;;AACZ"}}]
+}

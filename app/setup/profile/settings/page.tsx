@@ -6,7 +6,7 @@ import SetupWizardFrame from "@/components/setup/SetupWizardFrame"
 import { useBusiness } from "@/context/BusinessContext"
 import { useSettings } from "@/context/SettingsContext"
 import { getSetupProfileDraft } from "@/lib/setupProfileDraft"
-import { generateInvoiceNumber } from "@/lib/invoiceNumber"
+import { buildInvoiceNumberPreviewSeries, generateInvoiceNumber, getFirstRepeatedInvoiceNumberWarning } from "@/lib/invoiceNumber"
 import { getInvoicePrefixError } from "@/lib/invoicePrefixValidation"
 import { formatResetMonthLabel, RESET_MONTH_DAY_OPTIONS } from "@/lib/invoiceResetDate"
 import { flushCloudKeyNow, setActiveOrGlobalItem } from "@/lib/userStore"
@@ -75,7 +75,53 @@ export default function SetupProfileSettingsPage() {
       draftInvoiceResetMonthDay
     )
   }, [invoiceHistory, draftInvoicePadding, draftInvoicePrefix, draftInvoiceStartNumber, draftResetYearly, draftInvoiceResetMonthDay])
+  const duplicateCycleWarning = useMemo(() => {
+    return getFirstRepeatedInvoiceNumberWarning(
+      invoiceHistory,
+      {
+        prefix: draftInvoicePrefix,
+        padding: draftInvoicePadding,
+        startNumber: Math.max(1, Number.isFinite(draftInvoiceStartNumber) ? draftInvoiceStartNumber : 1),
+        resetYearly: draftResetYearly,
+        resetMonthDay: draftInvoiceResetMonthDay,
+      }
+    )
+  }, [
+    draftInvoicePadding,
+    draftInvoicePrefix,
+    draftInvoiceResetMonthDay,
+    draftInvoiceStartNumber,
+    draftResetYearly,
+    invoiceHistory,
+  ])
   const invoicePrefixError = getInvoicePrefixError(draftInvoicePrefix)
+  const invoicePreviewSeries = useMemo(() => {
+    return buildInvoiceNumberPreviewSeries(
+      invoiceHistory,
+      {
+        prefix: draftInvoicePrefix,
+        padding: draftInvoicePadding,
+        startNumber: Math.max(1, Number.isFinite(draftInvoiceStartNumber) ? draftInvoiceStartNumber : 1),
+        resetYearly: draftResetYearly,
+        resetMonthDay: draftInvoiceResetMonthDay,
+      },
+      3
+    )
+  }, [
+    draftInvoicePadding,
+    draftInvoicePrefix,
+    draftInvoiceResetMonthDay,
+    draftInvoiceStartNumber,
+    draftResetYearly,
+    invoiceHistory,
+  ])
+  const numberingScopeNotice =
+    invoiceHistory.length > 0 &&
+    (draftInvoicePrefix !== invoicePrefix ||
+      draftResetYearly !== resetYearly ||
+      draftInvoiceResetMonthDay !== invoiceResetMonthDay)
+      ? "These changes affect future invoices only. Existing invoice numbers stay unchanged."
+      : ""
 
   if (!draftProfile.businessName || !draftProfile.email) {
     router.push("/setup/profile")
@@ -94,6 +140,11 @@ export default function SetupProfileSettingsPage() {
         title: "Invalid invoice prefix",
         actionHint: "Use only supported characters, then try finishing setup again.",
         message: invoicePrefixError,
+        details: [
+          "Letters, numbers, and simple separators work best for invoice numbering.",
+          "Spaces and unsupported characters can break invoice links later.",
+        ],
+        footerNote: "Setup will continue once your prefix is valid and the page saves successfully.",
       })
       return
     }
@@ -137,6 +188,22 @@ export default function SetupProfileSettingsPage() {
               <p className="text-xs font-semibold uppercase tracking-[0.32em] text-white/60">Next invoice</p>
               <p className="mt-3 text-3xl font-semibold">{invoicePreview}</p>
               <p className="mt-2 text-sm text-white/70">This is how the next generated invoice number will look.</p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {invoicePreviewSeries.map((value) => (
+                  <span
+                    key={value}
+                    className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-white/80"
+                  >
+                    {value}
+                  </span>
+                ))}
+              </div>
+              {numberingScopeNotice ? (
+                <p className="mt-3 max-w-2xl text-sm leading-6 text-sky-100">{numberingScopeNotice}</p>
+              ) : null}
+              {duplicateCycleWarning ? (
+                <p className="mt-3 max-w-2xl text-sm leading-6 text-amber-200">{duplicateCycleWarning}</p>
+              ) : null}
             </div>
             <div className="rounded-[22px] border border-white/10 bg-white/5 px-4 py-3 text-xs text-white/70">
               These defaults apply to{" "}
@@ -214,7 +281,7 @@ export default function SetupProfileSettingsPage() {
                   options={RESET_MONTH_DAY_OPTIONS}
                 />
                 <p className="mt-2 text-xs leading-5 text-slate-500">
-                  Invoices dated on or after the 1st of {formatResetMonthLabel(draftInvoiceResetMonthDay)} restart from your starting number.
+                  Reset is based on invoice date. Invoices dated on or after the 1st of {formatResetMonthLabel(draftInvoiceResetMonthDay)} restart from your starting number, while earlier invoices remain in the previous cycle.
                 </p>
               </div>
             ) : null}

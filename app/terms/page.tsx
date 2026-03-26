@@ -1,7 +1,11 @@
 import type { Metadata } from "next"
-import { BRAND_NAME, defaultMetadataImages } from "@/lib/marketing/siteMetadata"
+import { BRAND_NAME, metadataImagesForPage } from "@/lib/marketing/siteMetadata"
 
-const metadataImages = defaultMetadataImages()
+const metadataImages = metadataImagesForPage(
+  "Terms and Conditions | easyBILL",
+  "Read the easyBILL terms of service, acceptable use, billing, and data responsibilities.",
+  "/terms"
+)
 
 export const metadata: Metadata = {
   title: "Terms and Conditions | easyBILL",

@@ -1,6 +1,6 @@
 "use client"
 
-import { createElement, useMemo, useState, useEffect, useRef } from "react"
+import { createElement, startTransition, useMemo, useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { ChevronDown, Sparkles } from "lucide-react"
 import { templates as templateEngines } from "@/components/invoiceTemplates"
@@ -57,8 +57,14 @@ const [fontSize,setFontSize] = useState(previewTemplateProps.fontSize)
 const leftColumnRef = useRef<HTMLDivElement | null>(null)
 const [leftColumnHeight,setLeftColumnHeight] = useState<number>(0)
 const [isXl, setIsXl] = useState(false)
+const [applyingTemplate, setApplyingTemplate] = useState(false)
+const [templateStatus, setTemplateStatus] = useState("")
 
 const templates: TemplateListItem[] = templateRegistry
+
+useEffect(() => {
+  router.prefetch("/dashboard/invoices/create")
+}, [router])
 
 useEffect(() => {
   const mq = window.matchMedia("(min-width: 1280px)")
@@ -111,11 +117,34 @@ useEffect(()=>{
   function onCloud() {
     initFromStore(true)
   }
+  function onKvWrite(e: Event) {
+    const key = (e as CustomEvent<{ key?: string }>).detail?.key
+    if (key === "invoiceTemplate" || key === "templateTypography" || key === "invoiceTemplateFontId" || key === "invoiceTemplateFontSize") {
+      initFromStore(true)
+    }
+  }
+  function onStorage(e: StorageEvent) {
+    const key = e.key || ""
+    if (
+      key.startsWith("invoiceTemplate::") ||
+      key.startsWith("templateTypography::") ||
+      key.startsWith("invoiceTemplateFontId::") ||
+      key.startsWith("invoiceTemplateFontSize::")
+    ) {
+      initFromStore(true)
+    }
+  }
   window.addEventListener("easybill:cloud-sync", onCloud as EventListener)
-  return () => window.removeEventListener("easybill:cloud-sync", onCloud as EventListener)
+  window.addEventListener("easybill:kv-write", onKvWrite as EventListener)
+  window.addEventListener("storage", onStorage)
+  return () => {
+    window.removeEventListener("easybill:cloud-sync", onCloud as EventListener)
+    window.removeEventListener("easybill:kv-write", onKvWrite as EventListener)
+    window.removeEventListener("storage", onStorage)
+  }
 },[])
 
-function activateTemplate(){
+async function activateTemplate(){
 
 if(!canUseTemplate(previewTemplate)){
   showAlert({
@@ -123,6 +152,10 @@ if(!canUseTemplate(previewTemplate)){
     title: "Template locked (Free plan)",
     actionHint: "Upgrade to Plus to unlock this template, or pick another style.",
     message: "This template is available on Plus. Upgrade to unlock it.",
+    details: [
+      "Your currently active template will stay unchanged.",
+      "Plus unlocks the premium template library for future invoices and exports.",
+    ],
     primaryLabel: "Upgrade to Plus",
     secondaryLabel: "Not now",
     onPrimary: () => router.push("/dashboard/upgrade"),
@@ -130,13 +163,25 @@ if(!canUseTemplate(previewTemplate)){
   return
 }
 
+setApplyingTemplate(true)
+setTemplateStatus("")
 setActiveOrGlobalItem("invoiceTemplate",previewTemplate)
-setActiveTemplate(previewTemplate)
+startTransition(() => {
+  setActiveTemplate(previewTemplate)
+})
+await new Promise((resolve) => window.setTimeout(resolve, 100))
+setApplyingTemplate(false)
+setTemplateStatus("Template is now active for new invoices and previews.")
+window.setTimeout(() => setTemplateStatus(""), 2200)
 showAlert({
   tone: "success",
   title: "Template applied",
   actionHint: "Create or preview an invoice to see it in action.",
   message: "This template will be used for new invoices (and previews) in easyBILL.",
+  details: [
+    "Invoice previews, prints, and PDF exports will use this design going forward.",
+    "You can still change typography and switch templates later without affecting past invoices.",
+  ],
 })
 
 }
@@ -213,6 +258,12 @@ return(
 
 <div className="min-w-0 space-y-5 overflow-x-hidden pb-28 xl:space-y-8 xl:pb-0">
 
+{templateStatus ? (
+<div className="eb-fade-slide-in rounded-[20px] border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+{templateStatus}
+</div>
+) : null}
+
 <section className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,min(360px,40vw))] xl:gap-6">
 <div className="soft-card relative min-w-0 overflow-hidden rounded-[22px] p-5 sm:p-6 xl:rounded-[28px] xl:p-8">
   <div
@@ -228,7 +279,7 @@ return(
       Choose the invoice experience that your customers will remember.
     </p>
     <p className="mt-2 max-w-2xl text-xs leading-6 text-slate-600 sm:text-sm sm:leading-7 xl:text-slate-500">
-      Browse styles, preview them instantly, and tune typography — all inside easyBILL.
+      Browse styles, preview them instantly, and tune typography - all inside easyBILL.
     </p>
   </div>
 </div>
@@ -318,8 +369,9 @@ previewTemplate===t.id
 >
 <SmallPreview template={t.id} fontFamily={fontFamily} fontSize={fontSize}/>
 <p className="mt-2 line-clamp-2 text-[11px] font-semibold leading-tight text-slate-900 xl:mt-2.5 xl:text-xs">
-  {t.name} {locked ? <span className="text-slate-500">🔒</span> : null}
+  {t.name}
 </p>
+{locked ? <p className="mt-1 text-[10px] font-medium text-amber-700 xl:text-[11px]">Locked on Plus</p> : null}
 {isActive&&(
 <p className="mt-1 text-[10px] font-medium text-emerald-700 xl:text-[11px]">Active</p>
 )}
@@ -362,8 +414,9 @@ previewTemplate===t.id
 >
 <SmallPreview template={t.id} fontFamily={fontFamily} fontSize={fontSize}/>
 <p className="mt-2 line-clamp-2 text-[11px] font-semibold leading-tight text-slate-900 xl:mt-2.5 xl:text-xs">
-  {t.name} {locked ? <span className="text-slate-500">🔒</span> : null}
+  {t.name}
 </p>
+{locked ? <p className="mt-1 text-[10px] font-medium text-amber-700 xl:text-[11px]">Locked on Plus</p> : null}
 {isActive&&(
 <p className="mt-1 text-[10px] font-medium text-emerald-700 xl:text-[11px]">Active</p>
 )}
@@ -400,8 +453,8 @@ previewTemplate===t.id
 Currently Active
 </button>
 ) : (
-<button onClick={activateTemplate} className="w-full rounded-2xl bg-slate-950 py-3 text-sm font-semibold text-white transition hover:bg-slate-800">
-{activateLabel}
+<button disabled={applyingTemplate} onClick={() => void activateTemplate()} className="w-full rounded-2xl bg-slate-950 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400">
+{applyingTemplate ? "Applying..." : activateLabel}
 </button>
 )}
 </div>
@@ -409,9 +462,9 @@ Currently Active
 </section>
 
 {/* Mobile sticky CTA */}
-<div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200/80 bg-white/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-12px_40px_rgba(15,23,42,0.08)] backdrop-blur-md xl:hidden">
+<div className="eb-safe-bottom-pad fixed inset-x-0 bottom-0 z-40 border-t border-slate-200/80 bg-white/95 px-4 pt-3 shadow-[0_-12px_40px_rgba(15,23,42,0.08)] backdrop-blur-md xl:hidden">
 <p className="mb-2 text-center text-[10px] leading-4 text-slate-500">
-  A4-sized preview above · capped at 2 pages when content is long
+  A4-sized preview above - capped at 2 pages when content is long
 </p>
 {activeTemplate===previewTemplate ? (
 <button type="button" disabled className="w-full rounded-2xl bg-slate-200 py-3.5 text-sm font-semibold text-slate-500">
@@ -420,10 +473,11 @@ Currently Active
 ) : (
 <button
   type="button"
-  onClick={activateTemplate}
-  className="w-full rounded-2xl bg-slate-950 py-3.5 text-sm font-semibold text-white transition hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-100"
+  disabled={applyingTemplate}
+  onClick={() => void activateTemplate()}
+  className="w-full rounded-2xl bg-slate-950 py-3.5 text-sm font-semibold text-white transition hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-100 disabled:cursor-not-allowed disabled:bg-slate-400"
 >
-{activateLabel}
+{applyingTemplate ? "Applying..." : activateLabel}
 </button>
 )}
 </div>

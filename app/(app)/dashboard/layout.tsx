@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import Sidebar from "@/components/sidebar"
 import EasyBillLogoMark from "@/components/brand/EasyBillLogoMark"
 import { getSupabaseUser } from "@/lib/supabase/browser"
+import { getActiveAuthRecord } from "@/lib/auth"
 import { enforceFreeRestrictions, getActivePlanId, type PlanId } from "@/lib/plans"
 import { getAuthMode } from "@/lib/runtimeMode"
 import { isActiveUserKvHydrated } from "@/lib/userStore"
@@ -23,6 +24,19 @@ export default function DashboardLayout({
 
   useEffect(() => {
     async function guard() {
+      const mode = getAuthMode()
+
+      if (mode === "local") {
+        if (!getActiveAuthRecord()?.userId) {
+          router.replace("/")
+          return
+        }
+        enforceFreeRestrictions()
+        setPlanId(getActivePlanId())
+        setReady(true)
+        return
+      }
+
       // Reuse single-flight getUser (same as SupabaseAuthSync) to avoid duplicate auth requests on first paint.
       const { data } = await getSupabaseUser()
       if (!data.user) {
@@ -34,7 +48,7 @@ export default function DashboardLayout({
         setPlanId(getActivePlanId())
       }
 
-      if (getAuthMode() !== "supabase" || isActiveUserKvHydrated()) {
+      if (mode !== "supabase" || isActiveUserKvHydrated()) {
         applyPlanAndRestrictions()
       } else {
         // Wait for initial cloud KV pull to avoid overwriting remote values.
@@ -69,7 +83,32 @@ export default function DashboardLayout({
     }
   }, [])
 
-  if (!ready) return null
+  useEffect(() => {
+    router.prefetch("/dashboard/invoices")
+    router.prefetch("/dashboard/invoices/create")
+    router.prefetch("/dashboard/settings")
+    router.prefetch("/dashboard/business")
+    router.prefetch("/dashboard/templates")
+    router.prefetch("/dashboard/customers")
+  }, [router])
+
+  if (!ready) {
+    return (
+      <div className="app-shell relative flex min-h-screen flex-col overflow-hidden bg-slate-50">
+        <div className="mx-auto flex min-h-screen w-full max-w-[1180px] items-center justify-center px-4">
+          <div className="glass-card auth-glass-desktop w-full max-w-xl rounded-[28px] px-6 py-10 text-center">
+            <div className="mx-auto flex h-14 w-14 animate-pulse items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
+              <EasyBillLogoMark size={34} />
+            </div>
+            <p className="mt-5 text-xs font-semibold uppercase tracking-[0.28em] text-emerald-700">Loading workspace</p>
+            <p className="mt-3 text-sm leading-7 text-slate-500">
+              Syncing your account, settings, and plan details so the dashboard opens in the right state.
+            </p>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="app-shell relative flex min-h-screen flex-col overflow-hidden lg:flex-row">
@@ -121,7 +160,7 @@ export default function DashboardLayout({
                 </button>
               )}
             </div>
-            {children}
+            <div className="eb-page-transition-root">{children}</div>
           </div>
           </div>
         </main>

@@ -3,13 +3,28 @@ type InvoiceNumberSource = {
   date?: string
 }
 
-type DateParts = {
+export type InvoiceNumberRuleSet = {
+  prefix: string
+  padding: number
+  startNumber: number
+  resetYearly: boolean
+  resetMonthDay?: string
+}
+
+export type InvoiceNumberingMetadata = {
+  numberingModeAtCreation: "continuous" | "financial-year-reset"
+  resetMonthDayAtCreation: string | null
+  sequenceWindowStart: string | null
+  sequenceWindowEnd: string | null
+}
+
+export type DateParts = {
   year: number
   month: number
   day: number
 }
 
-function parseStoredDate(value: string | undefined): DateParts | null {
+export function parseStoredDate(value: string | undefined): DateParts | null {
   if (!value) return null
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
   if (!match) return null
@@ -25,7 +40,7 @@ function parseStoredDate(value: string | undefined): DateParts | null {
   return { year, month, day }
 }
 
-function getTodayDateParts(): DateParts {
+export function getTodayDateParts(): DateParts {
   const today = new Date()
   return {
     year: today.getFullYear(),
@@ -34,13 +49,13 @@ function getTodayDateParts(): DateParts {
   }
 }
 
-function compareDateParts(left: DateParts, right: DateParts) {
+export function compareDateParts(left: DateParts, right: DateParts) {
   if (left.year !== right.year) return left.year - right.year
   if (left.month !== right.month) return left.month - right.month
   return left.day - right.day
 }
 
-function getCycleBounds(resetMonthDay: string, referenceDate: DateParts) {
+export function getInvoiceCycleBounds(resetMonthDay: string, referenceDate: DateParts) {
   const [resetMonthRaw, resetDayRaw] = resetMonthDay.split("-")
   const resetMonth = Number(resetMonthRaw)
   const resetDay = Number(resetDayRaw)
@@ -59,7 +74,7 @@ function getCycleBounds(resetMonthDay: string, referenceDate: DateParts) {
   }
 }
 
-function extractInvoiceNumericPart(invoiceNumber: string, prefix: string) {
+export function extractInvoiceNumericPart(invoiceNumber: string, prefix: string) {
   if (!invoiceNumber.startsWith(prefix)) return null
   const suffix = invoiceNumber.slice(prefix.length)
   if (!/^\d+$/.test(suffix)) return null
@@ -76,7 +91,7 @@ export function generateInvoiceNumber(
   referenceDate = ""
 ) {
   const parsedReferenceDate = parseStoredDate(referenceDate) ?? getTodayDateParts()
-  const cycle = getCycleBounds(resetMonthDay, parsedReferenceDate)
+  const cycle = getInvoiceCycleBounds(resetMonthDay, parsedReferenceDate)
 
   const filtered = resetYearly
     ? invoices.filter((invoice) => {
@@ -97,4 +112,82 @@ export function generateInvoiceNumber(
   })
 
   return `${prefix}${String(maxNumber + 1).padStart(padding, "0")}`
+}
+
+export function formatDateParts(value: DateParts) {
+  return `${value.year}-${String(value.month).padStart(2, "0")}-${String(value.day).padStart(2, "0")}`
+}
+
+export function generateInvoiceNumberForRules(
+  invoices: InvoiceNumberSource[],
+  rules: InvoiceNumberRuleSet,
+  referenceDate = ""
+) {
+  return generateInvoiceNumber(
+    invoices,
+    rules.prefix,
+    rules.padding,
+    rules.startNumber,
+    rules.resetYearly,
+    rules.resetMonthDay || "01-01",
+    referenceDate
+  )
+}
+
+export function getInvoiceNumberingMetadata(
+  rules: InvoiceNumberRuleSet,
+  referenceDate = ""
+): InvoiceNumberingMetadata {
+  if (!rules.resetYearly) {
+    return {
+      numberingModeAtCreation: "continuous",
+      resetMonthDayAtCreation: null,
+      sequenceWindowStart: null,
+      sequenceWindowEnd: null,
+    }
+  }
+
+  const parsedReferenceDate = parseStoredDate(referenceDate) ?? getTodayDateParts()
+  const cycle = getInvoiceCycleBounds(rules.resetMonthDay || "01-01", parsedReferenceDate)
+
+  return {
+    numberingModeAtCreation: "financial-year-reset",
+    resetMonthDayAtCreation: rules.resetMonthDay || "01-01",
+    sequenceWindowStart: formatDateParts(cycle.start),
+    sequenceWindowEnd: formatDateParts(cycle.end),
+  }
+}
+
+export function getFirstRepeatedInvoiceNumberWarning(
+  invoices: InvoiceNumberSource[],
+  rules: InvoiceNumberRuleSet,
+  referenceDate = ""
+) {
+  if (!rules.resetYearly) return null
+
+  const nextInvoiceNumber = generateInvoiceNumberForRules(invoices, rules, referenceDate)
+  const firstCycleInvoiceNumber = `${rules.prefix}${String(rules.startNumber).padStart(rules.padding, "0")}`
+  if (nextInvoiceNumber !== firstCycleInvoiceNumber) return null
+
+  const hasHistoricalMatch = invoices.some((invoice) => String(invoice.invoiceNumber || "") === firstCycleInvoiceNumber)
+  if (!hasHistoricalMatch) return null
+
+  return `Heads up: ${firstCycleInvoiceNumber} already exists in an older cycle. That is expected when yearly reset starts a new sequence.`
+}
+
+export function buildInvoiceNumberPreviewSeries(
+  invoices: InvoiceNumberSource[],
+  rules: InvoiceNumberRuleSet,
+  count = 3,
+  referenceDate = ""
+) {
+  const previewCount = Math.max(1, Math.trunc(count))
+  const firstInvoiceNumber = generateInvoiceNumberForRules(invoices, rules, referenceDate)
+  const firstNumericPart = extractInvoiceNumericPart(firstInvoiceNumber, rules.prefix)
+
+  if (firstNumericPart == null) {
+    return [firstInvoiceNumber]
+  }
+
+  return Array.from({ length: previewCount }, (_, index) => `${rules.prefix}${String(firstNumericPart + index).padStart(rules.padding, "0")}`)
 }

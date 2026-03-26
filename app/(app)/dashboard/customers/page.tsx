@@ -1,73 +1,86 @@
 "use client"
 
-import { useMemo, useState } from "react"
-import { useRouter } from "next/navigation"
+import { startTransition, useDeferredValue, useEffect, useMemo, useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { ChevronRight, IndianRupee, Search, TrendingUp, Users } from "lucide-react"
-import { readStoredInvoices, type InvoiceRecord } from "@/lib/invoice"
-
-type CustomerRow = {
-  name: string
-  phone: string
-  invoices: number
-  revenue: number
-  latestDate: string
-  latestInvoiceNumber: string
-}
+import { buildCustomerRows, type CustomerRow } from "@/lib/invoiceCollections"
+import { readStoredInvoices } from "@/lib/invoice"
+import { formatCurrency } from "@/lib/formatCurrency"
 
 function readCustomerRows(): CustomerRow[] {
   if (typeof window === "undefined") return []
-
-  const invoices = readStoredInvoices() as Array<InvoiceRecord & { total?: number; amount?: number }>
-  const map: Record<string, CustomerRow> = {}
-
-  invoices.forEach((invoice) => {
-    const name = invoice.clientName || "Unknown"
-    const phone = invoice.clientPhone || "no-phone"
-    const revenue = Number(invoice.total) || Number(invoice.grandTotal) || Number(invoice.amount) || 0
-
-    if (!map[phone]) {
-      map[phone] = {
-        name,
-        phone,
-        invoices: 0,
-        revenue: 0,
-        latestDate: "",
-        latestInvoiceNumber: "",
-      }
-    }
-
-    map[phone].invoices += 1
-    map[phone].revenue += revenue
-
-    const currentLatestTime = map[phone].latestDate ? new Date(map[phone].latestDate).getTime() : 0
-    const incomingTime = invoice.date ? new Date(invoice.date).getTime() : 0
-    const currentLatestNumber = Number(String(map[phone].latestInvoiceNumber || "").replace(/\D/g, ""))
-    const incomingNumber = Number(String(invoice.invoiceNumber || "").replace(/\D/g, ""))
-
-    if (incomingTime > currentLatestTime || (incomingTime === currentLatestTime && incomingNumber > currentLatestNumber)) {
-      map[phone].latestDate = invoice.date || ""
-      map[phone].latestInvoiceNumber = invoice.invoiceNumber || ""
-    }
-  })
-
-  return Object.values(map).sort((a, b) => {
-    const dateDiff = new Date(b.latestDate).getTime() - new Date(a.latestDate).getTime()
-    if (dateDiff !== 0) return dateDiff
-
-    const aNum = Number(String(a.latestInvoiceNumber || "").replace(/\D/g, ""))
-    const bNum = Number(String(b.latestInvoiceNumber || "").replace(/\D/g, ""))
-    return bNum - aNum
-  })
+  return buildCustomerRows(readStoredInvoices())
 }
 
 export default function CustomersPage() {
   const router = useRouter()
-  const [search, setSearch] = useState("")
-  const [currentPage, setCurrentPage] = useState(1)
-  const [customers] = useState<CustomerRow[]>(() => readCustomerRows())
+  const searchParams = useSearchParams()
+  const [search, setSearch] = useState(searchParams.get("search") || "")
+  const [currentPage, setCurrentPage] = useState(() => {
+    const value = Number(searchParams.get("page") || "1")
+    return Number.isFinite(value) && value > 0 ? value : 1
+  })
+  const [customers, setCustomers] = useState<CustomerRow[]>(() => readCustomerRows())
+  const [refreshing, setRefreshing] = useState(false)
 
   const rowsPerPage = 10
-  const normalizedSearch = search.trim().toLowerCase()
+  const deferredSearch = useDeferredValue(search)
+  const normalizedSearch = deferredSearch.trim().toLowerCase()
+
+  useEffect(() => {
+    router.prefetch("/dashboard/invoices/create")
+    customers.slice(0, 8).forEach((customer) => {
+      router.prefetch(`/dashboard/customers/${encodeURIComponent(customer.phone)}`)
+    })
+  }, [customers, router])
+
+  useEffect(() => {
+    let refreshTimer: number | null = null
+
+    const refreshCustomers = () => {
+      if (refreshTimer != null) {
+        window.clearTimeout(refreshTimer)
+      }
+      setRefreshing(true)
+      refreshTimer = window.setTimeout(() => {
+        startTransition(() => {
+          setCustomers(readCustomerRows())
+          setRefreshing(false)
+        })
+        refreshTimer = null
+      }, 80)
+    }
+
+    const onCloudSync = () => refreshCustomers()
+    const onKvWrite = (event: Event) => {
+      const detail = (event as CustomEvent<{ key?: string }>).detail
+      if (detail?.key === "invoices") {
+        refreshCustomers()
+      }
+    }
+    const onStorage = (event: StorageEvent) => {
+      const key = event.key || ""
+      if (key.startsWith("invoices::") || key === "invoices") {
+        refreshCustomers()
+      }
+    }
+
+    window.addEventListener("easybill:cloud-sync", onCloudSync as EventListener)
+    window.addEventListener("easybill:kv-write", onKvWrite as EventListener)
+    window.addEventListener("storage", onStorage)
+    return () => {
+      if (refreshTimer != null) {
+        window.clearTimeout(refreshTimer)
+      }
+      window.removeEventListener("easybill:cloud-sync", onCloudSync as EventListener)
+      window.removeEventListener("easybill:kv-write", onKvWrite as EventListener)
+      window.removeEventListener("storage", onStorage)
+    }
+  }, [])
+
+  function money(value: number) {
+    return formatCurrency(value, "\u20B9", "before", true, "indian")
+  }
 
   const filteredCustomers = useMemo(
     () =>
@@ -89,6 +102,7 @@ export default function CustomersPage() {
   const totalPages = Math.max(1, Math.ceil(filteredCustomers.length / rowsPerPage))
   const safePage = Math.min(currentPage, totalPages)
   const paginatedCustomers = filteredCustomers.slice((safePage - 1) * rowsPerPage, safePage * rowsPerPage)
+  const returnTo = `/dashboard/customers?search=${encodeURIComponent(search)}&page=${safePage}`
 
   return (
     <div className="space-y-6 xl:space-y-8">
@@ -110,8 +124,11 @@ export default function CustomersPage() {
             placeholder="Search by name or phone"
             value={search}
             onChange={(e) => {
-              setSearch(e.target.value)
-              setCurrentPage(1)
+              const nextValue = e.target.value
+              startTransition(() => {
+                setSearch(nextValue)
+                setCurrentPage(1)
+              })
             }}
             className="w-full rounded-2xl border border-slate-200 bg-white py-3.5 pl-11 pr-4 text-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
           />
@@ -132,9 +149,7 @@ export default function CustomersPage() {
             <IndianRupee className="h-4 w-4" />
           </div>
           <p className="text-xs text-slate-500 sm:text-sm">Visible Revenue</p>
-          <p className="mt-1.5 text-base font-semibold text-slate-950 sm:mt-2 sm:text-3xl">
-            ₹ {totalRevenue.toLocaleString("en-IN")}
-          </p>
+          <p className="mt-1.5 text-base font-semibold text-slate-950 sm:mt-2 sm:text-3xl">{money(totalRevenue)}</p>
         </div>
 
         <div className="soft-card rounded-[22px] p-3.5 sm:rounded-[24px] sm:p-6">
@@ -146,7 +161,7 @@ export default function CustomersPage() {
             {topRevenueCustomer?.name || "-"}
           </p>
           <p className="mt-1 text-xs text-slate-500 sm:mt-2 sm:text-sm">
-            {topRevenueCustomer ? `₹ ${Number(topRevenueCustomer.revenue || 0).toLocaleString("en-IN")}` : "No revenue yet"}
+            {topRevenueCustomer ? money(Number(topRevenueCustomer.revenue || 0)) : "No revenue yet"}
           </p>
         </div>
 
@@ -155,24 +170,41 @@ export default function CustomersPage() {
             <Users className="h-4 w-4" />
           </div>
           <p className="text-xs text-slate-500 sm:text-sm">Average Revenue</p>
-          <p className="mt-1.5 text-base font-semibold text-slate-950 sm:mt-2 sm:text-3xl">
-            ₹ {averageRevenue.toLocaleString("en-IN")}
-          </p>
+          <p className="mt-1.5 text-base font-semibold text-slate-950 sm:mt-2 sm:text-3xl">{money(averageRevenue)}</p>
         </div>
       </section>
 
       <section className="soft-card rounded-[24px] p-4 sm:p-6 xl:rounded-[28px]">
+        <div className="mb-4 flex items-center justify-between gap-3 text-sm text-slate-500">
+          <p>
+            Visible customers: <span className="font-semibold text-slate-900">{filteredCustomers.length}</span>
+          </p>
+          {refreshing ? <p className="text-xs font-medium text-emerald-700">Refreshing customer list...</p> : null}
+        </div>
+
         <div className="space-y-3 lg:hidden">
           {paginatedCustomers.length === 0 ? (
             <div className="rounded-[24px] border border-slate-200/70 bg-white p-6 text-center text-sm text-slate-500">
-              No customers found
+              <p>No matching customers yet.</p>
+              <p className="mt-2">Create an invoice and easyBILL will build this customer list automatically.</p>
+              <button
+                type="button"
+                onClick={() => router.push("/dashboard/invoices/create")}
+                className="mt-4 inline-flex rounded-full border border-slate-200 px-4 py-2 font-semibold text-slate-700 transition hover:bg-slate-50"
+              >
+                Create invoice
+              </button>
             </div>
           ) : (
             paginatedCustomers.map((customer, index) => (
               <button
                 key={customer.phone || index}
                 type="button"
-                onClick={() => router.push(`/dashboard/customers/${encodeURIComponent(customer.phone)}`)}
+                onClick={() =>
+                  router.push(
+                    `/dashboard/customers/${encodeURIComponent(customer.phone)}?returnTo=${encodeURIComponent(returnTo)}`
+                  )
+                }
                 className="w-full rounded-[22px] border border-slate-200/70 bg-white p-3.5 text-left transition hover:bg-slate-50/70 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-100 sm:rounded-[24px] sm:p-4"
               >
                 <div className="flex items-start justify-between gap-4">
@@ -190,9 +222,7 @@ export default function CustomersPage() {
                   </div>
                   <div className="rounded-[16px] bg-slate-50 p-2.5 sm:rounded-[18px] sm:p-3">
                     <p className="text-xs text-slate-500">Revenue</p>
-                    <p className="mt-1 text-base font-semibold text-slate-950 sm:text-lg">
-                      ₹ {Number(customer.revenue || 0).toLocaleString("en-IN")}
-                    </p>
+                    <p className="mt-1 text-base font-semibold text-slate-950 sm:text-lg">{money(Number(customer.revenue || 0))}</p>
                   </div>
                 </div>
               </button>
@@ -216,7 +246,17 @@ export default function CustomersPage() {
                 {paginatedCustomers.length === 0 ? (
                   <tr>
                     <td className="px-4 py-10 text-center text-slate-500" colSpan={4}>
-                      No customers found
+                      <div className="mx-auto max-w-md">
+                        <p className="font-medium text-slate-700">No matching customers yet.</p>
+                        <p className="mt-2 text-sm">Create an invoice and easyBILL will build this customer list automatically.</p>
+                        <button
+                          type="button"
+                          onClick={() => router.push("/dashboard/invoices/create")}
+                          className="mt-4 inline-flex rounded-full border border-slate-200 px-4 py-2 font-semibold text-slate-700 transition hover:bg-slate-50"
+                        >
+                          Create invoice
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ) : null}
@@ -224,13 +264,17 @@ export default function CustomersPage() {
                 {paginatedCustomers.map((customer, index) => (
                   <tr
                     key={`${customer.phone}-${index}`}
-                    onClick={() => router.push(`/dashboard/customers/${encodeURIComponent(customer.phone)}`)}
+                    onClick={() =>
+                      router.push(
+                        `/dashboard/customers/${encodeURIComponent(customer.phone)}?returnTo=${encodeURIComponent(returnTo)}`
+                      )
+                    }
                     className="cursor-pointer border-b border-slate-100 transition hover:bg-slate-50/70"
                   >
                     <td className="px-4 py-4 font-medium text-slate-900">{customer.name}</td>
                     <td className="px-4 py-4">{customer.phone}</td>
                     <td className="px-4 py-4">{customer.invoices}</td>
-                    <td className="px-4 py-4 font-semibold text-slate-900">₹ {customer.revenue.toLocaleString("en-IN")}</td>
+                    <td className="px-4 py-4 font-semibold text-slate-900">{money(customer.revenue)}</td>
                   </tr>
                 ))}
               </tbody>

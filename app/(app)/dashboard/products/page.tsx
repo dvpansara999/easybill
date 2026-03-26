@@ -61,6 +61,10 @@ export default function ProductsPage() {
         title: "Product limit reached (Free plan)",
         actionHint: "Delete an existing product or upgrade to Plus to add more.",
         message: "You can save up to 3 products on Free. Delete one to add another, or upgrade to Plus.",
+        details: [
+          "Your existing saved products are still available for invoice creation.",
+          "Upgrading to Plus removes the saved-product cap for this workspace.",
+        ],
       })
       return
     }

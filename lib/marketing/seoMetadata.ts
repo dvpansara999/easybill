@@ -1,11 +1,11 @@
 import type { Metadata } from "next"
 import type { SeoPageDefinition } from "./seoPageTypes"
-import { BRAND_NAME, defaultMetadataImages } from "./siteMetadata"
+import { BRAND_NAME, metadataImagesForPage } from "./siteMetadata"
 import { siteOrigin } from "./siteOrigin"
 
 export function metadataForSeoPage(def: SeoPageDefinition): Metadata {
   const url = `${siteOrigin()}${def.path}`
-  const images = defaultMetadataImages()
+  const images = metadataImagesForPage(def.meta.title, def.meta.description, def.path)
   return {
     title: def.meta.title,
     description: def.meta.description,

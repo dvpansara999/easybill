@@ -10,6 +10,11 @@ import {
   INVOICE_PDF_RETENTION_DAYS,
   sanitizeInvoicePdfFileBase,
 } from "@/lib/server/invoicePdfExportConfig"
+import {
+  filterDuplicateInvoiceExportRows,
+  findMatchingCachedInvoiceExport,
+  filterStaleInvoiceExportRows,
+} from "@/lib/server/invoicePdfExportCache"
 import { createSupabaseServerClient } from "@/lib/supabase/server"
 
 process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH =
@@ -29,18 +34,6 @@ type ExportBody = {
 
 function logExport(event: string, meta: Record<string, unknown>) {
   console.info("[invoice-pdf-export]", event, meta)
-}
-
-function extractFingerprintFromStoragePath(storagePath: string | null | undefined) {
-  if (!storagePath) return null
-  const match = storagePath.match(/--fp-([a-f0-9]{24})--/i)
-  return match?.[1]?.toLowerCase() || null
-}
-
-function extractInvoiceIdFromStoragePath(storagePath: string | null | undefined) {
-  if (!storagePath) return null
-  const match = storagePath.match(/--iid-([a-z0-9_-]+)--/i)
-  return match?.[1] || null
 }
 
 export async function POST(req: Request) {
@@ -85,21 +78,22 @@ export async function POST(req: Request) {
     return pdfError(resolvedSource.message, resolvedSource.code, resolvedSource.httpStatus)
   }
 
-  const { data: cachedRows } = await supabase
+  const cachedQuery = await supabase
     .from("invoice_pdf_exports")
-    .select("public_url, created_at, storage_path")
+    .select("id, invoice_id, source_fingerprint, public_url, created_at, storage_path")
     .eq("user_id", user.id)
-    .eq("invoice_number", resolvedSource.source.fileInvoiceNumber)
+    .eq("invoice_id", resolvedSource.source.invoiceRecordId)
     .gte("created_at", retentionCutoffIso)
     .order("created_at", { ascending: false })
     .limit(20)
 
-  const cached =
-    cachedRows?.find(
-      (row) => extractInvoiceIdFromStoragePath(row.storage_path) === resolvedSource.source.invoiceRecordId
-    ) || null
+  if (cachedQuery.error) {
+    return pdfError("Could not load cached PDF metadata.", "EXPORT_DB", 500)
+  }
 
-  const cachedFingerprint = extractFingerprintFromStoragePath(cached?.storage_path)
+  const cachedRows = cachedQuery.data
+  const cached = findMatchingCachedInvoiceExport(cachedRows, resolvedSource.source.invoiceRecordId)
+  const cachedFingerprint = cached?.source_fingerprint || null
 
   if (cached?.public_url && cachedFingerprint && cachedFingerprint === resolvedSource.source.sourceFingerprint) {
     logExport("cache-hit", {
@@ -115,14 +109,27 @@ export async function POST(req: Request) {
   }
 
   if (cached?.public_url) {
-    logExport("cache-stale", {
+    logExport("fingerprint-mismatch", {
       invoiceId: resolvedSource.source.invoiceRecordId,
       invoiceNumber: resolvedSource.source.fileInvoiceNumber,
       userSuffix: user.id.slice(-6),
       cachedFingerprint,
       currentFingerprint: resolvedSource.source.sourceFingerprint,
     })
+  } else {
+    logExport("cache-miss", {
+      invoiceId: resolvedSource.source.invoiceRecordId,
+      invoiceNumber: resolvedSource.source.fileInvoiceNumber,
+      userSuffix: user.id.slice(-6),
+    })
   }
+
+  logExport("export-regeneration", {
+    invoiceId: resolvedSource.source.invoiceRecordId,
+    invoiceNumber: resolvedSource.source.fileInvoiceNumber,
+    reason: cached?.public_url ? "fingerprint-mismatch" : "cache-miss",
+    userSuffix: user.id.slice(-6),
+  })
 
   const gen = await generateInvoicePdfFromResolvedSource(
     resolvedSource.source,
@@ -134,26 +141,27 @@ export async function POST(req: Request) {
     return pdfError(gen.message, gen.code, gen.httpStatus)
   }
 
-  const { data: staleRows } = await supabase
+  const staleQuery = await supabase
     .from("invoice_pdf_exports")
-    .select("id, storage_path")
+    .select("id, invoice_id, source_fingerprint, storage_path, created_at")
     .eq("user_id", user.id)
-    .eq("invoice_number", gen.fileInvoiceNumber)
+    .eq("invoice_id", resolvedSource.source.invoiceRecordId)
 
-  const matchedStaleRows =
-    staleRows?.filter(
-      (row) => {
-        const storedInvoiceId = extractInvoiceIdFromStoragePath(row.storage_path)
-        return !storedInvoiceId || storedInvoiceId === resolvedSource.source.invoiceRecordId
-      }
-    ) || []
+  if (staleQuery.error) {
+    return pdfError("Could not clean stale PDF cache metadata.", "EXPORT_DB", 500)
+  }
 
-  if (matchedStaleRows.length) {
-    const paths = matchedStaleRows.map((r) => r.storage_path).filter(Boolean) as string[]
+  const staleRows = staleQuery.data
+  const matchedStaleRows = filterStaleInvoiceExportRows(staleRows, resolvedSource.source.invoiceRecordId)
+  const duplicateRows = filterDuplicateInvoiceExportRows(staleRows)
+  const cleanupRows = [...matchedStaleRows, ...duplicateRows.filter((row) => !matchedStaleRows.some((m) => m.id === row.id))]
+
+  if (cleanupRows.length) {
+    const paths = cleanupRows.map((r) => r.storage_path).filter(Boolean) as string[]
     if (paths.length) {
       await supabase.storage.from(INVOICE_PDF_BUCKET).remove(paths).catch(() => {})
     }
-    const ids = matchedStaleRows.map((r) => r.id)
+    const ids = cleanupRows.map((r) => r.id)
     await supabase.from("invoice_pdf_exports").delete().in("id", ids)
   }
 
@@ -185,16 +193,21 @@ export async function POST(req: Request) {
     return pdfError("Storage returned no public URL for the PDF.", "EXPORT_STORAGE", 500)
   }
 
-  const { data: inserted, error: insertError } = await supabase
+  const insertResult = await supabase
     .from("invoice_pdf_exports")
     .insert({
       user_id: user.id,
+      invoice_id: resolvedSource.source.invoiceRecordId,
       invoice_number: gen.fileInvoiceNumber,
+      source_fingerprint: gen.sourceFingerprint,
       storage_path: storagePath,
       public_url: publicUrl,
     })
     .select("id, created_at")
     .maybeSingle()
+
+  const inserted = insertResult.data
+  const insertError = insertResult.error
 
   if (insertError || !inserted) {
     logExport("db-insert-failed", { message: insertError?.message })
@@ -208,7 +221,12 @@ export async function POST(req: Request) {
     )
   }
 
-  logExport("ok", { path: storagePath, userSuffix: user.id.slice(-6), cached: false })
+  logExport("ok", {
+    path: storagePath,
+    invoiceId: resolvedSource.source.invoiceRecordId,
+    userSuffix: user.id.slice(-6),
+    cached: false,
+  })
 
   return NextResponse.json({
     url: publicUrl,

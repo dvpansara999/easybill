@@ -1,10 +1,11 @@
 "use client"
 
-import { useMemo, useState } from "react"
-import { useParams, useRouter } from "next/navigation"
+import { startTransition, useDeferredValue, useEffect, useMemo, useState } from "react"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { useSettings } from "@/context/SettingsContext"
 import { formatDate } from "@/lib/dateFormat"
 import { formatCurrency } from "@/lib/formatCurrency"
+import { sortInvoicesNewestFirst } from "@/lib/invoiceCollections"
 import { ArrowLeft, FilePlus2, Mail, MapPin, Phone, ReceiptIndianRupee } from "lucide-react"
 import { readStoredInvoices, type InvoiceRecord } from "@/lib/invoice"
 import SelectMenu from "@/components/ui/SelectMenu"
@@ -17,32 +18,78 @@ type CustomerSummary = {
   address: string
 }
 
-function readInvoicesFromStore(): InvoiceRecord[] {
-  return readStoredInvoices()
-}
-
-function sortInvoicesNewestFirst(invoices: InvoiceRecord[]) {
-  return [...invoices].sort((a, b) => {
-    const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime()
-    if (dateDiff !== 0) return dateDiff
-
-    const aNum = Number(String(a.invoiceNumber || "").replace(/\D/g, ""))
-    const bNum = Number(String(b.invoiceNumber || "").replace(/\D/g, ""))
-    return bNum - aNum
-  })
-}
-
 export default function CustomerDetails() {
   const { dateFormat, amountFormat, showDecimals, currencySymbol, currencyPosition } = useSettings()
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const phone = decodeURIComponent(String(params.phone || ""))
-  const [month, setMonth] = useState("all")
-  const [year, setYear] = useState("all")
+  const returnTo = searchParams.get("returnTo") || "/dashboard/customers"
+  const [month, setMonth] = useState(searchParams.get("month") || "all")
+  const [year, setYear] = useState(searchParams.get("year") || "all")
+  const [allInvoices, setAllInvoices] = useState<InvoiceRecord[]>(() => readStoredInvoices())
+  const [refreshing, setRefreshing] = useState(false)
+  const deferredMonth = useDeferredValue(month)
+  const deferredYear = useDeferredValue(year)
+
+  useEffect(() => {
+    router.prefetch("/dashboard/customers")
+    router.prefetch("/dashboard/invoices/create")
+    allInvoices
+      .filter((invoice) => invoice.clientPhone === phone)
+      .slice(0, 8)
+      .forEach((invoice) => {
+        router.prefetch(`/dashboard/invoices/view/${encodeURIComponent(invoice.id)}`)
+      })
+  }, [allInvoices, phone, router])
+
+  useEffect(() => {
+    let refreshTimer: number | null = null
+
+    const refreshInvoices = () => {
+      if (refreshTimer != null) {
+        window.clearTimeout(refreshTimer)
+      }
+      setRefreshing(true)
+      refreshTimer = window.setTimeout(() => {
+        startTransition(() => {
+          setAllInvoices(readStoredInvoices())
+          setRefreshing(false)
+        })
+        refreshTimer = null
+      }, 80)
+    }
+
+    const onCloudSync = () => refreshInvoices()
+    const onKvWrite = (event: Event) => {
+      const detail = (event as CustomEvent<{ key?: string }>).detail
+      if (detail?.key === "invoices") {
+        refreshInvoices()
+      }
+    }
+    const onStorage = (event: StorageEvent) => {
+      const key = event.key || ""
+      if (key.startsWith("invoices::") || key === "invoices") {
+        refreshInvoices()
+      }
+    }
+
+    window.addEventListener("easybill:cloud-sync", onCloudSync as EventListener)
+    window.addEventListener("easybill:kv-write", onKvWrite as EventListener)
+    window.addEventListener("storage", onStorage)
+    return () => {
+      if (refreshTimer != null) {
+        window.clearTimeout(refreshTimer)
+      }
+      window.removeEventListener("easybill:cloud-sync", onCloudSync as EventListener)
+      window.removeEventListener("easybill:kv-write", onKvWrite as EventListener)
+      window.removeEventListener("storage", onStorage)
+    }
+  }, [])
 
   const invoices = useMemo(
-    () => sortInvoicesNewestFirst(readInvoicesFromStore().filter((invoice) => invoice.clientPhone === phone)),
-    [phone]
+    () => sortInvoicesNewestFirst(allInvoices.filter((invoice) => invoice.clientPhone === phone)),
+    [allInvoices, phone]
   )
 
   const customer = useMemo<CustomerSummary | null>(() => {
@@ -61,22 +108,23 @@ export default function CustomerDetails() {
   const filteredInvoices = useMemo(() => {
     let result = [...invoices]
 
-    if (month !== "all") {
-      result = result.filter((invoice) => new Date(invoice.date).getMonth() + 1 === Number(month))
+    if (deferredMonth !== "all") {
+      result = result.filter((invoice) => new Date(invoice.date).getMonth() + 1 === Number(deferredMonth))
     }
 
-    if (year !== "all") {
-      result = result.filter((invoice) => new Date(invoice.date).getFullYear() === Number(year))
+    if (deferredYear !== "all") {
+      result = result.filter((invoice) => new Date(invoice.date).getFullYear() === Number(deferredYear))
     }
 
     return sortInvoicesNewestFirst(result)
-  }, [invoices, month, year])
+  }, [deferredMonth, deferredYear, invoices])
 
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
   const years = useMemo(
     () => Array.from(new Set(invoices.map((invoice) => new Date(invoice.date).getFullYear()))),
     [invoices]
   )
+  const customerViewReturnTo = `/dashboard/customers/${encodeURIComponent(phone)}?returnTo=${encodeURIComponent(returnTo)}&month=${month}&year=${year}`
 
   const yearOptions = [{ value: "all", label: "All Years" }, ...years.map((value) => ({ value: String(value), label: String(value) }))]
   const monthOptions = [
@@ -122,7 +170,7 @@ export default function CustomerDetails() {
       <section className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
         <div className="rounded-[30px] bg-slate-950 p-6 text-white shadow-[0_24px_60px_rgba(15,23,42,0.22)] sm:p-8">
           <button
-            onClick={() => router.push("/dashboard/customers")}
+            onClick={() => router.push(returnTo)}
             className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-slate-200 transition hover:bg-white/10 hover:text-white sm:w-auto sm:rounded-full sm:justify-start sm:px-4 sm:py-2"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -240,6 +288,7 @@ export default function CustomerDetails() {
             <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-500">
               Use the month and year filters to narrow down this customer&apos;s invoice timeline.
             </p>
+            {refreshing ? <p className="mt-2 text-xs font-medium text-emerald-700">Refreshing invoice history...</p> : null}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -272,19 +321,31 @@ export default function CustomerDetails() {
         <div className="mt-6 space-y-3 lg:hidden">
           {filteredInvoices.length === 0 ? (
             <div className="rounded-[24px] border border-slate-200/70 bg-white p-6 text-center text-sm text-slate-500">
-              No invoices found for this customer.
+              <p>No invoices match these filters yet.</p>
+              <p className="mt-2">Create a new invoice for this customer to keep the history moving.</p>
+              <button
+                type="button"
+                onClick={createInvoice}
+                className="mt-4 inline-flex rounded-full border border-slate-200 px-4 py-2 font-semibold text-slate-700 transition hover:bg-slate-50"
+              >
+                Create invoice
+              </button>
             </div>
           ) : (
             filteredInvoices.map((invoice) => (
               <button
                 key={invoice.id}
                 type="button"
-                onClick={() => router.push(`/dashboard/invoices/view/${encodeURIComponent(invoice.id)}`)}
+                onClick={() =>
+                  router.push(
+                    `/dashboard/invoices/view/${encodeURIComponent(invoice.id)}?returnTo=${encodeURIComponent(customerViewReturnTo)}`
+                  )
+                }
                 className="w-full rounded-[22px] border border-slate-200/70 bg-white p-4 text-left transition hover:bg-slate-50/70 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-100"
               >
                 <div className="grid grid-cols-2 gap-4">
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-slate-900">{invoice.invoiceNumber}</p>
+                    <p className="break-words text-sm font-semibold text-slate-900">{invoice.invoiceNumber}</p>
                     <p className="mt-2 text-xs text-slate-500">GST-{money(getGST(invoice))}</p>
                   </div>
                   <div className="text-right">
@@ -311,7 +372,17 @@ export default function CustomerDetails() {
               {filteredInvoices.length === 0 ? (
                 <tr>
                   <td colSpan={4} className="px-4 py-10 text-center text-slate-500">
-                    No invoices found for this customer.
+                    <div className="mx-auto max-w-md">
+                      <p className="font-medium text-slate-700">No invoices match these filters yet.</p>
+                      <p className="mt-2 text-sm">Create a new invoice for this customer to keep the history moving.</p>
+                      <button
+                        type="button"
+                        onClick={createInvoice}
+                        className="mt-4 inline-flex rounded-full border border-slate-200 px-4 py-2 font-semibold text-slate-700 transition hover:bg-slate-50"
+                      >
+                        Create invoice
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ) : null}
@@ -319,10 +390,14 @@ export default function CustomerDetails() {
               {filteredInvoices.map((invoice) => (
                 <tr
                   key={invoice.id}
-                  onClick={() => router.push(`/dashboard/invoices/view/${encodeURIComponent(invoice.id)}`)}
+                  onClick={() =>
+                    router.push(
+                      `/dashboard/invoices/view/${encodeURIComponent(invoice.id)}?returnTo=${encodeURIComponent(customerViewReturnTo)}`
+                    )
+                  }
                   className="cursor-pointer border-b border-slate-100 transition hover:bg-slate-50/70"
                 >
-                  <td className="px-4 py-4 font-medium text-slate-900">{invoice.invoiceNumber}</td>
+                  <td className="break-words px-4 py-4 font-medium text-slate-900">{invoice.invoiceNumber}</td>
                   <td className="px-4 py-4 text-slate-600">{formatDate(invoice.date, dateFormat)}</td>
                   <td className="px-4 py-4 text-slate-600">{money(getGST(invoice))}</td>
                   <td className="px-4 py-4 font-semibold text-slate-900">{money(invoice.grandTotal || 0)}</td>

@@ -18,6 +18,10 @@ export type InvoiceItem = {
 export type InvoiceRecord = {
   id: string
   invoiceNumber: string
+  numberingModeAtCreation?: "continuous" | "financial-year-reset"
+  resetMonthDayAtCreation?: string | null
+  sequenceWindowStart?: string | null
+  sequenceWindowEnd?: string | null
   clientName: string
   clientPhone: string
   clientEmail: string
@@ -29,7 +33,18 @@ export type InvoiceRecord = {
   grandTotal: number
 }
 
+export const INVOICE_SCHEMA_VERSION = 2
+
+export type InvoiceStoreEnvelope = {
+  schemaVersion: number
+  invoices: InvoiceRecord[]
+}
+
 type InvoiceRecordInput = Partial<InvoiceRecord>
+type UserStoreReader = {
+  getActiveOrGlobalItem: (key: string) => string | null
+  setActiveOrGlobalItem: (key: string, value: string) => void
+}
 
 function hashString(input: string) {
   let hash = 2166136261
@@ -133,6 +148,20 @@ export function normalizeInvoiceRecord(invoice: InvoiceRecordInput, legacyIndex 
   return {
     id: normalizeInvoiceId(invoice.id, invoice, legacyIndex),
     invoiceNumber: invoice.invoiceNumber?.trim() || "",
+    numberingModeAtCreation:
+      invoice.numberingModeAtCreation === "financial-year-reset" ? "financial-year-reset" : "continuous",
+    resetMonthDayAtCreation:
+      typeof invoice.resetMonthDayAtCreation === "string" && invoice.resetMonthDayAtCreation.trim()
+        ? invoice.resetMonthDayAtCreation.trim()
+        : null,
+    sequenceWindowStart:
+      typeof invoice.sequenceWindowStart === "string" && invoice.sequenceWindowStart.trim()
+        ? invoice.sequenceWindowStart.trim()
+        : null,
+    sequenceWindowEnd:
+      typeof invoice.sequenceWindowEnd === "string" && invoice.sequenceWindowEnd.trim()
+        ? invoice.sequenceWindowEnd.trim()
+        : null,
     clientName: invoice.clientName?.trim() || "",
     clientPhone: invoice.clientPhone?.trim() || "",
     clientEmail: invoice.clientEmail?.trim() || "",
@@ -170,11 +199,54 @@ export function normalizeInvoiceRecords(invoices: unknown) {
   return { invoices: normalized, changed }
 }
 
+function isInvoiceStoreEnvelope(value: unknown): value is { schemaVersion?: unknown; invoices?: unknown } {
+  return typeof value === "object" && value !== null && "invoices" in value
+}
+
+export function normalizeInvoiceStorePayload(payload: unknown) {
+  let changed = false
+  let schemaVersion = INVOICE_SCHEMA_VERSION
+  let invoicePayload: unknown = payload
+
+  if (Array.isArray(payload)) {
+    schemaVersion = 1
+    changed = true
+  } else if (isInvoiceStoreEnvelope(payload)) {
+    schemaVersion =
+      typeof payload.schemaVersion === "number" && Number.isFinite(payload.schemaVersion)
+        ? Math.trunc(payload.schemaVersion)
+        : 1
+    invoicePayload = payload.invoices
+    if (schemaVersion !== INVOICE_SCHEMA_VERSION) {
+      changed = true
+    }
+  } else {
+    invoicePayload = []
+  }
+
+  const normalizedRecords = normalizeInvoiceRecords(invoicePayload)
+  changed = changed || normalizedRecords.changed
+
+  return {
+    store: {
+      schemaVersion: INVOICE_SCHEMA_VERSION,
+      invoices: normalizedRecords.invoices,
+    } satisfies InvoiceStoreEnvelope,
+    changed,
+  }
+}
+
+export function serializeInvoiceStore(invoices: InvoiceRecord[]) {
+  const normalized = normalizeInvoiceStorePayload({ schemaVersion: INVOICE_SCHEMA_VERSION, invoices })
+  return JSON.stringify(normalized.store)
+}
+
 export function findInvoiceById(invoices: InvoiceRecord[], invoiceId: string) {
   return invoices.find((invoice) => invoice.id === invoiceId) ?? null
 }
 
 export function findInvoiceByIdentity(invoices: InvoiceRecord[], value: string) {
+  // Legacy fallback only. New routes and features should resolve invoices by `invoice.id`.
   return (
     invoices.find((invoice) => invoice.id === value) ??
     invoices.find((invoice) => invoice.invoiceNumber === value) ??
@@ -186,17 +258,17 @@ export function readStoredInvoices() {
   if (typeof window === "undefined") return [] as InvoiceRecord[]
 
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { getActiveOrGlobalItem, setActiveOrGlobalItem } = require("@/lib/userStore") as typeof import("@/lib/userStore")
+  const { getActiveOrGlobalItem, setActiveOrGlobalItem } = require("@/lib/userStore") as UserStoreReader
   const raw = getActiveOrGlobalItem("invoices")
   if (!raw) return [] as InvoiceRecord[]
 
   try {
     const parsed = JSON.parse(raw) as unknown
-    const { invoices, changed } = normalizeInvoiceRecords(parsed)
+    const { store, changed } = normalizeInvoiceStorePayload(parsed)
     if (changed) {
-      setActiveOrGlobalItem("invoices", JSON.stringify(invoices))
+      setActiveOrGlobalItem("invoices", JSON.stringify(store))
     }
-    return invoices
+    return store.invoices
   } catch {
     return [] as InvoiceRecord[]
   }
@@ -204,8 +276,8 @@ export function readStoredInvoices() {
 
 export function writeStoredInvoices(invoices: InvoiceRecord[]) {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { setActiveOrGlobalItem } = require("@/lib/userStore") as typeof import("@/lib/userStore")
-  setActiveOrGlobalItem("invoices", JSON.stringify(invoices))
+  const { setActiveOrGlobalItem } = require("@/lib/userStore") as Pick<UserStoreReader, "setActiveOrGlobalItem">
+  setActiveOrGlobalItem("invoices", serializeInvoiceStore(invoices))
 }
 
 export function getStoredBusinessRecord(): BusinessRecord | null {
@@ -214,7 +286,7 @@ export function getStoredBusinessRecord(): BusinessRecord | null {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { getActiveOrGlobalItem } = require("@/lib/userStore") as typeof import("@/lib/userStore")
+  const { getActiveOrGlobalItem } = require("@/lib/userStore") as Pick<UserStoreReader, "getActiveOrGlobalItem">
   const stored = getActiveOrGlobalItem("businessProfile")
   if (!stored) {
     // No authenticated Supabase session (e.g. edge flows): `userStore` blocks global keys.

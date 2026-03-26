@@ -5,6 +5,7 @@ import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { useBusiness } from "@/context/BusinessContext"
 import { signOut } from "@/lib/auth"
+import { requestGuardedNavigation } from "@/lib/unsavedChangesGuard"
 import EasyBillLogoMark from "@/components/brand/EasyBillLogoMark"
 import {
   Blocks,
@@ -103,9 +104,11 @@ export default function Sidebar({
               <button
                 key={item.name}
                 onClick={() => {
-                  void signOut().finally(() => {
-                    router.push("/")
-                    onNavigate?.()
+                  requestGuardedNavigation(() => {
+                    void signOut().finally(() => {
+                      router.push("/")
+                      onNavigate?.()
+                    })
                   })
                 }}
                 className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm text-slate-600 transition hover:bg-white/85 hover:text-slate-950 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-100"
@@ -120,7 +123,17 @@ export default function Sidebar({
             <Link
               key={item.href}
               href={item.href}
-              onClick={() => onNavigate?.()}
+              onClick={(event) => {
+                event.preventDefault()
+                if (active) {
+                  onNavigate?.()
+                  return
+                }
+                requestGuardedNavigation(() => {
+                  router.push(item.href)
+                  onNavigate?.()
+                })
+              }}
               className={`flex items-center gap-3 rounded-2xl px-4 py-3 text-sm transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-100 ${
                 active
                   ? "bg-slate-950 text-white shadow-lg shadow-slate-950/10"

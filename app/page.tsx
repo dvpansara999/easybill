@@ -744,7 +744,7 @@ export default function Home() {
 
   return (
     <main
-      className={`${inter.variable} relative min-h-screen overflow-hidden bg-[linear-gradient(155deg,#eef2fb_0%,#e4eaf7_28%,#eef1fb_55%,#e2e8f8_100%)] px-3.5 pt-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] [font-family:var(--font-auth-inter),ui-sans-serif,system-ui,sans-serif] sm:px-4 sm:py-8 lg:px-8 lg:py-10 lg:pb-10`}
+      className={`${inter.variable} eb-safe-bottom-page relative min-h-screen overflow-hidden bg-[linear-gradient(155deg,#eef2fb_0%,#e4eaf7_28%,#eef1fb_55%,#e2e8f8_100%)] px-3.5 pt-3 [font-family:var(--font-auth-inter),ui-sans-serif,system-ui,sans-serif] sm:px-4 sm:py-8 lg:px-8 lg:py-10 lg:pb-10`}
     >
       <div className="auth-desktop-depth pointer-events-none absolute inset-0 z-0" aria-hidden />
 

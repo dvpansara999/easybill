@@ -4,7 +4,11 @@ import { useMemo, useRef, useState, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useSettings } from "@/context/SettingsContext"
 import { formatCurrency } from "@/lib/formatCurrency"
-import { generateInvoiceNumber } from "@/lib/invoiceNumber"
+import {
+  generateInvoiceNumber,
+  getFirstRepeatedInvoiceNumberWarning,
+  getInvoiceNumberingMetadata,
+} from "@/lib/invoiceNumber"
 import { getActiveOrGlobalItem, isActiveUserKvHydrated } from "@/lib/userStore"
 import { bumpInvoiceUsageCount, canCreateAnotherInvoice } from "@/lib/plans"
 import { useAppAlert } from "@/components/providers/AppAlertProvider"
@@ -119,6 +123,11 @@ export default function CreateInvoiceClient() {
   const [activeRow, setActiveRow] = useState<number | null>(null)
   const [clientSuggestions, setClientSuggestions] = useState<CustomerRecord[]>([])
   const [clientField, setClientField] = useState("")
+  const [savingInvoice, setSavingInvoice] = useState(false)
+
+  useEffect(() => {
+    router.prefetch("/dashboard/invoices")
+  }, [router])
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -245,14 +254,33 @@ export default function CreateInvoiceClient() {
       date
     )
   }, [date, invoicePadding, invoicePrefix, invoiceResetMonthDay, invoiceStartNumber, resetYearly])
+  const duplicateCycleWarning = useMemo(() => {
+    const invoices = readStoredInvoices()
+    return getFirstRepeatedInvoiceNumberWarning(
+      invoices,
+      {
+        prefix: invoicePrefix,
+        padding: invoicePadding,
+        startNumber: invoiceStartNumber,
+        resetYearly,
+        resetMonthDay: invoiceResetMonthDay,
+      },
+      date
+    )
+  }, [date, invoicePadding, invoicePrefix, invoiceResetMonthDay, invoiceStartNumber, resetYearly])
 
   function saveInvoice() {
+    if (savingInvoice) return
     if (getAuthMode() === "supabase" && !isActiveUserKvHydrated()) {
       showAlert({
         tone: "info",
-        title: "Syncing your account…",
+        title: "Syncing your account...",
         actionHint: "Wait a few seconds, then try your action again.",
         message: "easyBILL is still loading your saved data from the cloud.",
+        details: [
+          "This usually settles automatically after your account finishes hydrating.",
+          "Waiting avoids creating or saving against incomplete cloud data.",
+        ],
       })
       return
     }
@@ -263,7 +291,11 @@ export default function CreateInvoiceClient() {
         tone: "warning",
         title: "Invoice limit reached (Free plan)",
         actionHint: "Upgrade for unlimited invoices, or free up space by removing old drafts.",
-        message: "You’ve reached the Free plan limit of 10 invoices. Upgrade to Plus to create more invoices.",
+        message: "You've reached the Free plan limit of 10 invoices. Upgrade to Plus to create more invoices.",
+        details: [
+          "Existing invoices stay available to view, print, and export.",
+          "Upgrading to Plus removes the invoice cap for this workspace.",
+        ],
         primaryLabel: "Upgrade to Plus",
         secondaryLabel: "Not now",
         onPrimary: () => router.push("/dashboard/upgrade"),
@@ -278,6 +310,10 @@ export default function CreateInvoiceClient() {
         title: "Business profile needs attention",
         actionHint: "Open Business Profile, complete the required details, then try creating the invoice again.",
         message: businessError,
+        details: [
+          "Invoices need complete business information so view, print, and PDF export stay accurate.",
+          "Your current invoice draft will still be here after you finish the missing business details.",
+        ],
       })
       return
     }
@@ -295,6 +331,16 @@ export default function CreateInvoiceClient() {
     const invoiceRecord = normalizeInvoiceRecord({
       id: createInvoiceId(),
       invoiceNumber: nextInvoiceNumber,
+      ...getInvoiceNumberingMetadata(
+        {
+          prefix: invoicePrefix,
+          padding: invoicePadding,
+          startNumber: invoiceStartNumber,
+          resetYearly,
+          resetMonthDay: invoiceResetMonthDay,
+        },
+        date
+      ),
       clientName,
       clientPhone,
       clientEmail,
@@ -313,6 +359,10 @@ export default function CreateInvoiceClient() {
         title: "Missing or invalid invoice details",
         actionHint: "Check required fields (including invoice date), fix any issues, then save again.",
         message: invoiceError,
+        details: [
+          "The invoice is not saved until all required client, date, and item details are valid.",
+          "Review the highlighted inputs and try again once everything looks complete.",
+        ],
       })
       return
     }
@@ -324,12 +374,17 @@ export default function CreateInvoiceClient() {
           tone: "warning",
           title: "Check the invoice date",
           actionHint: "Pick a date on or after your last invoice, then save again.",
-          message: "Invoice date can’t be earlier than the previous invoice date.",
+          message: "Invoice date can't be earlier than the previous invoice date.",
+          details: [
+            "This keeps invoice chronology predictable when numbering depends on invoice date.",
+            "Choose a later date if this invoice should come after your latest saved invoice.",
+          ],
         })
         return
       }
     }
 
+    setSavingInvoice(true)
     invoices.push(invoiceRecord)
     writeStoredInvoices(invoices)
     bumpInvoiceUsageCount(1)
@@ -339,9 +394,14 @@ export default function CreateInvoiceClient() {
       title: "Invoice saved",
       actionHint: "Open your list to view, print, or share the PDF.",
       message: "Your invoice is saved and ready to view, print, or download as PDF.",
+      details: [
+        "The invoice number is now reserved and locked to this saved record.",
+        "You can open it anytime from the invoice list for view, print, share, or export.",
+      ],
       primaryLabel: "Go to invoices",
       onPrimary: () => router.push("/dashboard/invoices"),
     })
+    window.setTimeout(() => setSavingInvoice(false), 800)
   }
 
   return (
@@ -363,6 +423,9 @@ export default function CreateInvoiceClient() {
         <div className="soft-card rounded-[24px] px-4 py-3 sm:px-5 sm:py-4">
           <p className="text-xs uppercase tracking-[0.28em] text-slate-400">Invoice Number</p>
           <p className="mt-1.5 text-lg font-semibold text-slate-950 sm:mt-2 sm:text-2xl">{invoiceNumber}</p>
+          {duplicateCycleWarning ? (
+            <p className="mt-2 text-xs leading-5 text-amber-700">{duplicateCycleWarning}</p>
+          ) : null}
         </div>
         <div className="soft-card rounded-[24px] px-4 py-3 sm:px-5 sm:py-4">
           <p className="text-xs uppercase tracking-[0.28em] text-slate-400">Subtotal</p>
@@ -586,18 +649,19 @@ export default function CreateInvoiceClient() {
           </div>
         </div>
 
-        <button onClick={saveInvoice} className="mt-5 hidden items-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 xl:inline-flex">
+        <button onClick={saveInvoice} disabled={savingInvoice} className="mt-5 hidden items-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400 xl:inline-flex">
           <Save className="h-4 w-4" />
-          Save Invoice
+          {savingInvoice ? "Saving..." : "Save Invoice"}
         </button>
       </section>
 
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200/80 bg-white/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-12px_40px_rgba(15,23,42,0.08)] backdrop-blur-md xl:hidden">
-        <button onClick={saveInvoice} className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-slate-800">
+      <div className="eb-safe-bottom-pad fixed inset-x-0 bottom-0 z-40 border-t border-slate-200/80 bg-white/95 px-4 pt-3 shadow-[0_-12px_40px_rgba(15,23,42,0.08)] backdrop-blur-md xl:hidden">
+        <button onClick={saveInvoice} disabled={savingInvoice} className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400">
           <Save className="h-4 w-4" />
-          Save Invoice
+          {savingInvoice ? "Saving..." : "Save Invoice"}
         </button>
       </div>
     </div>
   )
 }
+

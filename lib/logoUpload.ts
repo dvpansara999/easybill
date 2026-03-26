@@ -2,9 +2,11 @@
 
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser"
 import { getActiveUserId } from "@/lib/auth"
+import { getAuthMode } from "@/lib/runtimeMode"
+import { buildLogoStoragePath, getOwnedLogoStoragePath, LOGO_BUCKET } from "@/lib/logoStorage"
+import { validateLogoFile, MAX_LOGO_UPLOAD_BYTES } from "@/lib/logoValidation"
 
 export const MAX_LOGO_BYTES = 150 * 1024
-const LOGO_BUCKET = "logos"
 
 async function fileToImage(file: File) {
   const dataUrl = await new Promise<string>((resolve, reject) => {
@@ -28,6 +30,15 @@ async function canvasToWebpBlob(canvas: HTMLCanvasElement, quality: number) {
   const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob((b) => resolve(b), "image/webp", quality))
   if (!blob) throw new Error("Unable to compress image.")
   return blob
+}
+
+async function blobToDataUrl(blob: Blob) {
+  return await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onerror = () => reject(new Error("Unable to encode image."))
+    reader.onload = () => resolve(String(reader.result || ""))
+    reader.readAsDataURL(blob)
+  })
 }
 
 export async function compressLogoToWebp(file: File) {
@@ -59,13 +70,20 @@ export async function uploadLogoToSupabase(file: File) {
   const userId = getActiveUserId()
   if (!userId) throw new Error("You must be signed in to upload a logo.")
 
-  if (file.size > 5 * 1024 * 1024) {
+  if (file.size > MAX_LOGO_UPLOAD_BYTES) {
     throw new Error("Logo file is too large. Please upload a smaller image.")
   }
+
+  await validateLogoFile(file)
 
   const blob = await compressLogoToWebp(file)
   if (blob.size > MAX_LOGO_BYTES) {
     throw new Error("Logo is still above 150KB after compression. Try a simpler image.")
+  }
+
+  if (getAuthMode() === "local") {
+    const publicUrl = await blobToDataUrl(blob)
+    return { publicUrl, path: `${userId}/local-logo.webp`, size: blob.size }
   }
 
   const supabase = createSupabaseBrowserClient()
@@ -73,7 +91,7 @@ export async function uploadLogoToSupabase(file: File) {
     typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
       ? crypto.randomUUID()
       : Math.random().toString(36).slice(2)
-  const path = `${userId}/logo-${Date.now()}-${suffix}.webp`
+  const path = buildLogoStoragePath(userId, Date.now(), suffix)
 
   const { error } = await supabase.storage.from(LOGO_BUCKET).upload(path, blob, {
     upsert: false,
@@ -87,25 +105,12 @@ export async function uploadLogoToSupabase(file: File) {
   return { publicUrl: data.publicUrl, path, size: blob.size }
 }
 
-function toOwnedLogoStoragePath(publicUrl: string, userId: string) {
-  try {
-    const url = new URL(publicUrl)
-    const marker = `/${LOGO_BUCKET}/`
-    const markerIndex = url.pathname.indexOf(marker)
-    if (markerIndex === -1) return null
-    const storagePath = decodeURIComponent(url.pathname.slice(markerIndex + marker.length))
-    if (!storagePath.startsWith(`${userId}/`)) return null
-    return storagePath
-  } catch {
-    return null
-  }
-}
-
 export async function deleteLogoFromSupabase(publicUrl: string | null | undefined) {
   const userId = getActiveUserId()
   if (!userId || !publicUrl) return
+  if (getAuthMode() === "local") return
 
-  const storagePath = toOwnedLogoStoragePath(publicUrl, userId)
+  const storagePath = getOwnedLogoStoragePath(publicUrl, userId)
   if (!storagePath) return
 
   const supabase = createSupabaseBrowserClient()

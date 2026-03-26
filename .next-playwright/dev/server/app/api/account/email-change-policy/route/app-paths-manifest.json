@@ -1,0 +1,3 @@
+{
+  "/api/account/email-change-policy/route": "app/api/account/email-change-policy/route.js"
+}

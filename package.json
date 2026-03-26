@@ -4,10 +4,15 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --webpack",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "test:regression": "tsc -p tsconfig.tests.json && node .test-dist/tests/run-regressions.js",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
+    "verify": "npm run lint && npm run typecheck && npm run test:regression",
     "pdf:help": "node -e \"console.log('PDF: POST /api/invoice-pdf (Playwright setContent). See docs/PDF-PIPELINE.md')\""
   },
   "dependencies": {
@@ -48,3 +53,4 @@
     "typescript": "^5"
   }
 }
+

@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto"
+import { normalizeBusinessProfile } from "@/lib/businessProfile"
 import { generateInvoicePdfBuffer } from "@/lib/server/generateInvoicePdfBuffer"
 import { parseJsonLoose } from "@/lib/server/invoicePdfRouteHelpers"
-import { findInvoiceByIdentity, normalizeInvoiceRecords } from "@/lib/invoice"
+import { findInvoiceByIdentity, normalizeInvoiceStorePayload } from "@/lib/invoice"
 import { normalizeInvoiceForPdf } from "@/lib/server/normalizeInvoiceForPdf"
 import { revealSensitiveDataFromStorage } from "@/lib/sensitiveData"
 import type { InvoiceVisibilitySettings } from "@/lib/invoiceVisibilityShared"
@@ -248,7 +249,8 @@ export async function resolveInvoicePdfSourceForUser(
   const invoicesRaw = toRawString(getKvOrBundle("invoices"))
   const invoicesDecrypted = invoicesRaw ? revealSensitiveDataFromStorage("invoices", invoicesRaw) : null
   const invoicesParsed = parseJsonLoose(invoicesDecrypted) || []
-  const { invoices } = normalizeInvoiceRecords(invoicesParsed)
+  const { store } = normalizeInvoiceStorePayload(invoicesParsed)
+  const invoices = store.invoices
   const found = findInvoiceByIdentity(invoices, String(body.invoiceId))
 
   if (!found) {
@@ -260,7 +262,7 @@ export async function resolveInvoicePdfSourceForUser(
 
   const businessRaw = toRawString(getKvOrBundle("businessProfile"))
   const businessDataRaw = businessRaw ? revealSensitiveDataFromStorage("businessProfile", businessRaw) : null
-  const businessObj = businessDataRaw ? (parseJsonLoose(businessDataRaw) as Record<string, unknown> | null) : null
+  const businessObj = businessDataRaw ? normalizeBusinessProfile(parseJsonLoose(businessDataRaw)) : null
 
   const invoiceVisibilityRaw = toRawString(getKvOrBundle("invoiceVisibility"))
   const visibility = (parseJsonLoose(invoiceVisibilityRaw) || null) as Partial<InvoiceVisibilitySettings> | null

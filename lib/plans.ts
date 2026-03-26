@@ -1,4 +1,5 @@
 import { DEFAULT_TEMPLATE_ID, resolveTemplateId } from "@/lib/templateIds"
+import { normalizeInvoiceStorePayload } from "@/lib/invoice"
 
 export type PlanId = "free" | "plus"
 
@@ -127,7 +128,7 @@ function ensureInvoiceUsageInitialized(): number {
     const invoicesRaw = readScoped("invoices")
     if (invoicesRaw) {
       const parsed = JSON.parse(invoicesRaw) as unknown
-      if (Array.isArray(parsed)) invoiceCount = parsed.length
+      invoiceCount = normalizeInvoiceStorePayload(parsed).store.invoices.length
     }
   } catch {
     invoiceCount = 0

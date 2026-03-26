@@ -5,43 +5,20 @@ import "react-easy-crop/react-easy-crop.css"
 import NextImage from "next/image"
 import { type Area, type Point } from "react-easy-crop"
 import Cropper from "react-easy-crop"
-import { type ChangeEvent, useEffect, useState } from "react"
+import { type ChangeEvent, useCallback, useEffect, useMemo, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useBusiness } from "@/context/BusinessContext"
 import { Building2, Check, Circle, Landmark, ScrollText, Square, Upload } from "lucide-react"
 import { flushCloudKeyNow, getActiveOrGlobalItem } from "@/lib/userStore"
 import { useAppAlert } from "@/components/providers/AppAlertProvider"
-import { deleteLogoFromSupabase, MAX_LOGO_BYTES, uploadLogoToSupabase } from "@/lib/logoUpload"
+import { deleteLogoFromSupabase, uploadLogoToSupabase } from "@/lib/logoUpload"
+import { useUnsavedChangesGuard } from "@/lib/unsavedChangesGuard"
+import { getLogoUploadRuleText, validateLogoFile } from "@/lib/logoValidation"
+import { EMPTY_BUSINESS_PROFILE, normalizeBusinessProfile, type BusinessProfileRecord } from "@/lib/businessProfile"
 
-type BusinessProfile = {
-  businessName: string
-  address: string
-  gst: string
-  phone: string
-  email: string
-  bankName: string
-  accountNumber: string
-  ifsc: string
-  upi: string
-  terms: string
-  logo: string
-  logoShape: "square" | "round"
-}
+type BusinessProfile = BusinessProfileRecord
 
-const emptyProfile: BusinessProfile = {
-  businessName: "",
-  address: "",
-  gst: "",
-  phone: "",
-  email: "",
-  bankName: "",
-  accountNumber: "",
-  ifsc: "",
-  upi: "",
-  terms: "",
-  logo: "",
-  logoShape: "square",
-}
+const emptyProfile: BusinessProfile = EMPTY_BUSINESS_PROFILE
 
 function readProfileFromStore(): BusinessProfile {
   if (typeof window === "undefined") return emptyProfile
@@ -50,21 +27,7 @@ function readProfileFromStore(): BusinessProfile {
   if (!saved) return emptyProfile
 
   try {
-    const parsed = JSON.parse(saved) as Partial<BusinessProfile>
-    return {
-      businessName: parsed.businessName || "",
-      address: parsed.address || "",
-      gst: parsed.gst || "",
-      phone: parsed.phone || "",
-      email: parsed.email || "",
-      bankName: parsed.bankName || "",
-      accountNumber: parsed.accountNumber || "",
-      ifsc: parsed.ifsc || "",
-      upi: parsed.upi || "",
-      terms: parsed.terms || "",
-      logo: parsed.logo || "",
-      logoShape: parsed.logoShape === "round" ? "round" : "square",
-    }
+    return normalizeBusinessProfile(JSON.parse(saved))
   } catch {
     return emptyProfile
   }
@@ -78,11 +41,13 @@ export default function BusinessProfileClient() {
   const { showAlert } = useAppAlert()
 
   const [profile, setProfile] = useState<BusinessProfile>(() => readProfileFromStore())
+  const [savedProfileSnapshot, setSavedProfileSnapshot] = useState<BusinessProfile>(() => readProfileFromStore())
   const [logoSource, setLogoSource] = useState("")
   const [logoCrop, setLogoCrop] = useState<Point>({ x: 0, y: 0 })
   const [logoZoom, setLogoZoom] = useState(1)
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null)
   const [savingProfile, setSavingProfile] = useState(false)
+  const [saveMessage, setSaveMessage] = useState("")
 
   function createImage(src: string) {
     return new Promise<HTMLImageElement>((resolve, reject) => {
@@ -121,12 +86,39 @@ export default function BusinessProfileClient() {
   }
 
   useEffect(() => {
-    function onCloudSync() {
-      setProfile(readProfileFromStore())
+    router.prefetch("/dashboard/settings")
+    router.prefetch("/dashboard/invoices/create")
+  }, [router])
+
+  useEffect(() => {
+    function refreshProfile() {
+      const nextProfile = readProfileFromStore()
+      setSavedProfileSnapshot(nextProfile)
+      setProfile(nextProfile)
     }
 
-    window.addEventListener("easybill:cloud-sync", onCloudSync as EventListener)
-    return () => window.removeEventListener("easybill:cloud-sync", onCloudSync as EventListener)
+    function onKvWrite(e: Event) {
+      const key = (e as CustomEvent<{ key?: string }>).detail?.key
+      if (key === "businessProfile") {
+        refreshProfile()
+      }
+    }
+
+    function onStorage(e: StorageEvent) {
+      if (!e.key) return
+      if (e.key.startsWith("businessProfile::") || e.key === "businessProfile") {
+        refreshProfile()
+      }
+    }
+
+    window.addEventListener("easybill:cloud-sync", refreshProfile as EventListener)
+    window.addEventListener("easybill:kv-write", onKvWrite as EventListener)
+    window.addEventListener("storage", onStorage)
+    return () => {
+      window.removeEventListener("easybill:cloud-sync", refreshProfile as EventListener)
+      window.removeEventListener("easybill:kv-write", onKvWrite as EventListener)
+      window.removeEventListener("storage", onStorage)
+    }
   }, [])
 
   const handleChange = (field: keyof BusinessProfile, value: string) => {
@@ -136,30 +128,49 @@ export default function BusinessProfileClient() {
     }))
   }
 
+  const hasUnsavedChanges = useMemo(() => {
+    return logoSource !== "" || JSON.stringify(profile) !== JSON.stringify(savedProfileSnapshot)
+  }, [logoSource, profile, savedProfileSnapshot])
+
+  const revertChanges = useCallback(() => {
+    setProfile(savedProfileSnapshot)
+    setLogoSource("")
+    setLogoZoom(1)
+    setLogoCrop({ x: 0, y: 0 })
+    setCroppedAreaPixels(null)
+    setSaveMessage("")
+  }, [savedProfileSnapshot])
+
   const handleLogoUpload = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    if (file.size > MAX_LOGO_BYTES) {
-      showAlert({
-        tone: "warning",
-        title: "Logo too large",
-        actionHint: "Choose a smaller image (under 150KB), then upload again.",
-        message: "Please upload a logo smaller than 150KB.",
-      })
-      return
-    }
     const reader = new FileReader()
-    reader.onload = () => {
-      const source = String(reader.result || "")
-      if (!source) return
-      setLogoSource(source)
-      setLogoZoom(1)
-      setLogoCrop({ x: 0, y: 0 })
-      setCroppedAreaPixels(null)
-      // Preview while editing before cloud upload on save.
-      setProfile((prev) => ({ ...prev, logo: source }))
-    }
-    reader.readAsDataURL(file)
+    void validateLogoFile(file)
+      .then(() => {
+        reader.onload = () => {
+          const source = String(reader.result || "")
+          if (!source) return
+          setLogoSource(source)
+          setLogoZoom(1)
+          setLogoCrop({ x: 0, y: 0 })
+          setCroppedAreaPixels(null)
+          // Preview while editing before cloud upload on save.
+          setProfile((prev) => ({ ...prev, logo: source }))
+        }
+        reader.readAsDataURL(file)
+      })
+      .catch((error) => {
+        showAlert({
+          tone: "warning",
+          title: "Logo not accepted",
+          actionHint: "Use a valid logo file, then upload again.",
+          message: error instanceof Error ? error.message : "Unable to use this logo file.",
+          details: [
+            getLogoUploadRuleText(),
+            "Try a clear square or round logo for the best invoice fit.",
+          ],
+        })
+      })
   }
 
   const deleteLogo = () => {
@@ -177,8 +188,9 @@ export default function BusinessProfileClient() {
     setCroppedAreaPixels(croppedPixels)
   }
 
-  const saveProfile = async () => {
+  const saveProfile = async (options?: { navigateAfterSave?: boolean }) => {
     setSavingProfile(true)
+    setSaveMessage("")
     let nextProfile = { ...profile }
     const previousRemoteLogo = profile.logo.startsWith("http://") || profile.logo.startsWith("https://") ? profile.logo : ""
     let uploadedRemoteLogo = ""
@@ -199,8 +211,13 @@ export default function BusinessProfileClient() {
           title: "Logo upload failed",
           actionHint: "Check your connection and file format, then try uploading again.",
           message: err instanceof Error ? err.message : "Unable to upload logo.",
+          details: [
+            "Your existing saved logo has not been changed.",
+            "Once the upload succeeds, the new logo will update across templates, invoice view, and PDF exports.",
+          ],
+          footerNote: "If this keeps happening, try a smaller PNG or JPG and upload again.",
         })
-        return
+        return false
       }
     }
 
@@ -215,22 +232,41 @@ export default function BusinessProfileClient() {
     // Persist via context so `terms` and all fields stay in sync (setBusiness normalizes + writes KV).
     setBusiness(nextProfile)
     await flushCloudKeyNow("businessProfile").catch(() => {})
+    setSavedProfileSnapshot(nextProfile)
     setProfile(nextProfile)
     setLogoSource("")
     setSavingProfile(false)
 
-    if (setupMode) {
+    if (setupMode && options?.navigateAfterSave !== false) {
+      setSaveMessage("Profile saved. Opening settings...")
       router.push("/dashboard/settings?setup=1")
-      return
+      return true
     }
+
+    setSaveMessage("Profile saved and applied across invoices, templates, and exports.")
+    window.setTimeout(() => setSaveMessage(""), 2500)
 
     showAlert({
       tone: "success",
       title: "Business profile saved",
-      actionHint: "You can keep editing or continue invoicing — changes apply everywhere.",
+      actionHint: "You can keep editing or continue invoicing - changes apply everywhere.",
       message: "Your business details are saved and will be used across templates, print, and PDF exports.",
+      details: [
+        "Business identity, payment details, and terms are now aligned across the app.",
+        "Any new invoice or PDF export will use this latest version automatically.",
+      ],
+      footerNote: "You can return here anytime to refine your brand mark, payment details, or invoice terms.",
     })
+    return true
   }
+
+  useUnsavedChangesGuard({
+    hasUnsavedChanges,
+    onApply: () => saveProfile({ navigateAfterSave: false }),
+    onRevert: revertChanges,
+    actionHint: "Apply your business profile before leaving, or revert the changes and continue.",
+    message: "You changed business details on this page.",
+  })
 
   return (
     <div className="space-y-6 pb-28 lg:space-y-8 lg:pb-0">
@@ -260,6 +296,12 @@ export default function BusinessProfileClient() {
           </p>
         </div>
       </section>
+
+      {saveMessage ? (
+        <div className="eb-fade-slide-in rounded-[20px] border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+          {saveMessage}
+        </div>
+      ) : null}
 
       <div className="grid gap-6 xl:grid-cols-[0.85fr_1.15fr]">
         <section className="soft-card rounded-[24px] p-4 sm:p-6 lg:rounded-[28px] lg:p-6">
@@ -370,8 +412,7 @@ export default function BusinessProfileClient() {
             </div>
 
             <div className="rounded-[22px] border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-600">
-              <span className="font-semibold text-slate-900">Logo rule:</span> upload up to 150KB only. easyBILL compresses
-              logos before cloud upload to save storage.
+              <span className="font-semibold text-slate-900">Logo rule:</span> {getLogoUploadRuleText()}
             </div>
           </div>
         </section>
@@ -488,20 +529,20 @@ export default function BusinessProfileClient() {
         </section>
       </div>
 
-      <button
-        onClick={saveProfile}
-        disabled={savingProfile}
-        className={`hidden lg:inline-flex items-center rounded-2xl px-6 py-3 text-sm font-semibold text-white transition ${
-          savingProfile ? "cursor-not-allowed bg-slate-400" : "bg-slate-950 hover:bg-slate-800"
+        <button
+          onClick={() => void saveProfile()}
+          disabled={savingProfile}
+          className={`hidden lg:inline-flex items-center rounded-2xl px-6 py-3 text-sm font-semibold text-white transition ${
+            savingProfile ? "cursor-not-allowed bg-slate-400" : "bg-slate-950 hover:bg-slate-800"
         }`}
       >
         {savingProfile ? "Saving..." : setupMode ? "Save And Continue" : "Save Business Profile"}
       </button>
 
       {/* Mobile sticky save */}
-      <div className="fixed inset-x-0 bottom-0 z-40 bg-white/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-12px_40px_rgba(15,23,42,0.08)] backdrop-blur-md lg:hidden">
+      <div className="eb-safe-bottom-pad fixed inset-x-0 bottom-0 z-40 bg-white/95 px-4 pt-3 shadow-[0_-12px_40px_rgba(15,23,42,0.08)] backdrop-blur-md lg:hidden">
         <button
-          onClick={saveProfile}
+          onClick={() => void saveProfile()}
           disabled={savingProfile}
           className={`inline-flex w-full items-center justify-center gap-2 rounded-2xl px-6 py-3 text-sm font-semibold text-white transition ${
             savingProfile ? "cursor-not-allowed bg-slate-400" : "bg-slate-950 hover:bg-slate-800"
@@ -513,3 +554,4 @@ export default function BusinessProfileClient() {
     </div>
   )
 }
+

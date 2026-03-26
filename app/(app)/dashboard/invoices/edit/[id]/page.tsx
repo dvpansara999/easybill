@@ -8,7 +8,7 @@ import { getActiveOrGlobalItem } from "@/lib/userStore"
 import { useAppAlert } from "@/components/providers/AppAlertProvider"
 import {
   createEmptyInvoiceItem,
-  findInvoiceByIdentity,
+  findInvoiceById,
   getStoredBusinessRecord,
   normalizeInvoiceRecord,
   readStoredInvoices,
@@ -63,7 +63,7 @@ function safeParseProducts(raw: string | null): ProductRecord[] {
 function readEditInvoiceState(invoiceId: string): EditInvoiceState {
   const products = safeParseProducts(getActiveOrGlobalItem("products"))
   const invoices = readStoredInvoices()
-  const invoice = findInvoiceByIdentity(invoices, invoiceId)
+  const invoice = findInvoiceById(invoices, invoiceId)
 
   return {
     products,
@@ -131,6 +131,11 @@ export default function EditInvoice() {
   )
   const [suggestions, setSuggestions] = useState<ProductRecord[]>([])
   const [activeRow, setActiveRow] = useState<number | null>(null)
+  const [updatingInvoice, setUpdatingInvoice] = useState(false)
+
+  useEffect(() => {
+    router.prefetch(returnTo)
+  }, [returnTo, router])
 
   useEffect(() => {
     if (!canEditInvoices()) {
@@ -139,6 +144,10 @@ export default function EditInvoice() {
         title: "Editing is locked on the Free plan",
         actionHint: "Upgrade to Plus to unlock editing, or go back to your list.",
         message: "Upgrade to Plus to edit invoices.",
+        details: [
+          "You can still view, print, and export this invoice while staying on the Free plan.",
+          "Upgrade only when you need to revise already-saved invoices.",
+        ],
         primaryLabel: "Upgrade to Plus",
         secondaryLabel: "Back",
         onPrimary: () => router.push("/dashboard/upgrade"),
@@ -240,6 +249,7 @@ export default function EditInvoice() {
   }
 
   function updateInvoice() {
+    if (updatingInvoice) return
     const businessError = validateBusinessRecord(getStoredBusinessRecord())
 
     if (businessError) {
@@ -248,6 +258,10 @@ export default function EditInvoice() {
         title: "Business profile needs attention",
         actionHint: "Open Business Profile, complete the required details, then come back to this invoice.",
         message: businessError,
+        details: [
+          "Business details are used again in invoice view, print, and PDF export.",
+          "This invoice will remain unchanged until the required business fields are complete.",
+        ],
       })
       return
     }
@@ -260,15 +274,25 @@ export default function EditInvoice() {
         title: "Invoice not found",
         actionHint: "Return to your invoice list and pick a valid invoice.",
         message: "This invoice could not be found in your current account.",
+        details: [
+          "The link may be old, or the invoice may have been removed from this account.",
+          "Go back to the invoice list to open the latest saved version.",
+        ],
         primaryLabel: "Back",
         onPrimary: () => router.push(returnTo),
       })
       return
     }
 
+    const existingInvoice = initialState.invoices[index]
+
     const invoiceRecord = normalizeInvoiceRecord({
       id: invoiceId,
       invoiceNumber,
+      numberingModeAtCreation: existingInvoice?.numberingModeAtCreation,
+      resetMonthDayAtCreation: existingInvoice?.resetMonthDayAtCreation,
+      sequenceWindowStart: existingInvoice?.sequenceWindowStart,
+      sequenceWindowEnd: existingInvoice?.sequenceWindowEnd,
       clientName,
       clientPhone,
       clientEmail,
@@ -288,6 +312,10 @@ export default function EditInvoice() {
         title: "Missing or invalid invoice details",
         actionHint: "Check required fields (including invoice date), fix any issues, then save again.",
         message: invoiceError,
+        details: [
+          "Updates are not saved until all required invoice fields pass validation.",
+          "Review client details, invoice items, and any required dates before trying again.",
+        ],
       })
       return
     }
@@ -295,6 +323,7 @@ export default function EditInvoice() {
     const updatedInvoices = [...initialState.invoices]
     updatedInvoices[index] = invoiceRecord
 
+    setUpdatingInvoice(true)
     writeStoredInvoices(updatedInvoices)
 
     showAlert({
@@ -302,13 +331,30 @@ export default function EditInvoice() {
       title: "Invoice updated",
       actionHint: "View, print, or download the PDF anytime from your list.",
       message: "Your changes have been saved.",
+      details: [
+        "The invoice number stays frozen, while the edited content updates immediately.",
+        "Future invoice view, print, and PDF export will now use these saved changes.",
+      ],
       primaryLabel: "Back to invoices",
       onPrimary: () => router.push(returnTo),
     })
+    window.setTimeout(() => setUpdatingInvoice(false), 800)
   }
 
   if (!initialState.invoice) {
-    return <div className="p-6 text-sm text-slate-500">Invoice not found in this account.</div>
+    return (
+      <div className="rounded-[24px] border border-slate-200 bg-white p-6 text-center sm:rounded-[28px] sm:p-8">
+        <p className="text-sm font-semibold text-slate-900">Invoice not found</p>
+        <p className="mt-2 text-sm text-slate-500">This invoice is no longer available in the current account.</p>
+        <button
+          type="button"
+          onClick={goBackToInvoices}
+          className="mt-5 inline-flex rounded-full border border-slate-200 px-4 py-2 font-semibold text-slate-700 transition hover:bg-slate-50"
+        >
+          Back to invoices
+        </button>
+      </div>
+    )
   }
 
   return (
@@ -520,16 +566,16 @@ export default function EditInvoice() {
           </div>
         </div>
 
-        <button onClick={updateInvoice} className="mt-5 hidden items-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 xl:inline-flex">
+        <button onClick={updateInvoice} disabled={updatingInvoice} className="mt-5 hidden items-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400 xl:inline-flex">
           <Save className="h-4 w-4" />
-          Update Invoice
+          {updatingInvoice ? "Updating..." : "Update Invoice"}
         </button>
       </section>
 
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200/80 bg-white/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-12px_40px_rgba(15,23,42,0.08)] backdrop-blur-md xl:hidden">
-        <button onClick={updateInvoice} className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-slate-800">
+      <div className="eb-safe-bottom-pad fixed inset-x-0 bottom-0 z-40 border-t border-slate-200/80 bg-white/95 px-4 pt-3 shadow-[0_-12px_40px_rgba(15,23,42,0.08)] backdrop-blur-md xl:hidden">
+        <button onClick={updateInvoice} disabled={updatingInvoice} className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400">
           <Save className="h-4 w-4" />
-          Update Invoice
+          {updatingInvoice ? "Updating..." : "Update Invoice"}
         </button>
       </div>
     </div>

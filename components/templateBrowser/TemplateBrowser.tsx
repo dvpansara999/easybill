@@ -84,6 +84,10 @@ export default function TemplateBrowser({ templates }: { templates: TemplateEntr
         title: "Template locked (Free plan)",
         actionHint: "Upgrade to Plus to unlock this template, or pick another style.",
         message: "This template is available on Plus. Upgrade to unlock it.",
+        details: [
+          "Your current template stays active until you choose another available option.",
+          "Upgrade only if you want access to premium template styles.",
+        ],
         primaryLabel: "Upgrade to Plus",
         secondaryLabel: "Not now",
         onPrimary: () => router.push("/dashboard/upgrade"),
@@ -99,6 +103,10 @@ export default function TemplateBrowser({ templates }: { templates: TemplateEntr
       title: "Template applied",
       actionHint: "Create or preview an invoice to see it in action.",
       message: "This template will be used for new invoices (and previews) in easyBILL.",
+      details: [
+        "Invoice view, print, and PDF export will use this updated design.",
+        "You can switch templates again at any time.",
+      ],
     })
   }
 
@@ -247,7 +255,7 @@ export default function TemplateBrowser({ templates }: { templates: TemplateEntr
         </div>
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200/80 bg-white/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-12px_40px_rgba(15,23,42,0.08)] backdrop-blur-md xl:hidden">
+      <div className="eb-safe-bottom-pad fixed inset-x-0 bottom-0 z-40 border-t border-slate-200/80 bg-white/95 px-4 pt-3 shadow-[0_-12px_40px_rgba(15,23,42,0.08)] backdrop-blur-md xl:hidden">
         <p className="mb-2 text-center text-[10px] leading-4 text-slate-500">
           A4 preview above · scroll if your invoice spans 2 pages
         </p>

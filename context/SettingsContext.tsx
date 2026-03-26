@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, useEffect, useMemo, useState } from "react"
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react"
 import { getActiveOrGlobalItem, setActiveOrGlobalItem } from "@/lib/userStore"
 import { getAuthMode } from "@/lib/runtimeMode"
 import { getActiveUserId } from "@/lib/auth"
@@ -132,23 +132,107 @@ function writeMissingDefaults(snapshot: SettingsSnapshot) {
   }
 }
 
+function settingsEqual(a: SettingsSnapshot, b: SettingsSnapshot) {
+  return (
+    a.dateFormat === b.dateFormat &&
+    a.amountFormat === b.amountFormat &&
+    a.showDecimals === b.showDecimals &&
+    a.invoicePrefix === b.invoicePrefix &&
+    a.invoicePadding === b.invoicePadding &&
+    a.invoiceStartNumber === b.invoiceStartNumber &&
+    a.resetYearly === b.resetYearly &&
+    a.invoiceResetMonthDay === b.invoiceResetMonthDay &&
+    a.currencySymbol === b.currencySymbol &&
+    a.currencyPosition === b.currencyPosition &&
+    JSON.stringify(a.invoiceVisibility) === JSON.stringify(b.invoiceVisibility)
+  )
+}
+
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState<SettingsSnapshot>(() => readSettingsFromStorage())
+  const refreshFrameRef = useRef<number | null>(null)
 
   useEffect(() => {
+    const scheduleRefresh = () => {
+      if (refreshFrameRef.current != null) {
+        window.cancelAnimationFrame(refreshFrameRef.current)
+      }
+      refreshFrameRef.current = window.requestAnimationFrame(() => {
+        refreshFrameRef.current = null
+        const nextSettings = readSettingsFromStorage()
+        setSettings((prev) => (settingsEqual(prev, nextSettings) ? prev : nextSettings))
+      })
+    }
+
+    const initialSettings = readSettingsFromStorage()
+    scheduleRefresh()
+
     const supabaseNeedsHydration = getAuthMode() === "supabase" && Boolean(getActiveUserId())
     if (!supabaseNeedsHydration) {
-      writeMissingDefaults(readSettingsFromStorage())
+      writeMissingDefaults(initialSettings)
     }
 
     function onCloud() {
       const nextSettings = readSettingsFromStorage()
-      setSettings(nextSettings)
+      setSettings((prev) => (settingsEqual(prev, nextSettings) ? prev : nextSettings))
       writeMissingDefaults(nextSettings)
     }
 
+    function onKvWrite(e: Event) {
+      const ce = e as CustomEvent<{ key?: string }>
+      if (!ce.detail?.key) return
+      if (
+        ![
+          "dateFormat",
+          "amountFormat",
+          "showDecimals",
+          "invoicePrefix",
+          "invoicePadding",
+          "invoiceStartNumber",
+          "resetYearly",
+          "invoiceResetMonthDay",
+          "currencySymbol",
+          "currencyPosition",
+          "invoiceVisibility",
+        ].includes(ce.detail.key)
+      ) {
+        return
+      }
+      scheduleRefresh()
+    }
+
+    function onStorage(e: StorageEvent) {
+      if (!e.key) return
+      if (
+        [
+          "dateFormat",
+          "amountFormat",
+          "showDecimals",
+          "invoicePrefix",
+          "invoicePadding",
+          "invoiceStartNumber",
+          "resetYearly",
+          "invoiceResetMonthDay",
+          "currencySymbol",
+          "currencyPosition",
+          "invoiceVisibility",
+        ].some((key) => e.key?.startsWith(`${key}::`) || e.key === key)
+      ) {
+        scheduleRefresh()
+      }
+    }
+
     window.addEventListener("easybill:cloud-sync", onCloud as EventListener)
-    return () => window.removeEventListener("easybill:cloud-sync", onCloud as EventListener)
+    window.addEventListener("easybill:kv-write", onKvWrite as EventListener)
+    window.addEventListener("storage", onStorage)
+    return () => {
+      if (refreshFrameRef.current != null) {
+        window.cancelAnimationFrame(refreshFrameRef.current)
+      }
+      window.removeEventListener("easybill:cloud-sync", onCloud as EventListener)
+      window.removeEventListener("easybill:kv-write", onKvWrite as EventListener)
+      window.removeEventListener("storage", onStorage)
+    }
   }, [])
 
   const value = useMemo<SettingsContextType>(

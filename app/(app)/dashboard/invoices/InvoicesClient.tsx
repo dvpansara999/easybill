@@ -1,89 +1,16 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { startTransition, useDeferredValue, useEffect, useMemo, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useSettings } from "@/context/SettingsContext"
 import { formatDate } from "@/lib/dateFormat"
 import { formatCurrency } from "@/lib/formatCurrency"
+import { buildInvoiceRangeSummary, sortInvoicesNewestFirst } from "@/lib/invoiceCollections"
 import { CalendarRange, FilePlus2, PencilLine, Search, Trash2 } from "lucide-react"
 import { readStoredInvoices, writeStoredInvoices, type InvoiceRecord } from "@/lib/invoice"
 import { canEditInvoices } from "@/lib/plans"
 import SelectMenu from "@/components/ui/SelectMenu"
 import { useAppAlert } from "@/components/providers/AppAlertProvider"
-
-function parseInvoiceNumber(invoiceNumber: string) {
-  const match = invoiceNumber.match(/^(.*?)(\d+)$/)
-
-  if (!match) {
-    return {
-      prefix: invoiceNumber,
-      numericValue: null,
-      numericText: "",
-    }
-  }
-
-  return {
-    prefix: match[1],
-    numericValue: Number(match[2]),
-    numericText: match[2],
-  }
-}
-
-function buildRangeSummary(invoices: InvoiceRecord[]) {
-  if (invoices.length === 0) return []
-
-  const chronological = [...invoices].reverse()
-  const groups: Array<{
-    prefix: string
-    firstLabel: string
-    lastLabel: string
-    firstValue: number | null
-    lastValue: number | null
-    width: number
-  }> = []
-
-  chronological.forEach((invoice) => {
-    const parsed = parseInvoiceNumber(invoice.invoiceNumber || "")
-    const lastGroup = groups[groups.length - 1]
-
-    if (!lastGroup || lastGroup.prefix !== parsed.prefix) {
-      groups.push({
-        prefix: parsed.prefix,
-        firstLabel: invoice.invoiceNumber || "",
-        lastLabel: invoice.invoiceNumber || "",
-        firstValue: parsed.numericValue,
-        lastValue: parsed.numericValue,
-        width: parsed.numericText.length,
-      })
-      return
-    }
-
-    lastGroup.lastLabel = invoice.invoiceNumber || ""
-    lastGroup.lastValue = parsed.numericValue
-    lastGroup.width = Math.max(lastGroup.width, parsed.numericText.length)
-  })
-
-  return groups.map((group) => {
-    if (group.firstValue === null || group.lastValue === null) {
-      return group.firstLabel === group.lastLabel ? group.firstLabel : `${group.firstLabel} to ${group.lastLabel}`
-    }
-
-    const start = String(group.firstValue).padStart(group.width, "0")
-    const end = String(group.lastValue).padStart(group.width, "0")
-    return start === end ? `${group.prefix}${start}` : `${group.prefix}${start} to ${group.prefix}${end}`
-  })
-}
-
-function sortInvoicesNewestFirst(invoices: InvoiceRecord[]) {
-  return [...invoices].sort((a, b) => {
-    const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime()
-    if (dateDiff !== 0) return dateDiff
-
-    const aNum = Number(String(a.invoiceNumber || "").replace(/\D/g, ""))
-    const bNum = Number(String(b.invoiceNumber || "").replace(/\D/g, ""))
-    return bNum - aNum
-  })
-}
 
 function readInvoices(): InvoiceRecord[] {
   return sortInvoicesNewestFirst(readStoredInvoices())
@@ -109,9 +36,11 @@ export default function InvoicesClient() {
   })
   const [currentPage, setCurrentPage] = useState(() => Number(searchParams.get("page") || 1))
   const [searchQuery, setSearchQuery] = useState(() => searchParams.get("search") || "")
+  const [refreshing, setRefreshing] = useState(false)
 
   const rowsPerPage = 15
   const latestInvoiceId = invoices[0]?.id || null
+  const deferredSearchQuery = useDeferredValue(searchQuery)
 
   const years = Array.from(new Set(invoices.map((invoice) => Number(invoice.date.split("-")[0]))))
   const months = [
@@ -140,7 +69,7 @@ export default function InvoicesClient() {
     [invoices, selectedMonth, selectedYear]
   )
 
-  const activeSearch = searchQuery.trim().toLowerCase()
+  const activeSearch = deferredSearchQuery.trim().toLowerCase()
   const searched = useMemo(
     () =>
       (activeSearch ? invoices : filtered).filter((invoice) =>
@@ -153,7 +82,7 @@ export default function InvoicesClient() {
   const totalPages = Math.max(1, Math.ceil(searched.length / rowsPerPage))
   const safePage = Math.min(Math.max(1, currentPage), totalPages)
   const paginatedInvoices = searched.slice((safePage - 1) * rowsPerPage, safePage * rowsPerPage)
-  const rangeSummary = buildRangeSummary(paginatedInvoices)
+  const rangeSummary = buildInvoiceRangeSummary(paginatedInvoices)
 
   function deleteLast() {
     const parsed = sortInvoicesNewestFirst(readStoredInvoices())
@@ -161,6 +90,60 @@ export default function InvoicesClient() {
     writeStoredInvoices(parsed)
     setInvoices(parsed)
   }
+
+  useEffect(() => {
+    router.prefetch("/dashboard/invoices/create")
+    invoices.slice(0, 8).forEach((invoice) => {
+      router.prefetch(`/dashboard/invoices/view/${encodeURIComponent(invoice.id)}`)
+      if (canEditInvoices()) {
+        router.prefetch(`/dashboard/invoices/edit/${encodeURIComponent(invoice.id)}`)
+      }
+    })
+  }, [invoices, router])
+
+  useEffect(() => {
+    let refreshTimer: number | null = null
+
+    const refreshInvoices = () => {
+      if (refreshTimer != null) {
+        window.clearTimeout(refreshTimer)
+      }
+      setRefreshing(true)
+      refreshTimer = window.setTimeout(() => {
+        startTransition(() => {
+          setInvoices(readInvoices())
+          setRefreshing(false)
+        })
+        refreshTimer = null
+      }, 80)
+    }
+
+    const onCloudSync = () => refreshInvoices()
+    const onKvWrite = (event: Event) => {
+      const detail = (event as CustomEvent<{ key?: string }>).detail
+      if (detail?.key === "invoices") {
+        refreshInvoices()
+      }
+    }
+    const onStorage = (event: StorageEvent) => {
+      if (!event.key) return
+      if (event.key.startsWith("invoices::") || event.key === "invoices") {
+        refreshInvoices()
+      }
+    }
+
+    window.addEventListener("easybill:cloud-sync", onCloudSync as EventListener)
+    window.addEventListener("easybill:kv-write", onKvWrite as EventListener)
+    window.addEventListener("storage", onStorage)
+    return () => {
+      if (refreshTimer != null) {
+        window.clearTimeout(refreshTimer)
+      }
+      window.removeEventListener("easybill:cloud-sync", onCloudSync as EventListener)
+      window.removeEventListener("easybill:kv-write", onKvWrite as EventListener)
+      window.removeEventListener("storage", onStorage)
+    }
+  }, [])
 
   function money(value: number) {
     return formatCurrency(value, currencySymbol, currencyPosition, showDecimals, amountFormat)
@@ -199,8 +182,10 @@ export default function InvoicesClient() {
                 <SelectMenu
                   value={String(selectedYear)}
                   onChange={(value) => {
-                    setSelectedYear(Number(value))
-                    setCurrentPage(1)
+                    startTransition(() => {
+                      setSelectedYear(Number(value))
+                      setCurrentPage(1)
+                    })
                   }}
                   options={years.map((year) => ({ value: String(year), label: String(year) }))}
                 />
@@ -213,8 +198,10 @@ export default function InvoicesClient() {
                 <SelectMenu
                   value={String(selectedMonth)}
                   onChange={(value) => {
-                    setSelectedMonth(value === "all" ? "all" : Number(value))
-                    setCurrentPage(1)
+                    startTransition(() => {
+                      setSelectedMonth(value === "all" ? "all" : Number(value))
+                      setCurrentPage(1)
+                    })
                   }}
                   className="[&>button]:py-2.5 [&>button]:text-[13px] [&>button>span]:truncate [&>button>span]:whitespace-nowrap [&_[role='option']>span]:whitespace-nowrap"
                   options={[{ value: "all", label: "All Months" }, ...months.map((month) => ({ value: String(month.value), label: month.label }))]}
@@ -229,8 +216,11 @@ export default function InvoicesClient() {
                 <input
                   value={searchQuery}
                   onChange={(e) => {
-                    setSearchQuery(e.target.value)
-                    setCurrentPage(1)
+                    const nextValue = e.target.value
+                    startTransition(() => {
+                      setSearchQuery(nextValue)
+                      setCurrentPage(1)
+                    })
                   }}
                   placeholder="Search invoice number"
                   className="w-full bg-transparent text-sm outline-none"
@@ -265,6 +255,7 @@ export default function InvoicesClient() {
         <div className="mt-5 flex flex-col gap-2 text-sm text-slate-500 sm:mt-6 sm:flex-row sm:items-center sm:justify-between">
           <p>
             Total invoices shown: <span className="font-semibold text-slate-900">{totalShown}</span>
+            {refreshing ? <span className="ml-2 text-xs text-emerald-700">Refreshing...</span> : null}
           </p>
           <p>
             Page <span className="font-semibold text-slate-900">{safePage}</span> of{" "}
@@ -274,7 +265,16 @@ export default function InvoicesClient() {
 
         <div className="mt-6 space-y-3 lg:hidden">
           {paginatedInvoices.length === 0 ? (
-            <div className="rounded-[24px] border border-slate-200/70 bg-white p-6 text-center text-sm text-slate-500">No invoices in this range</div>
+            <div className="rounded-[24px] border border-slate-200/70 bg-white p-6 text-center text-sm text-slate-500">
+              <p>No invoices in this range.</p>
+              <button
+                type="button"
+                onClick={() => router.push("/dashboard/invoices/create")}
+                className="mt-4 inline-flex rounded-full border border-slate-200 px-4 py-2 font-semibold text-slate-700 transition hover:bg-slate-50"
+              >
+                Create your first invoice
+              </button>
+            </div>
           ) : (
             paginatedInvoices.map((invoice) => {
               const isLatestInvoice = invoice.id === latestInvoiceId
@@ -313,6 +313,10 @@ export default function InvoicesClient() {
                             title: "Editing is locked on the Free plan",
                             actionHint: "Upgrade to Plus to unlock editing, or stay on the list.",
                             message: "Upgrade to Plus to edit invoices.",
+                            details: [
+                              "You can still view, print, and download your existing invoices on the Free plan.",
+                              "Editing unlocks once the workspace is upgraded to Plus.",
+                            ],
                             primaryLabel: "Upgrade to Plus",
                             secondaryLabel: "Not now",
                             onPrimary: () => router.push("/dashboard/upgrade"),
@@ -363,7 +367,7 @@ export default function InvoicesClient() {
               </tr>
             </thead>
             <tbody>
-              {paginatedInvoices.map((invoice) => {
+                {paginatedInvoices.map((invoice) => {
                 const isLatestInvoice = invoice.id === latestInvoiceId
 
                 return (
@@ -372,7 +376,12 @@ export default function InvoicesClient() {
                     className="cursor-pointer border-b border-slate-100 transition hover:bg-slate-50/70"
                     onClick={() => router.push(`/dashboard/invoices/view/${encodeURIComponent(invoice.id)}`)}
                   >
-                    <td className="px-4 py-4 font-medium text-slate-900">{invoice.invoiceNumber}</td>
+                      <td
+                        className="px-4 py-4 font-medium text-slate-900"
+                        onClick={() => router.push(`/dashboard/invoices/view/${encodeURIComponent(invoice.id)}`)}
+                      >
+                        {invoice.invoiceNumber}
+                      </td>
                     <td className="px-4 py-4">{invoice.clientName}</td>
                     <td className="px-4 py-4">{formatDate(invoice.date, dateFormat)}</td>
                     <td className="px-4 py-4 font-semibold text-slate-900">{money(invoice.grandTotal || 0)}</td>
@@ -386,6 +395,10 @@ export default function InvoicesClient() {
                                 title: "Editing is locked on the Free plan",
                                 actionHint: "Upgrade to Plus to unlock editing, or stay on the list.",
                                 message: "Upgrade to Plus to edit invoices.",
+                                details: [
+                                  "You can still open, print, and export invoices without editing access.",
+                                  "Switch to Plus when you want invoice edits after creation.",
+                                ],
                                 primaryLabel: "Upgrade to Plus",
                                 secondaryLabel: "Not now",
                                 onPrimary: () => router.push("/dashboard/upgrade"),

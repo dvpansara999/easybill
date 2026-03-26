@@ -9,7 +9,8 @@ import { type ChangeEvent, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import SetupWizardFrame from "@/components/setup/SetupWizardFrame"
 import { getSetupProfileDraft, saveSetupProfileDraft } from "@/lib/setupProfileDraft"
-import { deleteLogoFromSupabase, uploadLogoToSupabase, MAX_LOGO_BYTES } from "@/lib/logoUpload"
+import { deleteLogoFromSupabase, uploadLogoToSupabase } from "@/lib/logoUpload"
+import { getLogoUploadRuleText, validateLogoFile } from "@/lib/logoValidation"
 import { setActiveOrGlobalItem } from "@/lib/userStore"
 import { Check, Circle, ImagePlus, Square } from "lucide-react"
 
@@ -90,28 +91,28 @@ export default function SetupProfileLogoPage() {
     const file = e.target.files?.[0]
     if (!file) return
     setLogoError("")
-
-    if (file.size > MAX_LOGO_BYTES) {
-      setLogoError("Logo must be 150KB or smaller. Please choose a smaller image.")
-      return
-    }
-
     const reader = new FileReader()
-    reader.onload = () => {
-      const source = reader.result as string
-      setDraft((prev) => ({
-        ...prev,
-        logoSource: source,
-        logo: source,
-        logoZoom: 1,
-        logoOffsetX: 50,
-        logoOffsetY: 50,
-      }))
-      setZoom(1)
-      setCrop({ x: 0, y: 0 })
-      setCroppedAreaPixels(null)
-    }
-    reader.readAsDataURL(file)
+    void validateLogoFile(file)
+      .then(() => {
+        reader.onload = () => {
+          const source = reader.result as string
+          setDraft((prev) => ({
+            ...prev,
+            logoSource: source,
+            logo: source,
+            logoZoom: 1,
+            logoOffsetX: 50,
+            logoOffsetY: 50,
+          }))
+          setZoom(1)
+          setCrop({ x: 0, y: 0 })
+          setCroppedAreaPixels(null)
+        }
+        reader.readAsDataURL(file)
+      })
+      .catch((error) => {
+        setLogoError(error instanceof Error ? error.message : "Unable to use this logo file.")
+      })
   }
 
   function deleteLogo() {
@@ -308,6 +309,9 @@ export default function SetupProfileLogoPage() {
               </p>
               <div className="mt-4 rounded-[22px] border border-slate-200 bg-white px-4 py-3 text-xs text-slate-600">
                 Current: <span className="font-semibold capitalize text-slate-900">{draft.logoShape}</span>
+              </div>
+              <div className="mt-4 rounded-[22px] border border-slate-200 bg-white px-4 py-3 text-xs text-slate-600">
+                {getLogoUploadRuleText()}
               </div>
             </div>
 

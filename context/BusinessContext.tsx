@@ -1,64 +1,23 @@
 "use client"
 
-import { createContext, useContext, useEffect, useMemo, useState } from "react"
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react"
 import { getActiveOrGlobalItem, setActiveOrGlobalItem } from "@/lib/userStore"
+import {
+  EMPTY_BUSINESS_PROFILE,
+  normalizeBusinessProfile,
+  type BusinessProfileRecord,
+} from "@/lib/businessProfile"
 
-export type BusinessType = {
-  businessName: string
-  phone: string
-  email: string
-  gst: string
-  address: string
-  bankName: string
-  accountNumber: string
-  ifsc: string
-  upi: string
-  /** Invoice terms / payment notes — must persist with profile (templates + PDF). */
-  terms: string
-  logo: string
-  logoShape: "square" | "round"
-}
+export type BusinessType = BusinessProfileRecord
 
 type BusinessContextType = {
   business: BusinessType
   setBusiness: (data: BusinessType) => void
 }
 
-const emptyBusiness: BusinessType = {
-  businessName: "",
-  phone: "",
-  email: "",
-  gst: "",
-  address: "",
-  bankName: "",
-  accountNumber: "",
-  ifsc: "",
-  upi: "",
-  terms: "",
-  logo: "",
-  logoShape: "square",
-}
+const emptyBusiness: BusinessType = EMPTY_BUSINESS_PROFILE
 
 const BusinessContext = createContext<BusinessContextType | undefined>(undefined)
-
-function normalizeBusiness(value: unknown): BusinessType {
-  const parsed = typeof value === "object" && value !== null ? (value as Partial<BusinessType>) : {}
-
-  return {
-    businessName: parsed.businessName || "",
-    phone: parsed.phone || "",
-    email: parsed.email || "",
-    gst: parsed.gst || "",
-    address: parsed.address || "",
-    bankName: parsed.bankName || "",
-    accountNumber: parsed.accountNumber || "",
-    ifsc: parsed.ifsc || "",
-    upi: parsed.upi || "",
-    terms: typeof parsed.terms === "string" ? parsed.terms : "",
-    logo: parsed.logo || "",
-    logoShape: parsed.logoShape === "round" ? "round" : "square",
-  }
-}
 
 function readBusinessFromStore() {
   if (typeof window === "undefined") return emptyBusiness
@@ -67,29 +26,82 @@ function readBusinessFromStore() {
   if (!stored) return emptyBusiness
 
   try {
-    return normalizeBusiness(JSON.parse(stored))
+    return normalizeBusinessProfile(JSON.parse(stored))
   } catch {
     return emptyBusiness
   }
 }
 
+function businessEquals(a: BusinessType, b: BusinessType) {
+  return (
+    a.businessName === b.businessName &&
+    a.phone === b.phone &&
+    a.email === b.email &&
+    a.gst === b.gst &&
+    a.address === b.address &&
+    a.bankName === b.bankName &&
+    a.accountNumber === b.accountNumber &&
+    a.ifsc === b.ifsc &&
+    a.upi === b.upi &&
+    a.terms === b.terms &&
+    a.logo === b.logo &&
+    a.logoShape === b.logoShape
+  )
+}
+
 export function BusinessProvider({ children }: { children: React.ReactNode }) {
   const [business, setBusinessState] = useState<BusinessType>(() => readBusinessFromStore())
+  const refreshFrameRef = useRef<number | null>(null)
 
   useEffect(() => {
-    function onCloud() {
-      setBusinessState(readBusinessFromStore())
+    const scheduleRefresh = () => {
+      if (refreshFrameRef.current != null) {
+        window.cancelAnimationFrame(refreshFrameRef.current)
+      }
+      refreshFrameRef.current = window.requestAnimationFrame(() => {
+        refreshFrameRef.current = null
+        const nextBusiness = readBusinessFromStore()
+        setBusinessState((prev) => (businessEquals(prev, nextBusiness) ? prev : nextBusiness))
+      })
     }
 
+    function onCloud() {
+      scheduleRefresh()
+    }
+
+    function onKvWrite(e: Event) {
+      const ce = e as CustomEvent<{ key?: string }>
+      if (ce.detail?.key === "businessProfile") {
+        scheduleRefresh()
+      }
+    }
+
+    function onStorage(e: StorageEvent) {
+      if (e.key?.startsWith("businessProfile::") || e.key === "businessProfile") {
+        scheduleRefresh()
+      }
+    }
+
+    scheduleRefresh()
+
     window.addEventListener("easybill:cloud-sync", onCloud as EventListener)
-    return () => window.removeEventListener("easybill:cloud-sync", onCloud as EventListener)
+    window.addEventListener("easybill:kv-write", onKvWrite as EventListener)
+    window.addEventListener("storage", onStorage)
+    return () => {
+      if (refreshFrameRef.current != null) {
+        window.cancelAnimationFrame(refreshFrameRef.current)
+      }
+      window.removeEventListener("easybill:cloud-sync", onCloud as EventListener)
+      window.removeEventListener("easybill:kv-write", onKvWrite as EventListener)
+      window.removeEventListener("storage", onStorage)
+    }
   }, [])
 
   const value = useMemo<BusinessContextType>(
     () => ({
       business,
       setBusiness(data: BusinessType) {
-        const normalizedBusiness = normalizeBusiness(data)
+        const normalizedBusiness = normalizeBusinessProfile(data)
         setBusinessState(normalizedBusiness)
         setActiveOrGlobalItem("businessProfile", JSON.stringify(normalizedBusiness))
       },
