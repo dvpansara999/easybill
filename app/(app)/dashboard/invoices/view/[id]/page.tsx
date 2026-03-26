@@ -1,17 +1,22 @@
 ﻿"use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { ArrowLeft, Share2, X } from "lucide-react"
+import { Minus, Plus, Share2, X } from "lucide-react"
 import { flushSync } from "react-dom"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { useSettings } from "@/context/SettingsContext"
 import { formatDate } from "@/lib/dateFormat"
 import { formatCurrency } from "@/lib/formatCurrency"
 import {
+  createInvoiceHistoryEntry,
   findInvoiceById,
   getStoredBusinessRecord,
+  normalizeInvoiceRecord,
   readStoredInvoices,
+  updateInvoiceStatus,
+  writeStoredInvoices,
   type BusinessRecord,
+  type InvoiceHistoryEntry,
   type InvoiceRecord,
 } from "@/lib/invoice"
 import { getStoredTemplateTypography } from "@/lib/templateTypography"
@@ -27,6 +32,8 @@ import { cn } from "@/lib/utils"
 import { extractPdfBufferFromResponse, parsePdfApiErrorMessage } from "@/lib/pdfApiContract"
 import { templates } from "@/components/invoiceTemplates"
 import { DEFAULT_TEMPLATE_ID, resolveTemplateId } from "@/lib/templateIds"
+import InvoicePageHeader from "@/components/invoices/InvoicePageHeader"
+import NotFoundRecoveryCard from "@/components/shared/NotFoundRecoveryCard"
 
 /** Must match `A4InvoiceView` inner page width + padding for consistent capture vs on-screen layout. */
 const A4_CAPTURE_WIDTH_PX = 794
@@ -97,6 +104,7 @@ export default function ViewInvoice() {
   const [exportedPdfFile, setExportedPdfFile] = useState<File | null>(null)
   const [exportSheetBusy, setExportSheetBusy] = useState<null | "share" | "download">(null)
   const [isNarrowViewport, setIsNarrowViewport] = useState(false)
+  const [timelineExpanded, setTimelineExpanded] = useState(false)
 
   useEffect(() => {
     router.prefetch(returnTo)
@@ -133,6 +141,35 @@ export default function ViewInvoice() {
   const template = viewState.template
   const { fontFamily, fontSize } = viewState.typography
   const TemplateComponent = templates[resolveTemplateKey(template)]
+
+  const markInvoiceEvent = useCallback(
+    (updater: (invoice: InvoiceRecord) => InvoiceRecord) => {
+      const invoices = readStoredInvoices()
+      const index = invoices.findIndex((entry) => entry.id === invoiceId)
+      if (index === -1) return
+      invoices[index] = normalizeInvoiceRecord(updater(invoices[index]))
+      writeStoredInvoices(invoices)
+      setViewState(readInvoiceViewState(invoiceId))
+    },
+    [invoiceId]
+  )
+
+  const markInvoiceIssued = useCallback(() => {
+    markInvoiceEvent((current) => {
+      const nextStatus = current.status === "paid" ? current : updateInvoiceStatus(current, "issued", "PDF exported")
+      return {
+        ...nextStatus,
+        history: [...(nextStatus.history || []), createInvoiceHistoryEntry("exported", "PDF exported")],
+      }
+    })
+  }, [markInvoiceEvent])
+
+  const togglePaid = useCallback(() => {
+    markInvoiceEvent((current) => {
+      const nextStatus = current.status === "paid" ? "issued" : "paid"
+      return updateInvoiceStatus(current, nextStatus, nextStatus === "paid" ? "Marked as paid" : "Marked as unpaid")
+    })
+  }, [markInvoiceEvent])
 
   /** Single-column, un-paginated DOM for raster PDF fallback (avoids transform + page-slice bugs in html2canvas). */
   const captureRef = useRef<HTMLDivElement>(null)
@@ -216,6 +253,15 @@ export default function ViewInvoice() {
       totals,
     ]
   )
+
+  const timelineEntries = useMemo(
+    () =>
+      [...(invoice?.history || [])].sort((a, b) => {
+        return new Date(a.at).getTime() - new Date(b.at).getTime()
+      }),
+    [invoice?.history]
+  )
+  const createdEntry = timelineEntries[0] || null
 
   async function downloadInvoiceFallback() {
     const element = captureRef.current
@@ -366,6 +412,7 @@ export default function ViewInvoice() {
           a.click()
           a.remove()
           URL.revokeObjectURL(url)
+          markInvoiceIssued()
           vectorOk = true
           setDownloadNoticeTone("success")
           setDownloadNotice("Your PDF is ready and downloaded successfully.")
@@ -389,12 +436,14 @@ export default function ViewInvoice() {
               ? "Server returned a non-PDF body (see console for reason)."
               : await parsePdfApiErrorMessage(res)
         await downloadInvoiceFallback()
+        markInvoiceIssued()
         setDownloadNoticeTone("info")
         setDownloadNotice(`Server PDF was unavailable, so we downloaded a backup PDF from your screen preview (${reason}).`)
         window.setTimeout(() => setDownloadNotice(""), 12000)
       }
     } catch {
       await downloadInvoiceFallback()
+      markInvoiceIssued()
       setDownloadNoticeTone("info")
       setDownloadNotice("Server PDF is temporarily unavailable, so we downloaded a backup PDF from your screen preview.")
       window.setTimeout(() => setDownloadNotice(""), 12000)
@@ -419,6 +468,7 @@ export default function ViewInvoice() {
       if (typeof navigator.share === "function" && file && canShareFiles) {
         try {
           await navigator.share({ files: [file], title: "Invoice" })
+          markInvoiceIssued()
           setExportSheetOpen(false)
           return
         } catch {
@@ -429,6 +479,7 @@ export default function ViewInvoice() {
       if (typeof navigator.share === "function") {
         try {
           await navigator.share({ url: exportedPdfUrl, title: "Invoice" })
+          markInvoiceIssued()
           setExportSheetOpen(false)
           return
         } catch {
@@ -437,9 +488,11 @@ export default function ViewInvoice() {
       }
 
       window.open(exportedPdfUrl, "_blank", "noopener,noreferrer")
+      markInvoiceIssued()
       setExportSheetOpen(false)
     } catch {
       window.open(exportedPdfUrl, "_blank", "noopener,noreferrer")
+      markInvoiceIssued()
       setExportSheetOpen(false)
     } finally {
       setExportSheetBusy(null)
@@ -451,6 +504,7 @@ export default function ViewInvoice() {
     setExportSheetBusy("download")
     try {
       await downloadPdfFromRemoteUrl(exportedPdfUrl, invoice.invoiceNumber)
+      markInvoiceIssued()
       setDownloadNoticeTone("success")
       setDownloadNotice("PDF downloaded.")
       window.setTimeout(() => setDownloadNotice(""), 6000)
@@ -521,6 +575,7 @@ export default function ViewInvoice() {
           }
 
           await downloadPdfFromRemoteUrl(data.url, invoice.invoiceNumber)
+          markInvoiceIssued()
           setDownloadNoticeTone("success")
           setDownloadNotice("Your PDF is ready and downloaded successfully.")
           window.setTimeout(() => setDownloadNotice(""), 9000)
@@ -542,43 +597,95 @@ export default function ViewInvoice() {
 
   if (!invoice) {
     return (
-      <div className="rounded-[24px] border border-slate-200 bg-white p-6 text-center sm:rounded-[28px] sm:p-8">
-        <p className="text-sm font-semibold text-slate-900">Invoice not found</p>
-        <p className="mt-2 text-sm text-slate-500">This invoice is no longer available in the current account.</p>
-        <button
-          type="button"
-          onClick={() => router.push(returnTo)}
-          className="mt-5 inline-flex rounded-full border border-slate-200 px-4 py-2 font-semibold text-slate-700 transition hover:bg-slate-50"
-        >
-          Back to invoices
-        </button>
-      </div>
+      <NotFoundRecoveryCard
+        title="Invoice not found"
+        description="This invoice is no longer available in the current account. You can return to your invoices, go back to the dashboard, or retry syncing your workspace."
+        backLabel="Back to invoices"
+        onBack={() => router.push(returnTo)}
+        onDashboard={() => router.push("/dashboard")}
+        onRetry={() => setTimeout(() => window.dispatchEvent(new CustomEvent("easybill:cloud-sync")), 0)}
+      />
     )
   }
 
   return (
     <div className="p-4">
-      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <button
-          type="button"
-          onClick={() => router.push(returnTo)}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-600 transition hover:bg-slate-50 hover:text-slate-950 sm:w-auto sm:justify-start sm:rounded-full sm:py-2"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to invoices
-        </button>
+      <InvoicePageHeader
+        eyebrow="View Invoice"
+        title={invoice.invoiceNumber}
+        description="Review the saved invoice, update payment status, duplicate it for a new billing cycle, or download and share the PDF."
+        backLabel="Back to invoices"
+        onBack={() => router.push(returnTo)}
+        actions={
+          <>
+            <button
+              type="button"
+              onClick={() => router.push(`/dashboard/invoices/create?duplicateId=${encodeURIComponent(invoice.id)}`)}
+              className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 sm:w-auto"
+            >
+              Duplicate
+            </button>
+            <button
+              onClick={downloadInvoice}
+              disabled={downloadingPdf}
+              className={`w-full rounded-2xl px-4 py-3 text-sm font-semibold text-white transition sm:w-auto ${
+                downloadingPdf ? "cursor-not-allowed bg-slate-400" : "bg-black hover:bg-slate-800"
+              }`}
+            >
+              {downloadingPdf ? "Preparing PDF..." : "Download PDF"}
+            </button>
+          </>
+        }
+      />
 
-        <button
-          onClick={downloadInvoice}
-          disabled={downloadingPdf}
-          className={`w-full rounded-2xl px-4 py-3 text-sm font-semibold text-white transition sm:w-auto sm:rounded-xl sm:px-5 sm:py-2.5 ${
-            downloadingPdf
-              ? "cursor-not-allowed bg-slate-400"
-              : "bg-black hover:bg-slate-800"
-          }`}
-        >
-          {downloadingPdf ? "Preparing PDF..." : "Download PDF"}
-        </button>
+      <div className="mb-6 grid gap-4 md:grid-cols-3">
+        <div className="soft-card rounded-[24px] p-4">
+          <p className="text-xs uppercase tracking-[0.28em] text-slate-400">Status</p>
+          <p className="mt-2 text-lg font-semibold capitalize text-slate-950">{invoice.status || "draft"}</p>
+          <label className="mt-3 inline-flex items-center gap-2 text-sm text-slate-600">
+            <input
+              type="checkbox"
+              checked={invoice.status === "paid"}
+              onChange={togglePaid}
+              className="h-4 w-4 rounded border-slate-300"
+            />
+            Mark payment received
+          </label>
+        </div>
+        <div className="soft-card rounded-[24px] p-4 md:col-span-2">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs uppercase tracking-[0.28em] text-slate-400">Timeline</p>
+              <p className="mt-2 text-sm text-slate-500">
+                {timelineExpanded ? "Full invoice history, from creation onward." : "Start with the creation event, then expand when needed."}
+              </p>
+            </div>
+            {timelineEntries.length > 1 ? (
+              <button
+                type="button"
+                onClick={() => setTimelineExpanded((current) => !current)}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50 hover:text-slate-950"
+                aria-label={timelineExpanded ? "Collapse timeline" : "Expand timeline"}
+                title={timelineExpanded ? "Collapse timeline" : "Expand timeline"}
+              >
+                {timelineExpanded ? <Minus className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+              </button>
+            ) : null}
+          </div>
+
+          <div className="mt-4 space-y-3">
+            {(timelineExpanded ? timelineEntries : createdEntry ? [createdEntry] : []).map((entry: InvoiceHistoryEntry) => (
+              <div key={entry.id} className="flex items-start gap-3">
+                <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
+                <div>
+                  <p className="text-sm font-medium text-slate-900">{entry.label}</p>
+                  <p className="text-xs text-slate-500">{formatDate(entry.at.slice(0, 10), dateFormat)}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+          {invoice.notes ? <p className="mt-4 text-sm leading-7 text-slate-600">{invoice.notes}</p> : null}
+        </div>
       </div>
       {downloadError ? (
         <p className="mb-4 text-right text-sm text-rose-600">{downloadError}</p>

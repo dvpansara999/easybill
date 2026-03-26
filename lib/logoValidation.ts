@@ -1,8 +1,8 @@
 "use client"
 
 export const ACCEPTED_LOGO_TYPES = ["image/png", "image/jpeg", "image/webp"] as const
-export const MAX_LOGO_UPLOAD_BYTES = 5 * 1024 * 1024
-export const MIN_LOGO_DIMENSION = 48
+export const MAX_LOGO_UPLOAD_BYTES = 500 * 1024
+export const MIN_LOGO_DIMENSION = 64
 export const MAX_LOGO_DIMENSION = 4096
 
 export type LogoValidationResult = {
@@ -32,11 +32,11 @@ function readImageSize(src: string) {
 
 export async function validateLogoFile(file: File): Promise<LogoValidationResult> {
   if (!ACCEPTED_LOGO_TYPES.includes(file.type as (typeof ACCEPTED_LOGO_TYPES)[number])) {
-    throw new Error("Upload a PNG, JPG, or WebP logo.")
+    throw new Error("Upload a PNG, JPG, or WebP logo only.")
   }
 
   if (file.size > MAX_LOGO_UPLOAD_BYTES) {
-    throw new Error("Logo file is too large. Please keep it under 5MB before compression.")
+    throw new Error("Logo file is too large. Keep it under 500KB.")
   }
 
   const src = await readFileAsDataUrl(file)
@@ -59,5 +59,5 @@ export async function validateLogoFile(file: File): Promise<LogoValidationResult
 }
 
 export function getLogoUploadRuleText() {
-  return "Use PNG, JPG, or WebP. Keep logos at least 48x48px, under 5MB before upload, and under 150KB after compression."
+  return "Use PNG, JPG, or WebP. Keep logos between 64x64px and 4096x4096px, and under 500KB."
 }

@@ -3,8 +3,8 @@
   "compilerOptions": {
     "noEmit": false,
     "outDir": ".test-dist",
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
     "target": "ES2022",
     "lib": ["ES2022", "DOM"],
     "types": ["node"],
@@ -16,6 +16,7 @@
   "include": [
     "tests/run-regressions.ts",
     "lib/invoice.ts",
+    "lib/businessProfile.ts",
     "lib/invoiceNumber.ts",
     "lib/invoicePrefixValidation.ts",
     "lib/logoStorage.ts",

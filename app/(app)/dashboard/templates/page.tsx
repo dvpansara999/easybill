@@ -219,13 +219,14 @@ const newest = useMemo(()=>{
 },[templates])
 
 const typographyFields = (
-  <div className="grid gap-4 md:grid-cols-2">
+  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
     <div>
       <label className="mb-2 block text-sm font-medium text-slate-700">Invoice Font</label>
       <SelectMenu
         value={fontId}
         onChange={updateFont}
         options={templateFontOptions.map((o) => ({ value: o.id, label: o.label }))}
+        className="[&>button>span]:truncate [&_[role='option']>span]:truncate"
       />
     </div>
     <div>
@@ -234,6 +235,7 @@ const typographyFields = (
         value={String(fontSize)}
         onChange={(v) => updateFontSize(Number(v))}
         options={templateFontSizeOptions.map((size) => ({ value: String(size), label: `${size}px` }))}
+        className="[&>button>span]:truncate [&_[role='option']>span]:truncate"
       />
     </div>
   </div>
@@ -256,7 +258,7 @@ return(
 </div>
 ) : null}
 
-<section className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,min(360px,40vw))] xl:gap-6">
+<section className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(380px,0.85fr)] xl:items-stretch xl:gap-6">
 <div className="soft-card relative min-w-0 overflow-hidden rounded-[22px] p-5 sm:p-6 xl:rounded-[28px] xl:p-8">
   <div
     className="pointer-events-none absolute inset-0 rounded-[22px] bg-gradient-to-br from-emerald-50/45 via-white/40 to-slate-50/35 xl:rounded-[28px]"

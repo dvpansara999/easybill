@@ -9,6 +9,16 @@ const nextConfig: NextConfig = {
       "./node_modules/playwright-core/**/*",
     ],
   },
+  async redirects() {
+    return [
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: "www.easybill.business" }],
+        destination: "https://easybill.business/:path*",
+        permanent: true,
+      },
+    ]
+  },
 }
 
 export default nextConfig

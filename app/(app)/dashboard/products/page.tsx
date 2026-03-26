@@ -135,7 +135,7 @@ export default function ProductsPage() {
   return (
 
     <div className="space-y-6 pb-6 xl:space-y-8 xl:pb-0">
-      <section className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+      <section className="grid gap-5 xl:grid-cols-[0.9fr_1.1fr] xl:gap-6">
         <div>
           <p className="text-xs uppercase tracking-[0.34em] text-emerald-700">Products</p>
           <h1 className="font-display mt-2 text-2xl leading-tight text-slate-950 sm:text-3xl xl:mt-3 xl:text-4xl">Build your reusable product library.</h1>

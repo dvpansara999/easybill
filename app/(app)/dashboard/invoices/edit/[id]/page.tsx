@@ -7,6 +7,7 @@ import { formatCurrency } from "@/lib/formatCurrency"
 import { getActiveOrGlobalItem } from "@/lib/userStore"
 import { useAppAlert } from "@/components/providers/AppAlertProvider"
 import {
+  createInvoiceHistoryEntry,
   createEmptyInvoiceItem,
   findInvoiceById,
   getStoredBusinessRecord,
@@ -19,8 +20,10 @@ import {
   type InvoiceItem,
   type InvoiceRecord,
 } from "@/lib/invoice"
-import { ArrowLeft, CirclePlus, Package2, Plus, Save, Trash2, UserRound } from "lucide-react"
+import { CirclePlus, Package2, Plus, Save, Trash2, UserRound } from "lucide-react"
 import { canEditInvoices } from "@/lib/plans"
+import InvoicePageHeader from "@/components/invoices/InvoicePageHeader"
+import NotFoundRecoveryCard from "@/components/shared/NotFoundRecoveryCard"
 
 type ProductRecord = {
   name: string
@@ -126,6 +129,7 @@ export default function EditInvoice() {
   const [clientAddress, setClientAddress] = useState(initialState.invoice?.clientAddress || "")
   const [date] = useState(initialState.invoice?.date || "")
   const [customDetails, setCustomDetails] = useState<CustomDetail[]>(initialState.invoice?.customDetails || [])
+  const [notes, setNotes] = useState(initialState.invoice?.notes || "")
   const [items, setItems] = useState<InvoiceItem[]>(
     initialState.invoice?.items?.length ? initialState.invoice.items : [createEmptyInvoiceItem()]
   )
@@ -289,6 +293,9 @@ export default function EditInvoice() {
       date,
       customDetails,
       items,
+      notes,
+      status: existingInvoice?.status || "draft",
+      history: [...(existingInvoice?.history || []), createInvoiceHistoryEntry("edited", "Invoice edited")],
       grandTotal,
     })
 
@@ -323,31 +330,26 @@ export default function EditInvoice() {
 
   if (!initialState.invoice) {
     return (
-      <div className="rounded-[24px] border border-slate-200 bg-white p-6 text-center sm:rounded-[28px] sm:p-8">
-        <p className="text-sm font-semibold text-slate-900">Invoice not found</p>
-        <p className="mt-2 text-sm text-slate-500">This invoice is no longer available in the current account.</p>
-        <button
-          type="button"
-          onClick={goBackToInvoices}
-          className="mt-5 inline-flex rounded-full border border-slate-200 px-4 py-2 font-semibold text-slate-700 transition hover:bg-slate-50"
-        >
-          Back to invoices
-        </button>
-      </div>
+      <NotFoundRecoveryCard
+        title="Invoice not found"
+        description="This invoice is no longer available in the current account. You can return to your invoices, go back to the dashboard, or retry syncing your workspace."
+        backLabel="Back to invoices"
+        onBack={goBackToInvoices}
+        onDashboard={() => router.push("/dashboard")}
+        onRetry={() => setTimeout(() => window.dispatchEvent(new CustomEvent("easybill:cloud-sync")), 0)}
+      />
     )
   }
 
   return (
     <div className="space-y-6 pb-24 xl:space-y-8 xl:pb-0">
-      <section className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-        <div>
-          <button onClick={goBackToInvoices} className="mb-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-600 transition hover:bg-slate-50 hover:text-slate-950 sm:mb-5 sm:w-auto sm:justify-start sm:rounded-full sm:py-2">
-            <ArrowLeft className="h-4 w-4" />
-            Back
-          </button>
-          <p className="text-xs uppercase tracking-[0.34em] text-emerald-700">Edit Invoice</p>
-        </div>
-      </section>
+      <InvoicePageHeader
+        eyebrow="Edit Invoice"
+        title={`Refine ${invoiceNumber || "invoice"}.`}
+        description="Update client details, line items, custom fields, and notes while keeping the original invoice number and date frozen."
+        backLabel="Back to invoices"
+        onBack={goBackToInvoices}
+      />
 
       <section className="grid grid-cols-2 gap-3 xl:grid-cols-4 xl:gap-4">
         <div className="soft-card rounded-[24px] px-4 py-3 sm:px-5 sm:py-4">
@@ -443,6 +445,18 @@ export default function EditInvoice() {
                 ))}
               </div>
             </div>
+          </div>
+        </div>
+
+        <div className="mt-4">
+          <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Invoice Notes</label>
+          <div className="rounded-[24px] border border-slate-200 bg-white p-4">
+            <textarea
+              placeholder="Optional internal notes or invoice context"
+              className="min-h-[120px] w-full resize-none bg-transparent px-0 py-0 text-sm outline-none transition placeholder:text-slate-400 focus:border-transparent focus:ring-0"
+              value={notes}
+              onChange={(event) => setNotes(event.target.value)}
+            />
           </div>
         </div>
       </section>

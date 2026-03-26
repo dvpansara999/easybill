@@ -9,7 +9,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test:regression": "tsc -p tsconfig.tests.json && node .test-dist/tests/run-regressions.js",
+    "test:regression": "tsc -p tsconfig.tests.json && node -e \"const fs=require('fs');fs.copyFileSync('.test-dist/lib/businessProfile.js','.test-dist/lib/businessProfile');\" && node .test-dist/tests/run-regressions.js",
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
     "verify": "npm run lint && npm run typecheck && npm run test:regression",

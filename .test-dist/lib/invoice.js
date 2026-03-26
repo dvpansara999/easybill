@@ -1,4 +1,5 @@
-export const INVOICE_SCHEMA_VERSION = 2;
+import { normalizeBusinessProfile, readNormalizedBusinessProfileFromStorage } from "./businessProfile";
+export const INVOICE_SCHEMA_VERSION = 3;
 function hashString(input) {
     let hash = 2166136261;
     for (let i = 0; i < input.length; i += 1) {
@@ -30,6 +31,17 @@ export function createInvoiceId() {
         ? crypto.randomUUID()
         : `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
     return `inv_${raw.replace(/[^a-zA-Z0-9_-]/g, "")}`;
+}
+export function createInvoiceHistoryId() {
+    return `invh_${hashString(`${Date.now()}_${Math.random().toString(36).slice(2, 10)}`)}`;
+}
+export function createInvoiceHistoryEntry(type, label, at) {
+    return {
+        id: createInvoiceHistoryId(),
+        type,
+        label: label.trim(),
+        at: at || new Date().toISOString(),
+    };
 }
 export function createEmptyInvoiceItem() {
     return {
@@ -70,6 +82,25 @@ export function normalizeInvoiceRecord(invoice, legacyIndex = 0) {
         : [];
     const grandTotal = Number(invoice.grandTotal) ||
         items.reduce((sum, item) => sum + Number(item.total || 0), 0);
+    const status = invoice.status === "paid" ? "paid" : invoice.status === "issued" ? "issued" : "draft";
+    const notes = typeof invoice.notes === "string" ? invoice.notes.trim() : "";
+    const history = Array.isArray(invoice.history) && invoice.history.length > 0
+        ? invoice.history
+            .map((entry) => {
+            const parsed = typeof entry === "object" && entry !== null ? entry : {};
+            return {
+                id: typeof parsed.id === "string" && parsed.id.trim() ? parsed.id.trim() : createInvoiceHistoryId(),
+                type: parsed.type === "edited" ||
+                    parsed.type === "exported" ||
+                    parsed.type === "status" ||
+                    parsed.type === "duplicated"
+                    ? parsed.type
+                    : "created",
+                label: typeof parsed.label === "string" && parsed.label.trim() ? parsed.label.trim() : "Invoice updated",
+                at: typeof parsed.at === "string" && parsed.at.trim() ? parsed.at.trim() : new Date().toISOString(),
+            };
+        })
+        : [createInvoiceHistoryEntry("created", "Invoice created", invoice.date?.trim() || undefined)];
     return {
         id: normalizeInvoiceId(invoice.id, invoice, legacyIndex),
         invoiceNumber: invoice.invoiceNumber?.trim() || "",
@@ -98,6 +129,9 @@ export function normalizeInvoiceRecord(invoice, legacyIndex = 0) {
                 .filter((detail) => detail.label || detail.value)
             : [],
         items,
+        notes,
+        status,
+        history,
         grandTotal,
     };
 }
@@ -157,6 +191,24 @@ export function serializeInvoiceStore(invoices) {
 export function findInvoiceById(invoices, invoiceId) {
     return invoices.find((invoice) => invoice.id === invoiceId) ?? null;
 }
+export function appendInvoiceHistory(invoice, entry) {
+    return normalizeInvoiceRecord({
+        ...invoice,
+        history: [...(invoice.history || []), entry],
+    });
+}
+export function updateInvoiceStatus(invoice, status, label) {
+    if (invoice.status === status)
+        return invoice;
+    return normalizeInvoiceRecord({
+        ...invoice,
+        status,
+        history: [
+            ...(invoice.history || []),
+            createInvoiceHistoryEntry("status", label || `Status changed to ${status}`),
+        ],
+    });
+}
 export function findInvoiceByIdentity(invoices, value) {
     // Legacy fallback only. New routes and features should resolve invoices by `invoice.id`.
     return (invoices.find((invoice) => invoice.id === value) ??
@@ -200,44 +252,14 @@ export function getStoredBusinessRecord() {
         // Allow reading seeded `localStorage.businessProfile` when present.
         // So we fall back to localStorage directly when the KV/global read is null.
         try {
-            const raw = localStorage.getItem("businessProfile");
-            if (!raw)
-                return null;
-            const parsed = JSON.parse(raw);
-            return {
-                businessName: parsed.businessName?.trim() || "",
-                address: parsed.address?.trim() || "",
-                gst: parsed.gst?.trim() || "",
-                phone: parsed.phone?.trim() || "",
-                email: parsed.email?.trim() || "",
-                bankName: parsed.bankName?.trim() || "",
-                accountNumber: parsed.accountNumber?.trim() || "",
-                ifsc: parsed.ifsc?.trim() || "",
-                upi: parsed.upi?.trim() || "",
-                terms: parsed.terms?.trim() || "",
-                logo: parsed.logo || "",
-                logoShape: parsed.logoShape === "round" ? "round" : "square",
-            };
+            const fallback = readNormalizedBusinessProfileFromStorage();
+            return fallback.businessName || fallback.address || fallback.phone || fallback.email || fallback.logo ? fallback : null;
         }
         catch {
             return null;
         }
     }
-    const parsed = JSON.parse(stored);
-    return {
-        businessName: parsed.businessName?.trim() || "",
-        address: parsed.address?.trim() || "",
-        gst: parsed.gst?.trim() || "",
-        phone: parsed.phone?.trim() || "",
-        email: parsed.email?.trim() || "",
-        bankName: parsed.bankName?.trim() || "",
-        accountNumber: parsed.accountNumber?.trim() || "",
-        ifsc: parsed.ifsc?.trim() || "",
-        upi: parsed.upi?.trim() || "",
-        terms: parsed.terms?.trim() || "",
-        logo: parsed.logo || "",
-        logoShape: parsed.logoShape === "round" ? "round" : "square",
-    };
+    return normalizeBusinessProfile(JSON.parse(stored));
 }
 export function validateBusinessRecord(business) {
     if (!business) {

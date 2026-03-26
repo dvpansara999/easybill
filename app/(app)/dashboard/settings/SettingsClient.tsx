@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useSettings } from "@/context/SettingsContext"
 import { buildInvoiceNumberPreviewSeries, generateInvoiceNumber, getFirstRepeatedInvoiceNumberWarning } from "@/lib/invoiceNumber"
@@ -20,6 +20,7 @@ import SelectMenu from "@/components/ui/SelectMenu"
 import { readStoredInvoices, type InvoiceRecord } from "@/lib/invoice"
 import { useAppAlert } from "@/components/providers/AppAlertProvider"
 import { requestGuardedNavigation, useUnsavedChangesGuard } from "@/lib/unsavedChangesGuard"
+import { downloadAppBackupJson, importAppBackupJson } from "@/lib/appBackup"
 
 type EmailChangePolicy = {
   canChange: boolean
@@ -96,6 +97,8 @@ export default function SettingsClient() {
   const [emailPolicyLoading, setEmailPolicyLoading] = useState(true)
   const [prefixErrorMessage, setPrefixErrorMessage] = useState("")
   const [savingSettings, setSavingSettings] = useState(false)
+  const [backupBusy, setBackupBusy] = useState<null | "export" | "import">(null)
+  const importInputRef = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => {
     router.prefetch("/dashboard")
@@ -518,6 +521,52 @@ export default function SettingsClient() {
         </div>
       </div>
     )
+  }
+
+  async function handleImportBackup(file: File) {
+    setBackupBusy("import")
+    setAccountError("")
+    setAccountMessage("")
+    try {
+      const result = await importAppBackupJson(file)
+      await Promise.allSettled([
+        flushCloudKeyNow("businessProfile"),
+        flushCloudKeyNow("invoices"),
+        flushCloudKeyNow("products"),
+        flushCloudKeyNow("customers"),
+        flushCloudKeyNow("dateFormat"),
+        flushCloudKeyNow("amountFormat"),
+        flushCloudKeyNow("showDecimals"),
+        flushCloudKeyNow("invoicePrefix"),
+        flushCloudKeyNow("invoicePadding"),
+        flushCloudKeyNow("invoiceStartNumber"),
+        flushCloudKeyNow("resetYearly"),
+        flushCloudKeyNow("invoiceResetMonthDay"),
+        flushCloudKeyNow("currencySymbol"),
+        flushCloudKeyNow("currencyPosition"),
+        flushCloudKeyNow("invoiceVisibility"),
+        flushCloudKeyNow("invoiceTemplate"),
+      ])
+      showAlert({
+        tone: "success",
+        title: "Backup imported",
+        actionHint: "Your workspace has been refreshed with the imported data.",
+        message: `${result.invoiceCount} invoices were restored from this backup.`,
+      })
+      router.refresh()
+    } catch (error) {
+      showAlert({
+        tone: "danger",
+        title: "Import failed",
+        actionHint: "Check the backup file, then try again.",
+        message: error instanceof Error ? error.message : "Could not import this backup.",
+      })
+    } finally {
+      setBackupBusy(null)
+      if (importInputRef.current) {
+        importInputRef.current.value = ""
+      }
+    }
   }
 
   return (
@@ -1017,6 +1066,48 @@ export default function SettingsClient() {
           {duplicateCycleWarning ? (
             <p className="mt-3 text-sm leading-6 text-amber-700">{duplicateCycleWarning}</p>
           ) : null}
+        </div>
+      </div>
+
+      <div className="soft-card rounded-[24px] p-4 sm:rounded-[28px] sm:p-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h2 className="section-title text-2xl">Backup and restore</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Export your workspace as JSON, or restore invoices, products, customers, business profile, and settings from a backup file.
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-6 grid gap-4 md:grid-cols-2">
+          <button
+            type="button"
+            onClick={() => {
+              setBackupBusy("export")
+              downloadAppBackupJson()
+              window.setTimeout(() => setBackupBusy(null), 500)
+            }}
+            className="rounded-[24px] border border-slate-200 bg-white px-5 py-4 text-left transition hover:bg-slate-50"
+          >
+            <p className="text-sm font-semibold text-slate-900">{backupBusy === "export" ? "Preparing export..." : "Export JSON backup"}</p>
+            <p className="mt-2 text-sm leading-6 text-slate-500">Download a full backup of invoices, products, customers, business profile, and workspace settings.</p>
+          </button>
+
+          <div className="rounded-[24px] border border-slate-200 bg-white px-5 py-4">
+            <p className="text-sm font-semibold text-slate-900">{backupBusy === "import" ? "Importing backup..." : "Import JSON backup"}</p>
+            <p className="mt-2 text-sm leading-6 text-slate-500">Restore a previously exported easyBILL backup file into this workspace.</p>
+            <input
+              ref={importInputRef}
+              type="file"
+              accept="application/json"
+              className="mt-4 block w-full text-sm text-slate-500"
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                if (!file) return
+                void handleImportBackup(file)
+              }}
+            />
+          </div>
         </div>
       </div>
 

@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
+import { createPortal } from "react-dom"
 import { ChevronDown, Check } from "lucide-react"
 
 export type SelectOption<T extends string> = {
@@ -25,6 +26,11 @@ export default function SelectMenu<T extends string>({
 }) {
   const [open, setOpen] = useState(false)
   const [useNativeMobile, setUseNativeMobile] = useState(false)
+  const [menuStyle, setMenuStyle] = useState<{ top: number; left: number; width: number }>({
+    top: 0,
+    left: 0,
+    width: 0,
+  })
   const wrapRef = useRef<HTMLDivElement | null>(null)
   const buttonRef = useRef<HTMLButtonElement | null>(null)
 
@@ -47,14 +53,18 @@ export default function SelectMenu<T extends string>({
     function onDocDown(e: MouseEvent) {
       const target = e.target as Node | null
       if (!target) return
-      if (wrapRef.current && !wrapRef.current.contains(target)) {
+      const insideWrap = wrapRef.current?.contains(target)
+      const insidePortal = target instanceof Element && target.closest("[data-select-menu-portal='true']")
+      if (!insideWrap && !insidePortal) {
         setOpen(false)
       }
     }
     function onDocTouch(e: TouchEvent) {
       const target = e.target as Node | null
       if (!target) return
-      if (wrapRef.current && !wrapRef.current.contains(target)) {
+      const insideWrap = wrapRef.current?.contains(target)
+      const insidePortal = target instanceof Element && target.closest("[data-select-menu-portal='true']")
+      if (!insideWrap && !insidePortal) {
         setOpen(false)
       }
     }
@@ -79,6 +89,44 @@ export default function SelectMenu<T extends string>({
     return () => window.removeEventListener("keydown", onKey)
   }, [open])
 
+  useEffect(() => {
+    if (!open || useNativeMobile) return
+
+    const updatePosition = () => {
+      const button = buttonRef.current
+      if (!button) return
+      const rect = button.getBoundingClientRect()
+      const viewportWidth = window.innerWidth
+      const viewportHeight = window.innerHeight
+      const desiredWidth = rect.width
+      const horizontalPadding = 12
+      const estimatedMenuHeight = Math.min(256, options.length * 44 + 8)
+      const left = Math.min(
+        Math.max(horizontalPadding, rect.left),
+        Math.max(horizontalPadding, viewportWidth - desiredWidth - horizontalPadding)
+      )
+      const spaceBelow = viewportHeight - rect.bottom - 12
+      const top =
+        spaceBelow >= estimatedMenuHeight
+          ? rect.bottom + 8
+          : Math.max(12, rect.top - estimatedMenuHeight - 8)
+
+      setMenuStyle({
+        top,
+        left,
+        width: desiredWidth,
+      })
+    }
+
+    updatePosition()
+    window.addEventListener("resize", updatePosition)
+    window.addEventListener("scroll", updatePosition, true)
+    return () => {
+      window.removeEventListener("resize", updatePosition)
+      window.removeEventListener("scroll", updatePosition, true)
+    }
+  }, [open, options.length, useNativeMobile])
+
   if (useNativeMobile) {
     return (
       <div ref={wrapRef} className={`relative ${className}`}>
@@ -86,7 +134,7 @@ export default function SelectMenu<T extends string>({
           value={value}
           onChange={(e) => onChange(e.target.value as T)}
           disabled={disabled}
-          className={`w-full appearance-none rounded-2xl border px-4 py-3 text-sm shadow-sm outline-none transition-[border-color,box-shadow,background-color,color] duration-200 ease-[cubic-bezier(0.4,0,0.2,1)] ${
+          className={`w-full appearance-none truncate whitespace-nowrap rounded-2xl border px-4 py-3 pr-10 text-sm shadow-sm outline-none transition-[border-color,box-shadow,background-color,color] duration-200 ease-[cubic-bezier(0.4,0,0.2,1)] ${
             disabled
               ? "cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400"
               : "border-slate-200 bg-white text-slate-900 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
@@ -103,6 +151,8 @@ export default function SelectMenu<T extends string>({
     )
   }
 
+  const canUsePortal = typeof document !== "undefined"
+
   return (
     <div ref={wrapRef} className={`relative ${className}`}>
       <button
@@ -118,43 +168,52 @@ export default function SelectMenu<T extends string>({
         aria-haspopup="listbox"
         aria-expanded={open}
       >
-        <span className={`${selected ? "text-slate-900" : "text-slate-400"}`}>
+        <span className={`min-w-0 flex-1 truncate whitespace-nowrap ${selected ? "text-slate-900" : "text-slate-400"}`}>
           {selected ? selected.label : placeholder}
         </span>
-        <ChevronDown className={`h-4 w-4 ${disabled ? "text-slate-300" : "text-slate-400"}`} />
+        <ChevronDown className={`h-4 w-4 shrink-0 ${disabled ? "text-slate-300" : "text-slate-400"}`} />
       </button>
 
-      {open ? (
-        <div
-          role="listbox"
-          className="absolute z-50 mt-2 w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_14px_40px_rgba(15,23,42,0.08)]"
-        >
-          <div className="max-h-64 overflow-auto py-1">
-            {options.map((opt) => {
-              const isSelected = opt.value === value
-              return (
-                <button
-                  key={opt.value}
-                  type="button"
-                  role="option"
-                  aria-selected={isSelected}
-                  onClick={() => {
-                    onChange(opt.value)
-                    setOpen(false)
-                    buttonRef.current?.focus()
-                  }}
-                  className={`flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left text-sm transition-[background-color,color] duration-200 ease-[cubic-bezier(0.4,0,0.2,1)] ${
-                    isSelected ? "bg-emerald-50 text-slate-900" : "text-slate-700 hover:bg-slate-50"
-                  }`}
-                >
-                  <span>{opt.label}</span>
-                  {isSelected ? <Check className="h-4 w-4 text-emerald-600" /> : null}
-                </button>
-              )
-            })}
-          </div>
-        </div>
-      ) : null}
+      {open && canUsePortal
+        ? createPortal(
+            <div
+              data-select-menu-portal="true"
+              role="listbox"
+              className="fixed z-[140] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_18px_48px_rgba(15,23,42,0.14)]"
+              style={{
+                top: menuStyle.top,
+                left: menuStyle.left,
+                width: menuStyle.width,
+              }}
+            >
+              <div className="max-h-64 overflow-auto py-1">
+                {options.map((opt) => {
+                  const isSelected = opt.value === value
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      role="option"
+                      aria-selected={isSelected}
+                      onClick={() => {
+                        onChange(opt.value)
+                        setOpen(false)
+                        buttonRef.current?.focus()
+                      }}
+                      className={`flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left text-sm transition-[background-color,color] duration-200 ease-[cubic-bezier(0.4,0,0.2,1)] ${
+                        isSelected ? "bg-emerald-50 text-slate-900" : "text-slate-700 hover:bg-slate-50"
+                      }`}
+                    >
+                      <span className="min-w-0 flex-1 truncate whitespace-nowrap">{opt.label}</span>
+                      {isSelected ? <Check className="h-4 w-4 text-emerald-600" /> : null}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
     </div>
   )
 }

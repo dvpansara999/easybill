@@ -2,6 +2,7 @@
 
 import { memo, useEffect, useMemo, useRef, useState } from "react"
 import { Inter } from "next/font/google"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import EasyBillLogoMark from "@/components/brand/EasyBillLogoMark"
 import LandingInvoicePreview from "@/components/templatePreview/LandingInvoicePreview"
@@ -137,6 +138,17 @@ const LANDING_FEATURES: { title: string; desc: string; icon: LucideIcon }[] = [
   },
 ]
 
+const LANDING_SEO_LINKS = [
+  { href: "/features", label: "Features" },
+  { href: "/pricing", label: "Pricing" },
+  { href: "/gst-invoice-generator", label: "GST invoice generator" },
+  { href: "/invoice-templates", label: "Invoice templates" },
+  { href: "/create-invoice-online", label: "Create invoice online" },
+  { href: "/download-invoice-pdf", label: "Download invoice PDF" },
+  { href: "/billing-software-for-small-business", label: "Billing software for small business" },
+  { href: "/free-invoice-generator", label: "Free invoice generator" },
+]
+
 const LandingStack = memo(function LandingStack({
   onLoginClick,
   onSignUpClick,
@@ -232,6 +244,23 @@ const LandingStack = memo(function LandingStack({
           <ArrowRight className="h-5 w-5" />
         </button>
         <p className="text-center text-xs text-slate-500">No credit card required to start.</p>
+      </div>
+
+      <div className="auth-glass-tile w-full rounded-[1.5rem] px-4 py-4 sm:px-6 sm:py-5">
+        <p className="text-center text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500 sm:text-left">
+          Explore easyBILL
+        </p>
+        <div className="mt-3 flex flex-wrap justify-center gap-2 sm:justify-start">
+          {LANDING_SEO_LINKS.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="inline-flex items-center rounded-full border border-slate-200/80 bg-white/80 px-3 py-2 text-xs font-medium text-slate-700 transition hover:border-slate-300 hover:text-slate-950 sm:text-sm"
+            >
+              {item.label}
+            </Link>
+          ))}
+        </div>
       </div>
     </section>
   )

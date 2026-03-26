@@ -10,6 +10,17 @@ export function metadataForSeoPage(def: SeoPageDefinition): Metadata {
     title: def.meta.title,
     description: def.meta.description,
     alternates: { canonical: def.path },
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: {
+        index: true,
+        follow: true,
+        "max-image-preview": "large",
+        "max-snippet": -1,
+        "max-video-preview": -1,
+      },
+    },
     openGraph: {
       title: def.meta.title,
       description: def.meta.description,

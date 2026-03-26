@@ -46,3 +46,19 @@ export function normalizeBusinessProfile(value: unknown): BusinessProfileRecord 
     logoShape: parsed.logoShape === "round" ? "round" : "square",
   }
 }
+
+export function readNormalizedBusinessProfileFromStorage() {
+  if (typeof window === "undefined") return EMPTY_BUSINESS_PROFILE
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { getActiveOrGlobalItem } = require("@/lib/userStore") as {
+      getActiveOrGlobalItem: (key: string) => string | null
+    }
+    const raw = getActiveOrGlobalItem("businessProfile")
+    if (!raw) return EMPTY_BUSINESS_PROFILE
+    return normalizeBusinessProfile(JSON.parse(raw))
+  } catch {
+    return EMPTY_BUSINESS_PROFILE
+  }
+}

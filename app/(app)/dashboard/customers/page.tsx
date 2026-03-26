@@ -106,7 +106,7 @@ export default function CustomersPage() {
 
   return (
     <div className="space-y-6 xl:space-y-8">
-      <section className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+      <section className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
         <div>
           <p className="text-xs uppercase tracking-[0.34em] text-emerald-700">Customers</p>
           <h1 className="font-display mt-2 text-2xl leading-tight text-slate-950 sm:text-3xl xl:mt-3 xl:text-4xl">

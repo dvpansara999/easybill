@@ -111,3 +111,12 @@ export function getFirstRepeatedInvoiceNumberWarning(invoices, rules, referenceD
         return null;
     return `Heads up: ${firstCycleInvoiceNumber} already exists in an older cycle. That is expected when yearly reset starts a new sequence.`;
 }
+export function buildInvoiceNumberPreviewSeries(invoices, rules, count = 3, referenceDate = "") {
+    const previewCount = Math.max(1, Math.trunc(count));
+    const firstInvoiceNumber = generateInvoiceNumberForRules(invoices, rules, referenceDate);
+    const firstNumericPart = extractInvoiceNumericPart(firstInvoiceNumber, rules.prefix);
+    if (firstNumericPart == null) {
+        return [firstInvoiceNumber];
+    }
+    return Array.from({ length: previewCount }, (_, index) => `${rules.prefix}${String(firstNumericPart + index).padStart(rules.padding, "0")}`);
+}

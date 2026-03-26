@@ -126,14 +126,14 @@ export default function DashboardLayout({
           <Sidebar />
         </div>
         <main className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
-          <div className="min-w-0 px-3 py-3 sm:px-4 sm:py-4 lg:px-2">
-            <div className="glass-card auth-glass-desktop mx-auto my-2 w-full min-w-0 max-w-[1180px] min-h-[calc(100vh-1rem)] rounded-[24px] px-3 py-3 sm:px-5 sm:py-5 lg:mx-4 lg:my-4 lg:min-h-[calc(100vh-2rem)] lg:rounded-[32px] lg:px-8 lg:py-8">
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-3 sm:mb-7">
-              <div className="flex items-center gap-3">
-                <EasyBillLogoMark size={38} className="drop-shadow-sm" />
+          <div className="min-w-0 px-2 py-2 sm:px-4 sm:py-4 lg:px-2">
+            <div className="glass-card auth-glass-desktop mx-auto my-1.5 w-full min-w-0 max-w-[1180px] min-h-[calc(100vh-0.75rem)] rounded-[22px] px-3 py-3 sm:px-5 sm:py-5 lg:mx-4 lg:my-4 lg:min-h-[calc(100vh-2rem)] lg:rounded-[32px] lg:px-8 lg:py-8">
+            <div className="mb-4 flex flex-wrap items-start justify-between gap-3 sm:mb-7 sm:items-center">
+              <div className="min-w-0 flex items-center gap-3">
+                <EasyBillLogoMark size={36} className="drop-shadow-sm sm:h-auto sm:w-auto" />
                 <div>
                   <p className="text-xs font-semibold tracking-[0.2em] text-slate-500">easyBILL</p>
-                  <p className="mt-1 text-sm text-slate-600">A calm workspace for invoices, customers, and templates.</p>
+                  <p className="mt-1 text-xs leading-5 text-slate-600 sm:text-sm">A calm workspace for invoices, customers, and templates.</p>
                 </div>
               </div>
 

@@ -1,0 +1,33 @@
+[00:00:02.182] Server  LOG     
+[00:00:02.182] Server  LOG       We detected TypeScript in your project and reconfigured your tsconfig.json file for you.
+[00:00:02.183] Server  LOG       The following suggested values were added to your tsconfig.json. These values can be changed to fit your project's needs:
+
+[00:00:02.184] Server  LOG       	- include was updated to add '.next-playwright-e2e-10460-mn76z809/types/**/*.ts'
+[00:00:02.184] Server  LOG       	- include was updated to add '.next-playwright-e2e-10460-mn76z809/dev/types/**/*.ts'
+[00:00:02.184] Server  LOG     
+[00:00:02.433] Server  LOG     ✓ Ready in 2s
+[00:00:06.728] Server  LOG     ○ Compiling / ...
+[00:00:16.747] Server  LOG     ○ Compiling /dashboard/settings ...
+[00:00:20.120] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:00:23.221] Server  WARN    ⚠ Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+[00:00:24.155] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:00:24.478] Browser LOG     %c[Vercel Web Analytics]%c Debug mode is enabled by default in development. No requests will be sent to the server. color: rgb(120, 120, 120) color: inherit
+[00:00:24.478] Browser LOG     %c[Vercel Web Analytics]%c Running queued event color: rgb(120, 120, 120) color: inherit pageview {"path":"/dashboard/invoices/create","route":"/dashboard/invoices/create"}
+[00:00:24.478] Browser LOG     %c[Vercel Web Analytics]%c [view] http://127.0.0.1:3100/dashboard/invoices/create color: rgb(120, 120, 120) color: inherit {"dp":"/dashboard/invoices/create","o":"http://127.0.0.1:3100/dashboard/invoices/create","r":"","sdkn":"@vercel/analytics/next","sdkv":"2.0.1","sv":"0.1.3","ts":1774512613213} /_vercel/insights/view
+[00:00:26.277] Browser LOG     %c[Vercel Web Analytics]%c [view] http://127.0.0.1:3100/dashboard/invoices color: rgb(120, 120, 120) color: inherit {"dp":"/dashboard/invoices","o":"http://127.0.0.1:3100/dashboard/invoices","sdkn":"@vercel/analytics/next","sdkv":"2.0.1","sv":"0.1.3","ts":1774512615012} /_vercel/insights/view
+[00:00:29.912] Server  LOG     ○ Compiling /dashboard/invoices/view/[id] ...
+[00:00:36.476] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:00:36.800] Browser LOG     %c[Vercel Web Analytics]%c Debug mode is enabled by default in development. No requests will be sent to the server. color: rgb(120, 120, 120) color: inherit
+[00:00:36.801] Browser LOG     %c[Vercel Web Analytics]%c Running queued event color: rgb(120, 120, 120) color: inherit pageview {"path":"/dashboard/invoices/view/inv_26c913ce-7ccd-44f5-be59-feb279d4934c","route":"/dashboard/invoices/view/[id]"}
+[00:00:36.801] Browser LOG     %c[Vercel Web Analytics]%c [view] http://127.0.0.1:3100/dashboard/invoices/view/inv_26c913ce-7ccd-44f5-be59-feb279d4934c color: rgb(120, 120, 120) color: inherit {"dp":"/dashboard/invoices/view/[id]","o":"http://127.0.0.1:3100/dashboard/invoices/view/inv_26c913ce-7ccd-44f5-be59-feb279d4934c","sdkn":"@vercel/analytics/next","sdkv":"2.0.1","sv":"0.1.3","ts":1774512625526} /_vercel/insights/view
+[00:00:37.551] Browser LOG     %c[Vercel Web Analytics]%c [view] http://127.0.0.1:3100/dashboard/invoices color: rgb(120, 120, 120) color: inherit {"dp":"/dashboard/invoices","o":"http://127.0.0.1:3100/dashboard/invoices","sdkn":"@vercel/analytics/next","sdkv":"2.0.1","sv":"0.1.3","ts":1774512626285} /_vercel/insights/view
+[00:00:40.145] Browser LOG     %c[Vercel Web Analytics]%c [view] http://127.0.0.1:3100/dashboard/invoices/edit/inv_26c913ce-7ccd-44f5-be59-feb279d4934c?returnTo=%2Fdashboard%2Finvoices%3Fyear%3D2026%26month%3Dall%26payment%3Dall%26page%3D1%26search%3D color: rgb(120, 120, 120) color: inherit {"dp":"/dashboard/invoices/edit/[id]","o":"http://127.0.0.1:3100/dashboard/invoices/edit/inv_26c913ce-7ccd-44f5-be59-feb279d4934c?returnTo=%2Fdashboard%2Finvoices%3Fyear%3D2026%26month%3Dall%26payment%3Dall%26page%3D1%26search%3D","sdkn":"@vercel/analytics/next","sdkv":"2.0.1","sv":"0.1.3","ts":1774512628881} /_vercel/insights/view
+[00:00:40.784] Browser LOG     %c[Vercel Web Analytics]%c [view] http://127.0.0.1:3100/dashboard/invoices?year=2026&month=all&payment=all&page=1&search= color: rgb(120, 120, 120) color: inherit {"dp":"/dashboard/invoices","o":"http://127.0.0.1:3100/dashboard/invoices?year=2026&month=all&payment=all&page=1&search=","sdkn":"@vercel/analytics/next","sdkv":"2.0.1","sv":"0.1.3","ts":1774512629504} /_vercel/insights/view
+[00:00:42.256] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:00:42.567] Browser LOG     %c[Vercel Web Analytics]%c Debug mode is enabled by default in development. No requests will be sent to the server. color: rgb(120, 120, 120) color: inherit
+[00:00:42.567] Browser LOG     %c[Vercel Web Analytics]%c Running queued event color: rgb(120, 120, 120) color: inherit pageview {"path":"/dashboard/invoices/view/inv_26c913ce-7ccd-44f5-be59-feb279d4934c","route":"/dashboard/invoices/view/[id]"}
+[00:00:42.568] Browser LOG     %c[Vercel Web Analytics]%c [view] http://127.0.0.1:3100/dashboard/invoices/view/inv_26c913ce-7ccd-44f5-be59-feb279d4934c color: rgb(120, 120, 120) color: inherit {"dp":"/dashboard/invoices/view/[id]","o":"http://127.0.0.1:3100/dashboard/invoices/view/inv_26c913ce-7ccd-44f5-be59-feb279d4934c","sdkn":"@vercel/analytics/next","sdkv":"2.0.1","sv":"0.1.3","ts":1774512631299} /_vercel/insights/view
+[00:00:43.969] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:00:44.412] Browser LOG     %c[Vercel Web Analytics]%c Debug mode is enabled by default in development. No requests will be sent to the server. color: rgb(120, 120, 120) color: inherit
+[00:00:44.412] Browser LOG     %c[Vercel Web Analytics]%c Running queued event color: rgb(120, 120, 120) color: inherit pageview {"path":"/dashboard/invoices/view/inv-mobile-share-001","route":"/dashboard/invoices/view/[id]"}
+[00:00:44.412] Browser LOG     %c[Vercel Web Analytics]%c [view] http://127.0.0.1:3100/dashboard/invoices/view/inv-mobile-share-001 color: rgb(120, 120, 120) color: inherit {"dp":"/dashboard/invoices/view/[id]","o":"http://127.0.0.1:3100/dashboard/invoices/view/inv-mobile-share-001","r":"","sdkn":"@vercel/analytics/next","sdkv":"2.0.1","sv":"0.1.3","ts":1774512633141} /_vercel/insights/view

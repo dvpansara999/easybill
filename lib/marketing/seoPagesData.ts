@@ -685,3 +685,16 @@ export const seoInvoiceTemplates: SeoPageDefinition = {
     ctaSubtitle: "Create your account and pick a template style that fits your brand.",
   },
 }
+
+export const SEO_PAGE_DEFINITIONS: SeoPageDefinition[] = [
+  seoPricing,
+  seoFeatures,
+  seoGstInvoiceGenerator,
+  seoFreeInvoiceGenerator,
+  seoInvoiceGeneratorIndia,
+  seoCreateInvoiceOnline,
+  seoDownloadInvoicePdf,
+  seoBillingSoftwareSmallBusiness,
+  seoInvoiceCustomization,
+  seoInvoiceTemplates,
+]

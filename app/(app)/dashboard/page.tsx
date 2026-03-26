@@ -413,15 +413,15 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6 lg:space-y-8">
-      <section className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-        <div className="rounded-[30px] bg-slate-950 p-6 text-white shadow-[0_24px_60px_rgba(15,23,42,0.22)] sm:p-8 lg:p-8">
+      <section className="grid gap-5 xl:grid-cols-[1.2fr_0.8fr] xl:gap-6">
+        <div className="rounded-[26px] bg-slate-950 p-5 text-white shadow-[0_24px_60px_rgba(15,23,42,0.22)] sm:rounded-[30px] sm:p-8 lg:p-8">
           <p className="text-xs uppercase tracking-[0.34em] text-emerald-300/80">
             Business Overview
           </p>
-          <h1 className="font-display mt-4 max-w-3xl text-3xl leading-tight sm:text-4xl lg:text-5xl">
+          <h1 className="font-display mt-4 max-w-3xl text-2xl leading-tight sm:text-4xl lg:text-5xl">
             Your business pulse, recent work, and growth snapshot in one modern dashboard.
           </h1>
-          <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-300">
+          <p className="mt-4 max-w-2xl text-sm leading-6 text-slate-300 sm:leading-7">
             Track invoices, revenue, GST, and customer momentum without changing any of the underlying invoice workflow you already rely on.
           </p>
         </div>

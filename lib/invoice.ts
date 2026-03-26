@@ -1,3 +1,5 @@
+import { normalizeBusinessProfile, readNormalizedBusinessProfileFromStorage } from "./businessProfile"
+
 export type CustomDetail = {
   label: string
   value: string
@@ -15,6 +17,15 @@ export type InvoiceItem = {
   total: number
 }
 
+export type InvoiceStatus = "draft" | "issued" | "paid"
+
+export type InvoiceHistoryEntry = {
+  id: string
+  type: "created" | "edited" | "exported" | "status" | "duplicated"
+  label: string
+  at: string
+}
+
 export type InvoiceRecord = {
   id: string
   invoiceNumber: string
@@ -30,10 +41,13 @@ export type InvoiceRecord = {
   date: string
   customDetails: CustomDetail[]
   items: InvoiceItem[]
+  notes?: string
+  status?: InvoiceStatus
+  history?: InvoiceHistoryEntry[]
   grandTotal: number
 }
 
-export const INVOICE_SCHEMA_VERSION = 2
+export const INVOICE_SCHEMA_VERSION = 3
 
 export type InvoiceStoreEnvelope = {
   schemaVersion: number
@@ -82,6 +96,23 @@ export function createInvoiceId() {
       : `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`
 
   return `inv_${raw.replace(/[^a-zA-Z0-9_-]/g, "")}`
+}
+
+export function createInvoiceHistoryId() {
+  return `invh_${hashString(`${Date.now()}_${Math.random().toString(36).slice(2, 10)}`)}`
+}
+
+export function createInvoiceHistoryEntry(
+  type: InvoiceHistoryEntry["type"],
+  label: string,
+  at?: string
+): InvoiceHistoryEntry {
+  return {
+    id: createInvoiceHistoryId(),
+    type,
+    label: label.trim(),
+    at: at || new Date().toISOString(),
+  }
 }
 
 export type BusinessRecord = {
@@ -145,6 +176,29 @@ export function normalizeInvoiceRecord(invoice: InvoiceRecordInput, legacyIndex 
     Number(invoice.grandTotal) ||
     items.reduce((sum, item) => sum + Number(item.total || 0), 0)
 
+  const status: InvoiceStatus =
+    invoice.status === "paid" ? "paid" : invoice.status === "issued" ? "issued" : "draft"
+  const notes = typeof invoice.notes === "string" ? invoice.notes.trim() : ""
+  const history =
+    Array.isArray(invoice.history) && invoice.history.length > 0
+      ? invoice.history
+          .map((entry) => {
+            const parsed = typeof entry === "object" && entry !== null ? (entry as Partial<InvoiceHistoryEntry>) : {}
+            return {
+              id: typeof parsed.id === "string" && parsed.id.trim() ? parsed.id.trim() : createInvoiceHistoryId(),
+              type:
+                parsed.type === "edited" ||
+                parsed.type === "exported" ||
+                parsed.type === "status" ||
+                parsed.type === "duplicated"
+                  ? parsed.type
+                  : "created",
+              label: typeof parsed.label === "string" && parsed.label.trim() ? parsed.label.trim() : "Invoice updated",
+              at: typeof parsed.at === "string" && parsed.at.trim() ? parsed.at.trim() : new Date().toISOString(),
+            } satisfies InvoiceHistoryEntry
+          })
+      : [createInvoiceHistoryEntry("created", "Invoice created", invoice.date?.trim() || undefined)]
+
   return {
     id: normalizeInvoiceId(invoice.id, invoice, legacyIndex),
     invoiceNumber: invoice.invoiceNumber?.trim() || "",
@@ -177,6 +231,9 @@ export function normalizeInvoiceRecord(invoice: InvoiceRecordInput, legacyIndex 
           .filter((detail) => detail.label || detail.value)
       : [],
     items,
+    notes,
+    status,
+    history,
     grandTotal,
   }
 }
@@ -245,6 +302,32 @@ export function findInvoiceById(invoices: InvoiceRecord[], invoiceId: string) {
   return invoices.find((invoice) => invoice.id === invoiceId) ?? null
 }
 
+export function appendInvoiceHistory(
+  invoice: InvoiceRecord,
+  entry: InvoiceHistoryEntry
+) {
+  return normalizeInvoiceRecord({
+    ...invoice,
+    history: [...(invoice.history || []), entry],
+  })
+}
+
+export function updateInvoiceStatus(
+  invoice: InvoiceRecord,
+  status: InvoiceStatus,
+  label?: string
+) {
+  if (invoice.status === status) return invoice
+  return normalizeInvoiceRecord({
+    ...invoice,
+    status,
+    history: [
+      ...(invoice.history || []),
+      createInvoiceHistoryEntry("status", label || `Status changed to ${status}`),
+    ],
+  })
+}
+
 export function findInvoiceByIdentity(invoices: InvoiceRecord[], value: string) {
   // Legacy fallback only. New routes and features should resolve invoices by `invoice.id`.
   return (
@@ -293,44 +376,14 @@ export function getStoredBusinessRecord(): BusinessRecord | null {
     // Allow reading seeded `localStorage.businessProfile` when present.
     // So we fall back to localStorage directly when the KV/global read is null.
     try {
-      const raw = localStorage.getItem("businessProfile")
-      if (!raw) return null
-      const parsed = JSON.parse(raw) as Partial<BusinessRecord>
-      return {
-        businessName: parsed.businessName?.trim() || "",
-        address: parsed.address?.trim() || "",
-        gst: parsed.gst?.trim() || "",
-        phone: parsed.phone?.trim() || "",
-        email: parsed.email?.trim() || "",
-        bankName: parsed.bankName?.trim() || "",
-        accountNumber: parsed.accountNumber?.trim() || "",
-        ifsc: parsed.ifsc?.trim() || "",
-        upi: parsed.upi?.trim() || "",
-        terms: parsed.terms?.trim() || "",
-        logo: parsed.logo || "",
-        logoShape: parsed.logoShape === "round" ? "round" : "square",
-      }
+      const fallback = readNormalizedBusinessProfileFromStorage()
+      return fallback.businessName || fallback.address || fallback.phone || fallback.email || fallback.logo ? fallback : null
     } catch {
       return null
     }
   }
 
-  const parsed = JSON.parse(stored) as Partial<BusinessRecord>
-
-  return {
-    businessName: parsed.businessName?.trim() || "",
-    address: parsed.address?.trim() || "",
-    gst: parsed.gst?.trim() || "",
-    phone: parsed.phone?.trim() || "",
-    email: parsed.email?.trim() || "",
-    bankName: parsed.bankName?.trim() || "",
-    accountNumber: parsed.accountNumber?.trim() || "",
-    ifsc: parsed.ifsc?.trim() || "",
-    upi: parsed.upi?.trim() || "",
-    terms: parsed.terms?.trim() || "",
-    logo: parsed.logo || "",
-    logoShape: parsed.logoShape === "round" ? "round" : "square",
-  }
+  return normalizeBusinessProfile(JSON.parse(stored))
 }
 
 export function validateBusinessRecord(business: BusinessRecord | null) {

@@ -14,10 +14,12 @@ import { bumpInvoiceUsageCount, canCreateAnotherInvoice } from "@/lib/plans"
 import { useAppAlert } from "@/components/providers/AppAlertProvider"
 import { getAuthMode } from "@/lib/runtimeMode"
 import {
+  createInvoiceHistoryEntry,
   createInvoiceId,
   createEmptyInvoiceItem,
   type CustomDetail,
   type InvoiceItem,
+  findInvoiceById,
   getStoredBusinessRecord,
   normalizeInvoiceRecord,
   readStoredInvoices,
@@ -25,7 +27,8 @@ import {
   validateBusinessRecord,
   validateInvoiceRecord,
 } from "@/lib/invoice"
-import { ArrowLeft, CirclePlus, Package2, Plus, Save, Trash2, UserRound } from "lucide-react"
+import { CirclePlus, Package2, Plus, Save, Trash2, UserRound } from "lucide-react"
+import InvoicePageHeader from "@/components/invoices/InvoicePageHeader"
 
 type ProductRecord = {
   name: string
@@ -106,19 +109,27 @@ export default function CreateInvoiceClient() {
     () => readCreateInvoiceState(),
     []
   )
+  const duplicateInvoiceId = searchParams.get("duplicateId") || ""
+  const duplicateSource = useMemo(
+    () => (duplicateInvoiceId ? findInvoiceById(readStoredInvoices(), duplicateInvoiceId) : null),
+    [duplicateInvoiceId]
+  )
 
   const [products] = useState(initialState.products)
   const [customers] = useState(initialState.customers)
-  const [items, setItems] = useState<InvoiceItem[]>(initialState.items)
+  const [items, setItems] = useState<InvoiceItem[]>(
+    duplicateSource?.items?.length ? duplicateSource.items : initialState.items
+  )
 
-  const [clientName, setClientName] = useState(searchParams.get("name") || "")
-  const [clientPhone, setClientPhone] = useState(searchParams.get("phone") || "")
-  const [clientEmail, setClientEmail] = useState(searchParams.get("email") || "")
-  const [clientGST, setClientGST] = useState(searchParams.get("gstin") || "")
-  const [clientAddress, setClientAddress] = useState(searchParams.get("address") || "")
+  const [clientName, setClientName] = useState(duplicateSource?.clientName || searchParams.get("name") || "")
+  const [clientPhone, setClientPhone] = useState(duplicateSource?.clientPhone || searchParams.get("phone") || "")
+  const [clientEmail, setClientEmail] = useState(duplicateSource?.clientEmail || searchParams.get("email") || "")
+  const [clientGST, setClientGST] = useState(duplicateSource?.clientGST || searchParams.get("gstin") || "")
+  const [clientAddress, setClientAddress] = useState(duplicateSource?.clientAddress || searchParams.get("address") || "")
   const [date, setDate] = useState(() => getTodayLocalDate())
+  const [notes, setNotes] = useState(duplicateSource?.notes || "")
 
-  const [customDetails, setCustomDetails] = useState<CustomDetail[]>([])
+  const [customDetails, setCustomDetails] = useState<CustomDetail[]>(duplicateSource?.customDetails || [])
   const [suggestions, setSuggestions] = useState<ProductRecord[]>([])
   const [activeRow, setActiveRow] = useState<number | null>(null)
   const [clientSuggestions, setClientSuggestions] = useState<CustomerRecord[]>([])
@@ -337,6 +348,12 @@ export default function CreateInvoiceClient() {
       date,
       customDetails,
       items,
+      notes,
+      status: "draft",
+      history: [
+        createInvoiceHistoryEntry("created", "Invoice created"),
+        ...(duplicateSource ? [createInvoiceHistoryEntry("duplicated", `Duplicated from ${duplicateSource.invoiceNumber}`)] : []),
+      ],
       grandTotal,
     })
 
@@ -382,18 +399,17 @@ export default function CreateInvoiceClient() {
 
   return (
     <div className="space-y-6 pb-24 xl:space-y-8 xl:pb-0">
-      <section className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-        <div>
-          <button
-            onClick={() => router.push("/dashboard/invoices")}
-            className="mb-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-600 transition hover:bg-slate-50 hover:text-slate-950 sm:mb-5 sm:w-auto sm:justify-start sm:rounded-full sm:py-2"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back
-          </button>
-          <p className="text-xs uppercase tracking-[0.34em] text-emerald-700">Create Invoice</p>
-        </div>
-      </section>
+      <InvoicePageHeader
+        eyebrow="Create Invoice"
+        title={duplicateSource ? `Duplicate ${duplicateSource.invoiceNumber}` : "Create a fresh invoice."}
+        description={
+          duplicateSource
+            ? "Review the copied details, make any changes you need, and save to issue a new invoice number."
+            : "Build a clean invoice with customer details, line items, taxes, notes, and a ready-to-export PDF."
+        }
+        backLabel="Back to invoices"
+        onBack={() => router.push("/dashboard/invoices")}
+      />
 
       <section className="grid grid-cols-2 gap-3 xl:grid-cols-4 xl:gap-4">
         <div className="soft-card rounded-[24px] px-4 py-3 sm:px-5 sm:py-4">
@@ -527,6 +543,18 @@ export default function CreateInvoiceClient() {
                 ))}
               </div>
             </div>
+          </div>
+        </div>
+
+        <div className="mt-4">
+          <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Invoice Notes</label>
+          <div className="rounded-[24px] border border-slate-200 bg-white p-4">
+            <textarea
+              placeholder="Optional internal notes or invoice context"
+              className="min-h-[120px] w-full resize-none bg-transparent px-0 py-0 text-sm outline-none transition placeholder:text-slate-400 focus:border-transparent focus:ring-0"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+            />
           </div>
         </div>
       </section>

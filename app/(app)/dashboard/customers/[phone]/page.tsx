@@ -9,6 +9,7 @@ import { sortInvoicesNewestFirst } from "@/lib/invoiceCollections"
 import { ArrowLeft, FilePlus2, Mail, MapPin, Phone, ReceiptIndianRupee } from "lucide-react"
 import { readStoredInvoices, type InvoiceRecord } from "@/lib/invoice"
 import SelectMenu from "@/components/ui/SelectMenu"
+import NotFoundRecoveryCard from "@/components/shared/NotFoundRecoveryCard"
 
 type CustomerSummary = {
   name: string
@@ -163,6 +164,19 @@ export default function CustomerDetails() {
     })
 
     router.push(`/dashboard/invoices/create?${query.toString()}`)
+  }
+
+  if (!customer && invoices.length === 0) {
+    return (
+      <NotFoundRecoveryCard
+        title="Customer not found"
+        description="This customer no longer has invoice history in the current workspace. You can return to customers, go back to the dashboard, or retry syncing your workspace."
+        backLabel="Back to customers"
+        onBack={() => router.push(returnTo)}
+        onDashboard={() => router.push("/dashboard")}
+        onRetry={() => setTimeout(() => window.dispatchEvent(new CustomEvent("easybill:cloud-sync")), 0)}
+      />
+    )
   }
 
   return (

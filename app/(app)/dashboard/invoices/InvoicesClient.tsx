@@ -6,7 +6,7 @@ import { useSettings } from "@/context/SettingsContext"
 import { formatDate } from "@/lib/dateFormat"
 import { formatCurrency } from "@/lib/formatCurrency"
 import { buildInvoiceRangeSummary, sortInvoicesNewestFirst } from "@/lib/invoiceCollections"
-import { CalendarRange, FilePlus2, PencilLine, Search, Trash2 } from "lucide-react"
+import { CalendarRange, CopyPlus, FilePlus2, PencilLine, Search, Trash2 } from "lucide-react"
 import { readStoredInvoices, writeStoredInvoices, type InvoiceRecord } from "@/lib/invoice"
 import { canEditInvoices } from "@/lib/plans"
 import SelectMenu from "@/components/ui/SelectMenu"
@@ -33,6 +33,10 @@ export default function InvoicesClient() {
   const [selectedMonth, setSelectedMonth] = useState<number | "all">(() => {
     const queryMonth = searchParams.get("month")
     return queryMonth ? (queryMonth === "all" ? "all" : Number(queryMonth)) : "all"
+  })
+  const [selectedPaymentState, setSelectedPaymentState] = useState<"all" | "paid" | "unpaid">(() => {
+    const queryStatus = searchParams.get("payment")
+    return queryStatus === "paid" || queryStatus === "unpaid" ? queryStatus : "all"
   })
   const [currentPage, setCurrentPage] = useState(() => Number(searchParams.get("page") || 1))
   const [searchQuery, setSearchQuery] = useState(() => searchParams.get("search") || "")
@@ -69,13 +73,43 @@ export default function InvoicesClient() {
     [invoices, selectedMonth, selectedYear]
   )
 
+  const paymentFiltered = useMemo(
+    () =>
+      filtered.filter((invoice) => {
+        if (selectedPaymentState === "all") return true
+        if (selectedPaymentState === "paid") return invoice.status === "paid"
+        return invoice.status !== "paid"
+      }),
+    [filtered, selectedPaymentState]
+  )
+
+  const paymentSearchBase = useMemo(
+    () =>
+      invoices.filter((invoice) => {
+        if (selectedPaymentState === "all") return true
+        if (selectedPaymentState === "paid") return invoice.status === "paid"
+        return invoice.status !== "paid"
+      }),
+    [invoices, selectedPaymentState]
+  )
+
   const activeSearch = deferredSearchQuery.trim().toLowerCase()
   const searched = useMemo(
     () =>
-      (activeSearch ? invoices : filtered).filter((invoice) =>
-        activeSearch ? String(invoice.invoiceNumber || "").toLowerCase().includes(activeSearch) : true
+      (activeSearch ? paymentSearchBase : paymentFiltered).filter((invoice) =>
+        activeSearch
+          ? [
+              String(invoice.invoiceNumber || "").toLowerCase(),
+              String(invoice.clientName || "").toLowerCase(),
+              String(invoice.clientPhone || "").toLowerCase(),
+              String(invoice.date || "").toLowerCase(),
+              formatDate(invoice.date, dateFormat).toLowerCase(),
+              String(invoice.grandTotal || "").toLowerCase(),
+              String(invoice.status || "draft").toLowerCase(),
+            ].some((value) => value.includes(activeSearch))
+          : true
       ),
-    [activeSearch, filtered, invoices]
+    [activeSearch, dateFormat, paymentFiltered, paymentSearchBase]
   )
 
   const totalShown = searched.length
@@ -149,7 +183,11 @@ export default function InvoicesClient() {
     return formatCurrency(value, currencySymbol, currencyPosition, showDecimals, amountFormat)
   }
 
-  const returnTo = `/dashboard/invoices?year=${selectedYear}&month=${selectedMonth}&page=${safePage}&search=${encodeURIComponent(searchQuery)}`
+  function openInvoice(invoiceId: string) {
+    window.location.assign(`/dashboard/invoices/view/${encodeURIComponent(invoiceId)}`)
+  }
+
+  const returnTo = `/dashboard/invoices?year=${selectedYear}&month=${selectedMonth}&payment=${selectedPaymentState}&page=${safePage}&search=${encodeURIComponent(searchQuery)}`
 
   return (
     <div className="space-y-6 xl:space-y-8">
@@ -174,9 +212,9 @@ export default function InvoicesClient() {
       </section>
 
       <section className="soft-card rounded-[24px] p-4 sm:p-6 xl:rounded-[28px]">
-        <div className="grid gap-4 lg:grid-cols-[0.65fr_0.35fr] lg:items-end">
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 lg:gap-4">
-            <label className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,0.68fr)_minmax(280px,0.32fr)] xl:items-end">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4 xl:gap-4">
+            <label className="min-w-0 rounded-2xl border border-slate-200 bg-white px-4 py-3">
               <span className="mb-2 block text-xs uppercase tracking-[0.28em] text-slate-400">Year</span>
               <div className="mt-1">
                 <SelectMenu
@@ -192,7 +230,7 @@ export default function InvoicesClient() {
               </div>
             </label>
 
-            <label className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+            <label className="min-w-0 rounded-2xl border border-slate-200 bg-white px-4 py-3">
               <span className="mb-2 block text-xs uppercase tracking-[0.28em] text-slate-400">Month</span>
               <div className="mt-1">
                 <SelectMenu
@@ -209,10 +247,30 @@ export default function InvoicesClient() {
               </div>
             </label>
 
-            <label className="col-span-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 lg:col-span-1">
+            <label className="min-w-0 rounded-2xl border border-slate-200 bg-white px-4 py-3">
+              <span className="mb-2 block text-xs uppercase tracking-[0.28em] text-slate-400">Payment</span>
+              <div className="mt-1">
+                <SelectMenu
+                  value={selectedPaymentState}
+                  onChange={(value) => {
+                    startTransition(() => {
+                      setSelectedPaymentState(value as "all" | "paid" | "unpaid")
+                      setCurrentPage(1)
+                    })
+                  }}
+                  options={[
+                    { value: "all", label: "All" },
+                    { value: "paid", label: "Paid" },
+                    { value: "unpaid", label: "Unpaid" },
+                  ]}
+                />
+              </div>
+            </label>
+
+            <label className="min-w-0 rounded-2xl border border-slate-200 bg-white px-4 py-3 sm:col-span-2 xl:col-span-1">
               <span className="mb-2 block text-xs uppercase tracking-[0.28em] text-slate-400">Invoice No</span>
               <div className="flex items-center gap-2">
-                <Search className="h-4 w-4 text-slate-400" />
+                <Search className="h-4 w-4 shrink-0 text-slate-400" />
                 <input
                   value={searchQuery}
                   onChange={(e) => {
@@ -223,7 +281,7 @@ export default function InvoicesClient() {
                     })
                   }}
                   placeholder="Search invoice number"
-                  className="w-full bg-transparent text-sm outline-none"
+                  className="w-full min-w-0 bg-transparent text-sm outline-none placeholder:text-slate-400"
                 />
               </div>
             </label>
@@ -284,19 +342,22 @@ export default function InvoicesClient() {
                   key={invoice.id}
                   role="button"
                   tabIndex={0}
-                  onClick={() => router.push(`/dashboard/invoices/view/${encodeURIComponent(invoice.id)}`)}
+                  onClick={() => openInvoice(invoice.id)}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" || e.key === " ") {
-                      router.push(`/dashboard/invoices/view/${encodeURIComponent(invoice.id)}`)
+                      openInvoice(invoice.id)
                     }
                   }}
                   className="cursor-pointer rounded-[24px] border border-slate-200/70 bg-white p-4 transition hover:bg-slate-50/70 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-100"
                 >
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-slate-900">{invoice.invoiceNumber}</p>
-                      <p className="mt-1 truncate text-sm text-slate-600">{invoice.clientName}</p>
-                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-slate-900">{invoice.invoiceNumber}</p>
+                        <p className="mt-1 truncate text-sm text-slate-600">{invoice.clientName}</p>
+                        <p className="mt-2 inline-flex rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-600">
+                          {invoice.status || "draft"}
+                        </p>
+                      </div>
                     <div className="text-right">
                       <p className="truncate text-sm font-semibold text-slate-950">{money(invoice.grandTotal || 0)}</p>
                       <p className="mt-1 text-xs text-slate-500">{formatDate(invoice.date, dateFormat)}</p>
@@ -304,6 +365,16 @@ export default function InvoicesClient() {
                   </div>
 
                   <div className="mt-3 flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      type="button"
+                      onClick={() => router.push(`/dashboard/invoices/create?duplicateId=${encodeURIComponent(invoice.id)}`)}
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 text-slate-600 transition hover:bg-slate-100 hover:text-slate-950"
+                      aria-label="Duplicate invoice"
+                      title="Duplicate invoice"
+                    >
+                      <CopyPlus className="h-3.5 w-3.5" />
+                    </button>
+
                     <button
                       type="button"
                       onClick={() => {
@@ -370,19 +441,36 @@ export default function InvoicesClient() {
                   <tr
                     key={invoice.id}
                     className="cursor-pointer border-b border-slate-100 transition hover:bg-slate-50/70"
-                    onClick={() => router.push(`/dashboard/invoices/view/${encodeURIComponent(invoice.id)}`)}
+                    onClick={() => openInvoice(invoice.id)}
                   >
                       <td
                         className="px-4 py-4 font-medium text-slate-900"
-                        onClick={() => router.push(`/dashboard/invoices/view/${encodeURIComponent(invoice.id)}`)}
+                        onClick={() => openInvoice(invoice.id)}
                       >
-                        {invoice.invoiceNumber}
+                        <button
+                          type="button"
+                          onClick={() => openInvoice(invoice.id)}
+                          className="flex h-11 w-full items-center gap-2 rounded-xl text-left focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-100"
+                        >
+                          <span>{invoice.invoiceNumber}</span>
+                          <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-600">
+                            {invoice.status || "draft"}
+                          </span>
+                        </button>
                       </td>
                     <td className="px-4 py-4">{invoice.clientName}</td>
                     <td className="px-4 py-4">{formatDate(invoice.date, dateFormat)}</td>
                     <td className="px-4 py-4 font-semibold text-slate-900">{money(invoice.grandTotal || 0)}</td>
                     <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
                       <div className="flex justify-end gap-2">
+                        <button
+                          onClick={() => router.push(`/dashboard/invoices/create?duplicateId=${encodeURIComponent(invoice.id)}`)}
+                          className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-950"
+                        >
+                          <CopyPlus className="h-3.5 w-3.5" />
+                          Duplicate
+                        </button>
+
                         <button
                           onClick={() => {
                             if (!canEditInvoices()) {
