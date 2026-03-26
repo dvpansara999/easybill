@@ -495,7 +495,7 @@ export default function CreateInvoiceClient() {
             <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Invoice Date *</label>
             <input
               type="date"
-              className="box-border h-[54px] w-full max-w-full min-w-0 rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm leading-5 outline-none transition [appearance:textfield] focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+              className="eb-date-input box-border h-[54px] w-full max-w-full min-w-0 rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm leading-5 outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
               value={date}
               onChange={(e) => setDate(e.target.value)}
             />

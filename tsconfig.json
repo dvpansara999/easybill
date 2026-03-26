@@ -42,7 +42,9 @@
     ".next-playwright-e2e-10460-mn76z809/types/**/*.ts",
     ".next-playwright-e2e-10460-mn76z809/dev/types/**/*.ts",
     ".next-playwright-e2e-14448-mn779ury/types/**/*.ts",
-    ".next-playwright-e2e-14448-mn779ury/dev/types/**/*.ts"
+    ".next-playwright-e2e-14448-mn779ury/dev/types/**/*.ts",
+    ".next-playwright-e2e-3472-mn78pl9d/types/**/*.ts",
+    ".next-playwright-e2e-3472-mn78pl9d/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",

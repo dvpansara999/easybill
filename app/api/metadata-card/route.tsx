@@ -1,8 +1,6 @@
 import { ImageResponse } from "next/og"
 import { BRAND_NAME } from "@/lib/marketing/siteMetadata"
 
-export const runtime = "edge"
-
 function safeText(value: string | null, fallback: string, maxLength: number) {
   const text = (value || "").trim()
   if (!text) return fallback

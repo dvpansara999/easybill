@@ -280,6 +280,26 @@ main select:focus-visible {
   padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
 }
 
+.eb-safe-top-sheet {
+  padding-top: max(1rem, calc(env(safe-area-inset-top) + 0.75rem));
+}
+
+.eb-date-input {
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.eb-date-input::-webkit-date-and-time-value {
+  text-align: left;
+}
+
+.eb-date-input::-webkit-calendar-picker-indicator {
+  opacity: 0.72;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .eb-page-transition-root,
   .auth-desktop-fade-in {

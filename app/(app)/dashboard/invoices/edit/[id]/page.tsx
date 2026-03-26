@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter, useParams, useSearchParams } from "next/navigation"
 import { useSettings } from "@/context/SettingsContext"
+import { formatDate } from "@/lib/dateFormat"
 import { formatCurrency } from "@/lib/formatCurrency"
 import { getActiveOrGlobalItem } from "@/lib/userStore"
 import { useAppAlert } from "@/components/providers/AppAlertProvider"
@@ -104,6 +105,7 @@ function updateTotals(updated: InvoiceItem[], index: number) {
 
 export default function EditInvoice() {
   const {
+    dateFormat,
     amountFormat,
     showDecimals,
     currencySymbol,
@@ -404,9 +406,9 @@ export default function EditInvoice() {
           <div className="min-w-0">
             <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Invoice Date *</label>
             <input
-              type="date"
-              className="box-border h-[54px] w-full max-w-full min-w-0 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm text-slate-500 outline-none [appearance:textfield]"
-              value={date}
+              type="text"
+              className="box-border h-[54px] w-full max-w-full min-w-0 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm text-slate-500 outline-none"
+              value={date ? formatDate(date, dateFormat) : ""}
               readOnly
             />
           </div>

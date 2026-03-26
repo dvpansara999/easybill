@@ -2,8 +2,8 @@ import { siteOrigin } from "./siteOrigin"
 
 export const BRAND_NAME = "easyBILL"
 export const BRAND_DESCRIPTION = "easyBILL - modern invoice workspace"
-export const OG_IMAGE_PATH = "/opengraph-image"
-export const TWITTER_IMAGE_PATH = "/twitter-image"
+export const OG_IMAGE_PATH = "/logo.png"
+export const TWITTER_IMAGE_PATH = "/logo.png"
 export const BRAND_LOGO_PATH = "/icon-512.png"
 
 export function absoluteSiteUrl(path: string) {
