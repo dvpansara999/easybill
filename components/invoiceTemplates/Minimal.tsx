@@ -252,6 +252,7 @@ function items({
 
 function summary({
   invoice,
+  amountInWords,
   subtotal,
   totalCGST,
   totalSGST,
@@ -260,6 +261,7 @@ function summary({
   theme,
 }: {
   invoice: TemplateInvoiceRecord | undefined
+  amountInWords?: string
   subtotal: number
   totalCGST: number
   totalSGST: number
@@ -277,6 +279,11 @@ function summary({
         <div className="flex justify-between border-t pt-2 text-lg font-semibold text-slate-900" style={{ borderColor: theme.line }}>
           <span>Total</span><span>{money(invoice?.grandTotal || 0)}</span>
         </div>
+        {amountInWords ? (
+          <div className="border-t pt-2 text-xs leading-5 text-slate-600" style={{ borderColor: theme.line }}>
+            Amount in words: {amountInWords}
+          </div>
+        ) : null}
       </div>
     </div>
   )
@@ -328,6 +335,7 @@ export default function MinimalTemplate({
   fontFamily = "system",
   fontSize,
   renderContext = "screen",
+  amountInWords,
   subtotal,
   totalCGST,
   totalSGST,
@@ -351,7 +359,7 @@ export default function MinimalTemplate({
         <div className="eb-content-block">{info({ invoice: invoice || undefined, details, visibility, theme })}</div>
         <div className="eb-content-block eb-section eb-section-items mt-5">{items({ invoice: invoice || undefined, money, gstDisplay, theme })}</div>
         <div className="eb-content-block eb-section eb-section-summary mt-7 flex justify-end">
-          <div className="w-[320px]">{summary({ invoice: invoice || undefined, subtotal: subtotal || 0, totalCGST: totalCGST || 0, totalSGST: totalSGST || 0, totalIGST: totalIGST || 0, money, theme })}</div>
+          <div className="w-[320px]">{summary({ invoice: invoice || undefined, amountInWords, subtotal: subtotal || 0, totalCGST: totalCGST || 0, totalSGST: totalSGST || 0, totalIGST: totalIGST || 0, money, theme })}</div>
         </div>
         <div className="eb-content-block eb-section eb-section-footer mt-5">{footer({ business: businessInfo, visibility, theme })}</div>
         {termsPage({ business: businessInfo, visibility, theme })}
@@ -359,4 +367,3 @@ export default function MinimalTemplate({
     </div>
   )
 }
-

@@ -9,7 +9,7 @@ import LandingInvoicePreview from "@/components/templatePreview/LandingInvoicePr
 import { signIn, signInWithOtp, signInWithProvider, signOut, signUp, updatePasswordAfterOtp, verifyEmailOtp } from "@/lib/auth"
 import { runSeedAndScopeMigration } from "@/lib/seedDataMigration"
 import { emptySetupProfileDraft, saveSetupProfileDraft } from "@/lib/setupProfileDraft"
-import { createSupabaseBrowserClient } from "@/lib/supabase/browser"
+import { createSupabaseBrowserClient, getSupabaseUser } from "@/lib/supabase/browser"
 import { cn } from "@/lib/utils"
 import {
   ArrowRight,
@@ -730,8 +730,7 @@ export default function Home() {
       // switching accounts during "Create Account" must not reuse the old user's setup resume/draft.
       // So we force sign-out and clear temporary setup resume/draft before starting the new OTP flow.
       try {
-        const supabase = createSupabaseBrowserClient()
-        const { data } = await supabase.auth.getUser()
+        const { data } = await getSupabaseUser()
         if (data.user) {
           await signOut()
           try {
@@ -749,8 +748,7 @@ export default function Home() {
       // Otherwise we can bypass RLS + confusing UX.
       let isAlreadyAuthenticated = false
       try {
-        const supabase = createSupabaseBrowserClient()
-        const { data } = await supabase.auth.getUser()
+        const { data } = await getSupabaseUser()
         isAlreadyAuthenticated = Boolean(data.user)
       } catch {
         isAlreadyAuthenticated = false
@@ -819,7 +817,7 @@ export default function Home() {
     // If they haven't completed setup (no businessProfile), send them to Step 1.
     const navigate = async () => {
       const supabase = createSupabaseBrowserClient()
-      const { data: me } = await supabase.auth.getUser()
+      const { data: me } = await getSupabaseUser()
       const userId = me.user?.id
       if (!userId) {
         router.push("/dashboard")

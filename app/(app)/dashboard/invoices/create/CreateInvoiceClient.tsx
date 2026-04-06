@@ -27,6 +27,7 @@ import {
   validateBusinessRecord,
   validateInvoiceRecord,
 } from "@/lib/invoice"
+import { buildCustomerIdentity } from "@/lib/customerIdentity"
 import { CirclePlus, Package2, Plus, Save, Trash2, UserRound } from "lucide-react"
 import InvoicePageHeader from "@/components/invoices/InvoicePageHeader"
 
@@ -64,14 +65,21 @@ function getTodayLocalDate() {
 
 function readCreateInvoiceState(): CreateInvoiceState {
   const savedProducts = getActiveOrGlobalItem("products")
-
-  const products = savedProducts ? (JSON.parse(savedProducts) as ProductRecord[]) : []
+  let products: ProductRecord[] = []
+  if (savedProducts) {
+    try {
+      const parsed = JSON.parse(savedProducts) as unknown
+      products = Array.isArray(parsed) ? (parsed as ProductRecord[]) : []
+    } catch {
+      products = []
+    }
+  }
   const invoices = readStoredInvoices()
   const customerMap: Record<string, CustomerRecord> = {}
 
   invoices.forEach((invoice) => {
-    if (!invoice.clientPhone) return
-    customerMap[invoice.clientPhone] = {
+    const identity = buildCustomerIdentity(invoice).id
+    customerMap[identity] = {
       name: invoice.clientName || "",
       phone: invoice.clientPhone || "",
       email: invoice.clientEmail || "",
@@ -183,13 +191,32 @@ export default function CreateInvoiceClient() {
   function searchClientName(value: string) {
     setClientName(value)
     setClientField("name")
-    setClientSuggestions(customers.filter((customer) => customer.name.toLowerCase().includes(value.toLowerCase())))
+    const normalized = value.trim().toLowerCase()
+    setClientSuggestions(
+      customers.filter((customer) => {
+        if (!normalized) return true
+        return (
+          customer.name.toLowerCase().includes(normalized) ||
+          customer.phone.toLowerCase().includes(normalized) ||
+          customer.gst.toLowerCase().includes(normalized)
+        )
+      })
+    )
   }
 
   function searchClientPhone(value: string) {
     setClientPhone(value)
     setClientField("phone")
-    setClientSuggestions(customers.filter((customer) => String(customer.phone).includes(value)))
+    const normalized = value.trim().toLowerCase()
+    setClientSuggestions(
+      customers.filter((customer) => {
+        if (!normalized) return true
+        return (
+          String(customer.phone).toLowerCase().includes(normalized) ||
+          customer.gst.toLowerCase().includes(normalized)
+        )
+      })
+    )
   }
 
   function selectClient(customer: CustomerRecord) {
@@ -369,8 +396,11 @@ export default function CreateInvoiceClient() {
     }
 
     if (invoices.length > 0) {
-      const lastInvoice = invoices[invoices.length - 1]
-      if (new Date(invoiceRecord.date) < new Date(lastInvoice.date)) {
+      const latestInvoice = invoices.reduce((latest, current) => {
+        if (!latest) return current
+        return new Date(current.date) > new Date(latest.date) ? current : latest
+      }, null as (typeof invoices)[number] | null)
+      if (latestInvoice && new Date(invoiceRecord.date) < new Date(latestInvoice.date)) {
         showAlert({
           tone: "warning",
           title: "Check the invoice date",
@@ -456,8 +486,8 @@ export default function CreateInvoiceClient() {
             {clientField === "name" && clientSuggestions.length > 0 ? (
               <div ref={dropdownRef} className="absolute z-50 mt-2 w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
                 {clientSuggestions.map((customer, index) => (
-                  <div key={`${customer.phone}-${index}`} onClick={() => selectClient(customer)} className="cursor-pointer px-4 py-3 text-sm text-slate-700 transition hover:bg-slate-50">
-                    {customer.name} ({customer.phone})
+                  <div key={`${customer.phone || customer.gst || customer.name}-${index}`} onClick={() => selectClient(customer)} className="cursor-pointer px-4 py-3 text-sm text-slate-700 transition hover:bg-slate-50">
+                    {customer.name} ({customer.phone || `GSTIN: ${customer.gst || "Not added yet"}`})
                   </div>
                 ))}
               </div>
@@ -475,8 +505,8 @@ export default function CreateInvoiceClient() {
             {clientField === "phone" && clientSuggestions.length > 0 ? (
               <div ref={dropdownRef} className="absolute z-50 mt-2 w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
                 {clientSuggestions.map((customer, index) => (
-                  <div key={`${customer.phone}-${index}`} onClick={() => selectClient(customer)} className="cursor-pointer px-4 py-3 text-sm text-slate-700 transition hover:bg-slate-50">
-                    {customer.name} ({customer.phone})
+                  <div key={`${customer.phone || customer.gst || customer.name}-${index}`} onClick={() => selectClient(customer)} className="cursor-pointer px-4 py-3 text-sm text-slate-700 transition hover:bg-slate-50">
+                    {customer.name} ({customer.phone || `GSTIN: ${customer.gst || "Not added yet"}`})
                   </div>
                 ))}
               </div>

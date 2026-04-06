@@ -138,7 +138,21 @@ export default function SettingsClient() {
     setDraftCurrencyPosition(currencyPosition)
 
     setInvoiceHistory(readStoredInvoices())
+    setReady(true)
+  }, [
+    dateFormat,
+    amountFormat,
+    showDecimals,
+    invoicePrefix,
+    invoicePadding,
+    invoiceStartNumber,
+    resetYearly,
+    invoiceResetMonthDay,
+    currencySymbol,
+    currencyPosition,
+  ])
 
+  useEffect(() => {
     const auth = getActiveAuthRecord()
     if (auth) {
       setAccountEmail(auth.email || "")
@@ -159,18 +173,7 @@ export default function SettingsClient() {
       })()
     }
     setReady(true)
-  }, [
-    dateFormat,
-    amountFormat,
-    showDecimals,
-    invoicePrefix,
-    invoicePadding,
-    invoiceStartNumber,
-    resetYearly,
-    invoiceResetMonthDay,
-    currencySymbol,
-    currencyPosition,
-  ])
+  }, [])
 
   const selectStyle =
     "w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"

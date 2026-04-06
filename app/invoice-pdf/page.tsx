@@ -4,6 +4,7 @@ import { useLayoutEffect, useMemo, useRef, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import SharedInvoiceTemplate from "@/components/invoiceTemplates/SharedInvoiceTemplate"
 import type { TemplateComponentProps } from "@/components/invoiceTemplates/templateTypes"
+import { formatAmountInWordsIndian } from "@/lib/amountInWords"
 import { formatCurrency } from "@/lib/formatCurrency"
 import { formatDate } from "@/lib/dateFormat"
 import { DEFAULT_INVOICE_VISIBILITY, type InvoiceVisibilitySettings } from "@/lib/invoiceVisibilityShared"
@@ -102,6 +103,10 @@ export default function InvoicePdfRenderPage() {
       templateId: payload.templateId,
       fontFamily: typography.fontFamily,
       fontSize: typography.fontSize,
+      amountInWords: formatAmountInWordsIndian(Number(payload.invoice?.grandTotal || 0), {
+        currencySymbol: payload.currencySymbol,
+        showDecimals: payload.showDecimals,
+      }),
       subtotal: payload.totals.subtotal,
       totalCGST: payload.totals.totalCGST,
       totalSGST: payload.totals.totalSGST,

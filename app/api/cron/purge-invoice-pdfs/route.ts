@@ -3,6 +3,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin"
 import { INVOICE_PDF_BUCKET, INVOICE_PDF_RETENTION_DAYS } from "@/lib/server/invoicePdfExportConfig"
 import { filterDuplicateInvoiceExportRows } from "@/lib/server/invoicePdfExportCache"
 import {
+  buildReferencedInvoiceIdsByUser,
   buildPdfExportReferenceSet,
   deleteStorageObjects,
   fetchAllInvoicePdfExportRows,
@@ -44,6 +45,7 @@ export async function GET(req: Request) {
   const orphanCutoff = new Date(Date.now() - 60 * 60 * 1000).toISOString()
   let deletedRows = 0
   let deletedDuplicateRows = 0
+  let deletedRemovedInvoiceRows = 0
   let deletedOrphanedFiles = 0
   const batchSize = 200
 
@@ -95,7 +97,35 @@ export async function GET(req: Request) {
   }
 
   const refreshedRows = await fetchAllInvoicePdfExportRows(admin)
-  const referencedPaths = buildPdfExportReferenceSet(refreshedRows)
+  const referencedInvoiceIdsByUser = await buildReferencedInvoiceIdsByUser(admin)
+  const removedInvoiceRows = refreshedRows.filter((row) => {
+    const storagePath = String(row.storage_path || "")
+    const slashIndex = storagePath.indexOf("/")
+    const userId = slashIndex > 0 ? storagePath.slice(0, slashIndex) : ""
+    if (!userId || !row.invoice_id) return false
+    const invoiceIds = referencedInvoiceIdsByUser.get(userId)
+    return !invoiceIds || !invoiceIds.has(row.invoice_id)
+  })
+
+  if (removedInvoiceRows.length) {
+    const removedPaths = removedInvoiceRows.map((row) => row.storage_path).filter((value): value is string => Boolean(value))
+    if (removedPaths.length) {
+      await deleteStorageObjects(admin, INVOICE_PDF_BUCKET, removedPaths)
+    }
+
+    const removedIds = removedInvoiceRows.map((row) => row.id)
+    const { error: removedInvoiceDeleteError } = await admin.from("invoice_pdf_exports").delete().in("id", removedIds)
+    if (removedInvoiceDeleteError) {
+      return NextResponse.json(
+        { error: removedInvoiceDeleteError.message, deletedRows, deletedDuplicateRows, deletedOrphanedFiles },
+        { status: 500 }
+      )
+    }
+    deletedRemovedInvoiceRows = removedInvoiceRows.length
+  }
+
+  const finalRows = await fetchAllInvoicePdfExportRows(admin)
+  const referencedPaths = buildPdfExportReferenceSet(finalRows)
   const bucketObjects = await listBucketObjects(admin, INVOICE_PDF_BUCKET)
   const orphanedObjects = filterOldUnreferencedObjects(bucketObjects, referencedPaths, orphanCutoff)
   if (orphanedObjects.length) {
@@ -110,6 +140,7 @@ export async function GET(req: Request) {
     ok: true,
     deletedRows,
     deletedDuplicateRows,
+    deletedRemovedInvoiceRows,
     deletedOrphanedFiles,
     retentionDays: INVOICE_PDF_RETENTION_DAYS,
     cutoff,

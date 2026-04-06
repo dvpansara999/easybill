@@ -323,6 +323,7 @@ function Items({
 
 function Summary({
   invoice,
+  amountInWords,
   subtotal,
   totalCGST,
   totalSGST,
@@ -331,6 +332,7 @@ function Summary({
   theme,
 }: {
   invoice: TemplateInvoiceRecord | undefined
+  amountInWords?: string
   subtotal: number
   totalCGST: number
   totalSGST: number
@@ -350,6 +352,11 @@ function Summary({
         <div className="mt-2 flex justify-between border-t pt-2 text-lg font-bold text-slate-900" style={{ borderColor: theme.line }}>
           <span>Total</span><span>{money(invoice?.grandTotal || 0)}</span>
         </div>
+        {amountInWords ? (
+          <div className="border-t pt-2 text-xs leading-5 text-slate-600" style={{ borderColor: theme.line }}>
+            Amount in words: {amountInWords}
+          </div>
+        ) : null}
       </div>
     </div>
   )
@@ -417,6 +424,7 @@ export default function ModernTemplate({
   fontFamily = "system",
   fontSize,
   renderContext = "screen",
+  amountInWords,
   subtotal,
   totalCGST,
   totalSGST,
@@ -445,7 +453,7 @@ export default function ModernTemplate({
       </div>
       <div className="eb-content-block eb-section eb-section-summary mt-7 flex justify-end">
         <div className="w-[330px]">
-          <Summary invoice={invoice || undefined} subtotal={subtotal || 0} totalCGST={totalCGST || 0} totalSGST={totalSGST || 0} totalIGST={totalIGST || 0} money={money} theme={theme} />
+          <Summary invoice={invoice || undefined} amountInWords={amountInWords} subtotal={subtotal || 0} totalCGST={totalCGST || 0} totalSGST={totalSGST || 0} totalIGST={totalIGST || 0} money={money} theme={theme} />
         </div>
       </div>
       <div className="eb-content-block eb-section eb-section-footer mt-5 rounded-xl border bg-white p-4" style={{ borderColor: theme.line }}>
@@ -455,4 +463,3 @@ export default function ModernTemplate({
     </div>
   )
 }
-

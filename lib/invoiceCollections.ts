@@ -1,8 +1,11 @@
 import type { InvoiceRecord } from "@/lib/invoice"
+import { buildCustomerIdentity, normalizeCustomerGstin, normalizeCustomerPhone } from "@/lib/customerIdentity"
 
 export type CustomerRow = {
+  identity: string
   name: string
   phone: string
+  gstin: string
   invoices: number
   revenue: number
   latestDate: string
@@ -89,14 +92,18 @@ export function buildCustomerRows(invoices: InvoiceRecord[]): CustomerRow[] {
   const map: Record<string, CustomerRow> = {}
 
   invoices.forEach((invoice) => {
+    const identity = buildCustomerIdentity(invoice)
     const name = invoice.clientName || "Unknown"
-    const phone = invoice.clientPhone || "no-phone"
+    const phone = normalizeCustomerPhone(invoice.clientPhone)
+    const gstin = normalizeCustomerGstin(invoice.clientGST)
     const revenue = Number(invoice.grandTotal || 0)
 
-    if (!map[phone]) {
-      map[phone] = {
+    if (!map[identity.id]) {
+      map[identity.id] = {
+        identity: identity.id,
         name,
         phone,
+        gstin,
         invoices: 0,
         revenue: 0,
         latestDate: "",
@@ -104,17 +111,25 @@ export function buildCustomerRows(invoices: InvoiceRecord[]): CustomerRow[] {
       }
     }
 
-    map[phone].invoices += 1
-    map[phone].revenue += revenue
+    map[identity.id].invoices += 1
+    map[identity.id].revenue += revenue
+    if (!map[identity.id].phone && phone) map[identity.id].phone = phone
+    if (!map[identity.id].gstin && gstin) map[identity.id].gstin = gstin
+    if ((!map[identity.id].name || map[identity.id].name === "Unknown") && name) {
+      map[identity.id].name = name
+    }
 
-    const currentLatestTime = map[phone].latestDate ? new Date(map[phone].latestDate).getTime() : 0
+    const currentLatestTime = map[identity.id].latestDate ? new Date(map[identity.id].latestDate).getTime() : 0
     const incomingTime = invoice.date ? new Date(invoice.date).getTime() : 0
-    const currentLatestNumber = Number(String(map[phone].latestInvoiceNumber || "").replace(/\D/g, ""))
+    const currentLatestNumber = Number(String(map[identity.id].latestInvoiceNumber || "").replace(/\D/g, ""))
     const incomingNumber = Number(String(invoice.invoiceNumber || "").replace(/\D/g, ""))
 
     if (incomingTime > currentLatestTime || (incomingTime === currentLatestTime && incomingNumber > currentLatestNumber)) {
-      map[phone].latestDate = invoice.date || ""
-      map[phone].latestInvoiceNumber = invoice.invoiceNumber || ""
+      map[identity.id].latestDate = invoice.date || ""
+      map[identity.id].latestInvoiceNumber = invoice.invoiceNumber || ""
+      map[identity.id].name = name || map[identity.id].name
+      map[identity.id].phone = phone || map[identity.id].phone
+      map[identity.id].gstin = gstin || map[identity.id].gstin
     }
   })
 

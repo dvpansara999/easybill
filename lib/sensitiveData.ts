@@ -38,6 +38,31 @@ function transformFields(target: Record<string, unknown>, keys: string[], mode: 
   return next
 }
 
+function transformInvoiceRows(rawValue: string, mode: "encrypt" | "decrypt") {
+  const parsed = JSON.parse(rawValue) as unknown
+
+  if (Array.isArray(parsed)) {
+    return JSON.stringify(
+      parsed.map((row) => {
+        if (!isObject(row)) return row
+        return transformFields(row, ["clientPhone", "clientGST"], mode)
+      })
+    )
+  }
+
+  if (isObject(parsed) && Array.isArray(parsed.invoices)) {
+    return JSON.stringify({
+      ...parsed,
+      invoices: parsed.invoices.map((row) => {
+        if (!isObject(row)) return row
+        return transformFields(row, ["clientPhone", "clientGST"], mode)
+      }),
+    })
+  }
+
+  return rawValue
+}
+
 export function protectSensitiveDataForStorage(key: string, rawValue: string) {
   try {
     if (key === "businessProfile") {
@@ -52,13 +77,7 @@ export function protectSensitiveDataForStorage(key: string, rawValue: string) {
     }
 
     if (key === "invoices") {
-      const parsed = JSON.parse(rawValue) as unknown
-      if (!Array.isArray(parsed)) return rawValue
-      const encrypted = parsed.map((row) => {
-        if (!isObject(row)) return row
-        return transformFields(row, ["clientPhone", "clientGST"], "encrypt")
-      })
-      return JSON.stringify(encrypted)
+      return transformInvoiceRows(rawValue, "encrypt")
     }
 
     return rawValue
@@ -81,13 +100,7 @@ export function revealSensitiveDataFromStorage(key: string, rawValue: string) {
     }
 
     if (key === "invoices") {
-      const parsed = JSON.parse(rawValue) as unknown
-      if (!Array.isArray(parsed)) return rawValue
-      const decrypted = parsed.map((row) => {
-        if (!isObject(row)) return row
-        return transformFields(row, ["clientPhone", "clientGST"], "decrypt")
-      })
-      return JSON.stringify(decrypted)
+      return transformInvoiceRows(rawValue, "decrypt")
     }
 
     return rawValue

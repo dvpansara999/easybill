@@ -30,7 +30,7 @@ export default function CustomersPage() {
   useEffect(() => {
     router.prefetch("/dashboard/invoices/create")
     customers.slice(0, 8).forEach((customer) => {
-      router.prefetch(`/dashboard/customers/${encodeURIComponent(customer.phone)}`)
+      router.prefetch(`/dashboard/customers/${encodeURIComponent(customer.identity)}`)
     })
   }, [customers, router])
 
@@ -86,7 +86,11 @@ export default function CustomersPage() {
     () =>
       customers.filter((customer) => {
         if (!normalizedSearch) return true
-        return customer.name.toLowerCase().includes(normalizedSearch) || customer.phone.includes(normalizedSearch)
+        return (
+          customer.name.toLowerCase().includes(normalizedSearch) ||
+          customer.phone.toLowerCase().includes(normalizedSearch) ||
+          customer.gstin.toLowerCase().includes(normalizedSearch)
+        )
       }),
     [customers, normalizedSearch]
   )
@@ -198,11 +202,11 @@ export default function CustomersPage() {
           ) : (
             paginatedCustomers.map((customer, index) => (
               <button
-                key={customer.phone || index}
+                key={customer.identity || index}
                 type="button"
                 onClick={() =>
                   router.push(
-                    `/dashboard/customers/${encodeURIComponent(customer.phone)}?returnTo=${encodeURIComponent(returnTo)}`
+                    `/dashboard/customers/${encodeURIComponent(customer.identity)}?returnTo=${encodeURIComponent(returnTo)}`
                   )
                 }
                 className="w-full rounded-[22px] border border-slate-200/70 bg-white p-3.5 text-left transition hover:bg-slate-50/70 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-100 sm:rounded-[24px] sm:p-4"
@@ -210,7 +214,9 @@ export default function CustomersPage() {
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">
                     <p className="truncate text-sm font-semibold text-slate-900">{customer.name}</p>
-                    <p className="mt-1 truncate text-xs text-slate-600 sm:text-sm">{customer.phone}</p>
+                    <p className="mt-1 truncate text-xs text-slate-600 sm:text-sm">
+                      {customer.phone || (customer.gstin ? `GSTIN: ${customer.gstin}` : "Add phone or GSTIN")}
+                    </p>
                   </div>
                   <ChevronRight className="mt-1 h-4 w-4 text-slate-400" />
                 </div>
@@ -263,16 +269,16 @@ export default function CustomersPage() {
 
                 {paginatedCustomers.map((customer, index) => (
                   <tr
-                    key={`${customer.phone}-${index}`}
+                    key={`${customer.identity}-${index}`}
                     onClick={() =>
                       router.push(
-                        `/dashboard/customers/${encodeURIComponent(customer.phone)}?returnTo=${encodeURIComponent(returnTo)}`
+                        `/dashboard/customers/${encodeURIComponent(customer.identity)}?returnTo=${encodeURIComponent(returnTo)}`
                       )
                     }
                     className="cursor-pointer border-b border-slate-100 transition hover:bg-slate-50/70"
                   >
                     <td className="px-4 py-4 font-medium text-slate-900">{customer.name}</td>
-                    <td className="px-4 py-4">{customer.phone}</td>
+                    <td className="px-4 py-4">{customer.phone || (customer.gstin ? `GSTIN: ${customer.gstin}` : "Not added yet")}</td>
                     <td className="px-4 py-4">{customer.invoices}</td>
                     <td className="px-4 py-4 font-semibold text-slate-900">{money(customer.revenue)}</td>
                   </tr>

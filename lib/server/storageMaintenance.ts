@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { revealSensitiveDataFromStorage } from "@/lib/sensitiveData"
+import { normalizeInvoiceStorePayload } from "@/lib/invoice"
 import { LOGO_BUCKET, getOwnedLogoStoragePath } from "@/lib/logoStorage"
 import { INVOICE_PDF_BUCKET } from "@/lib/server/invoicePdfExportConfig"
 
@@ -19,6 +20,7 @@ type UserKvRow = {
   user_id: string
   key: string
   value: unknown
+  updated_at?: string | null
 }
 
 const STORAGE_BATCH_SIZE = 1000
@@ -136,9 +138,9 @@ export async function buildReferencedLogoPathSet(admin: SupabaseClient) {
     const to = from + STORAGE_BATCH_SIZE - 1
     const query = await admin
       .from("user_kv")
-      .select("user_id, key, value")
+      .select("user_id, key, value, updated_at")
       .in("key", ["businessProfile", "accountSetupBundle"])
-      .order("created_at", { ascending: false })
+      .order("updated_at", { ascending: false })
       .range(from, to)
 
     if (query.error) {
@@ -169,6 +171,55 @@ export async function buildReferencedLogoPathSet(admin: SupabaseClient) {
   }
 
   return referenced
+}
+
+export async function buildReferencedInvoiceIdsByUser(admin: SupabaseClient) {
+  const rows: UserKvRow[] = []
+  let from = 0
+
+  for (;;) {
+    const to = from + STORAGE_BATCH_SIZE - 1
+    const query = await admin
+      .from("user_kv")
+      .select("user_id, key, value")
+      .in("key", ["invoices", "accountSetupBundle"])
+      .range(from, to)
+
+    if (query.error) {
+      throw new Error(query.error.message)
+    }
+
+    const batch = (query.data || []) as UserKvRow[]
+    rows.push(...batch)
+    if (batch.length < STORAGE_BATCH_SIZE) break
+    from += STORAGE_BATCH_SIZE
+  }
+
+  const invoiceIdsByUser = new Map<string, Set<string>>()
+
+  for (const row of rows) {
+    const raw = typeof row.value === "string" ? row.value : JSON.stringify(row.value)
+    const revealed = revealSensitiveDataFromStorage("invoices", raw)
+    const parsed = parseJsonLoose(revealed)
+
+    let invoicePayload: unknown = null
+    if (row.key === "invoices") {
+      invoicePayload = parsed
+    } else if (parsed && typeof parsed === "object" && "invoices" in parsed) {
+      invoicePayload = (parsed as Record<string, unknown>).invoices
+    }
+
+    if (!invoicePayload) continue
+
+    const { store } = normalizeInvoiceStorePayload(invoicePayload)
+    const target = invoiceIdsByUser.get(row.user_id) || new Set<string>()
+    for (const invoice of store.invoices) {
+      if (invoice.id) target.add(invoice.id)
+    }
+    invoiceIdsByUser.set(row.user_id, target)
+  }
+
+  return invoiceIdsByUser
 }
 
 export function filterOldUnreferencedObjects(

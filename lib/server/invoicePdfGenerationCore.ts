@@ -2,7 +2,7 @@ import { createHash } from "node:crypto"
 import { normalizeBusinessProfile } from "@/lib/businessProfile"
 import { generateInvoicePdfBuffer } from "@/lib/server/generateInvoicePdfBuffer"
 import { parseJsonLoose } from "@/lib/server/invoicePdfRouteHelpers"
-import { findInvoiceByIdentity, normalizeInvoiceStorePayload } from "@/lib/invoice"
+import { findInvoiceById, normalizeInvoiceStorePayload } from "@/lib/invoice"
 import { normalizeInvoiceForPdf } from "@/lib/server/normalizeInvoiceForPdf"
 import { revealSensitiveDataFromStorage } from "@/lib/sensitiveData"
 import type { InvoiceVisibilitySettings } from "@/lib/invoiceVisibilityShared"
@@ -251,7 +251,7 @@ export async function resolveInvoicePdfSourceForUser(
   const invoicesParsed = parseJsonLoose(invoicesDecrypted) || []
   const { store } = normalizeInvoiceStorePayload(invoicesParsed)
   const invoices = store.invoices
-  const found = findInvoiceByIdentity(invoices, String(body.invoiceId))
+  const found = findInvoiceById(invoices, String(body.invoiceId))
 
   if (!found) {
     return { ok: false, message: "Invoice not found.", code: "NOT_FOUND", httpStatus: 404 }

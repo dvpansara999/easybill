@@ -11,6 +11,7 @@ create table if not exists public.user_kv (
 );
 
 create index if not exists user_kv_user_id_idx on public.user_kv (user_id);
+create index if not exists user_kv_key_idx on public.user_kv (key);
 
 -- Keep updated_at fresh.
 create or replace function public.touch_updated_at()

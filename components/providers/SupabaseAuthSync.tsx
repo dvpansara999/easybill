@@ -8,12 +8,13 @@ import { pullSupabaseKvToCache, pushLocalSeedIfSupabaseEmpty } from "@/lib/supab
 import { getAuthMode } from "@/lib/runtimeMode"
 import { clearUserKvCache, primeUserKvCache } from "@/lib/userStore"
 
-const FOCUS_KV_RESYNC_MIN_MS = 60_000
+const FOCUS_KV_RESYNC_MIN_MS = 300_000
 
 export default function SupabaseAuthSync() {
   const ran = useRef(false)
   const lastUserId = useRef<string | null>(null)
   const lastFocusSyncAt = useRef(0)
+  const syncInFlight = useRef<Map<string, Promise<void>>>(new Map())
 
   useEffect(() => {
     if (ran.current) return
@@ -24,11 +25,27 @@ export default function SupabaseAuthSync() {
     const supabase = createSupabaseBrowserClient()
 
     async function sync(userId: string) {
-      await pushLocalSeedIfSupabaseEmpty(supabase, userId)
-      const rows = await pullSupabaseKvToCache(supabase, userId)
-      clearUserKvCache(userId)
-      primeUserKvCache(userId, rows)
-      window.dispatchEvent(new Event("easybill:cloud-sync"))
+      const existing = syncInFlight.current.get(userId)
+      if (existing) {
+        await existing
+        return
+      }
+
+      const work = (async () => {
+        lastFocusSyncAt.current = Date.now()
+        await pushLocalSeedIfSupabaseEmpty(supabase, userId)
+        const rows = await pullSupabaseKvToCache(supabase, userId)
+        clearUserKvCache(userId)
+        primeUserKvCache(userId, rows)
+        window.dispatchEvent(new Event("easybill:cloud-sync"))
+      })()
+
+      syncInFlight.current.set(userId, work)
+      try {
+        await work
+      } finally {
+        syncInFlight.current.delete(userId)
+      }
     }
 
     async function runInitial() {
@@ -64,10 +81,10 @@ export default function SupabaseAuthSync() {
     function onFocus() {
       const id = lastUserId.current
       if (!id) return
+      if (document.visibilityState !== "visible") return
       const now = Date.now()
       // Avoid a full user_kv pull on every tab/app focus (common on mobile) — that felt like global slowness.
       if (now - lastFocusSyncAt.current < FOCUS_KV_RESYNC_MIN_MS) return
-      lastFocusSyncAt.current = now
       void sync(id)
     }
     window.addEventListener("focus", onFocus)

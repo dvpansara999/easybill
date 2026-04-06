@@ -1,4 +1,5 @@
 import { normalizeBusinessProfile, readNormalizedBusinessProfileFromStorage } from "./businessProfile"
+import { normalizeCustomerGstin, normalizeCustomerPhone } from "./customerIdentity"
 
 export type CustomDetail = {
   label: string
@@ -417,6 +418,12 @@ export function validateInvoiceRecord(invoice: InvoiceRecord) {
 
   if (!invoice.clientName) {
     return "Client name is required."
+  }
+
+  const hasPhone = Boolean(normalizeCustomerPhone(invoice.clientPhone))
+  const hasGstin = Boolean(normalizeCustomerGstin(invoice.clientGST))
+  if (!hasPhone && !hasGstin) {
+    return "Add either phone number or GSTIN for this customer."
   }
 
   if (invoice.items.length === 0) {

@@ -252,6 +252,20 @@ export default function EditInvoice() {
 
   function updateInvoice() {
     if (updatingInvoice) return
+    if (!canEditInvoices()) {
+      showAlert({
+        tone: "warning",
+        title: "Editing is locked on the Free plan",
+        actionHint: "Upgrade to Plus to unlock editing, or go back to your invoices.",
+        message: "Upgrade to Plus to edit invoices.",
+        primaryLabel: "Upgrade to Plus",
+        secondaryLabel: "Back",
+        onPrimary: () => router.push("/dashboard/upgrade"),
+        onSecondary: () => router.push(returnTo),
+      })
+      return
+    }
+
     const businessError = validateBusinessRecord(getStoredBusinessRecord())
 
     if (businessError) {

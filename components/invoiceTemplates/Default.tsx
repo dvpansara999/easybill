@@ -62,6 +62,7 @@ type DefaultTemplateProps = {
   fontFamily?: string
   fontSize?: number
   renderContext?: "screen" | "pdf"
+  amountInWords?: string
   subtotal?: number
   totalCGST?: number
   totalSGST?: number
@@ -98,6 +99,7 @@ export default function DefaultTemplate({
   fontFamily = "system",
   fontSize,
   renderContext = "screen",
+  amountInWords,
   subtotal = 0,
   totalCGST = 0,
   totalSGST = 0,
@@ -255,6 +257,11 @@ export default function DefaultTemplate({
               <span>Total</span>
               <span>{money(Number(invoice?.grandTotal || 0))}</span>
             </div>
+            {amountInWords ? (
+              <div className="border-t pt-2 text-xs leading-5 text-gray-600">
+                Amount in words: {amountInWords}
+              </div>
+            ) : null}
           </div>
         </div>
       </div>

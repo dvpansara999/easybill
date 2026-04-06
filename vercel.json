@@ -9,12 +9,19 @@
     },
     "app/api/cron/purge-invoice-pdfs/route.ts": {
       "maxDuration": 60
+    },
+    "app/api/cron/purge-logo-orphans/route.ts": {
+      "maxDuration": 60
     }
   },
   "crons": [
     {
       "path": "/api/cron/purge-invoice-pdfs",
       "schedule": "0 4 * * *"
+    },
+    {
+      "path": "/api/cron/purge-logo-orphans",
+      "schedule": "30 4 * * *"
     }
   ]
 }

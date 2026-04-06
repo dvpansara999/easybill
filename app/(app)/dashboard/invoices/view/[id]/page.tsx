@@ -5,6 +5,7 @@ import { Minus, Plus, Share2, X } from "lucide-react"
 import { flushSync } from "react-dom"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { useSettings } from "@/context/SettingsContext"
+import { formatAmountInWordsIndian } from "@/lib/amountInWords"
 import { formatDate } from "@/lib/dateFormat"
 import { formatCurrency } from "@/lib/formatCurrency"
 import {
@@ -230,6 +231,10 @@ export default function ViewInvoice() {
       templateId: template,
       fontFamily,
       fontSize,
+      amountInWords: formatAmountInWordsIndian(Number(invoice?.grandTotal || 0), {
+        currencySymbol,
+        showDecimals,
+      }),
       subtotal: totals.subtotal,
       totalCGST: totals.totalCGST,
       totalSGST: totals.totalSGST,
@@ -242,11 +247,13 @@ export default function ViewInvoice() {
     }),
     [
       business,
+      currencySymbol,
       dateFormat,
       fontFamily,
       fontSize,
       invoice,
       invoiceVisibility,
+      showDecimals,
       gstDisplay,
       money,
       template,

@@ -1,3 +1,4 @@
+import { formatAmountInWordsIndian } from "@/lib/amountInWords"
 import { defaultTemplateTypography } from "@/lib/templateTypography"
 
 export const previewBusiness = {
@@ -68,6 +69,10 @@ export const previewTemplateProps = {
   business: previewBusiness,
   fontFamily: defaultTemplateTypography.fontFamily,
   fontSize: defaultTemplateTypography.fontSize,
+  amountInWords: formatAmountInWordsIndian(previewInvoice.grandTotal, {
+    currencySymbol: "\u20B9",
+    showDecimals: true,
+  }),
   subtotal: 1300,
   totalCGST: 117,
   totalSGST: 117,

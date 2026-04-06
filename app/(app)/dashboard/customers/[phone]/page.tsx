@@ -6,6 +6,7 @@ import { useSettings } from "@/context/SettingsContext"
 import { formatDate } from "@/lib/dateFormat"
 import { formatCurrency } from "@/lib/formatCurrency"
 import { sortInvoicesNewestFirst } from "@/lib/invoiceCollections"
+import { matchesCustomerIdentity } from "@/lib/customerIdentity"
 import { ArrowLeft, FilePlus2, Mail, MapPin, Phone, ReceiptIndianRupee } from "lucide-react"
 import { readStoredInvoices, type InvoiceRecord } from "@/lib/invoice"
 import SelectMenu from "@/components/ui/SelectMenu"
@@ -24,7 +25,7 @@ export default function CustomerDetails() {
   const params = useParams()
   const router = useRouter()
   const searchParams = useSearchParams()
-  const phone = decodeURIComponent(String(params.phone || ""))
+  const customerIdentity = decodeURIComponent(String(params.phone || ""))
   const returnTo = searchParams.get("returnTo") || "/dashboard/customers"
   const [month, setMonth] = useState(searchParams.get("month") || "all")
   const [year, setYear] = useState(searchParams.get("year") || "all")
@@ -37,12 +38,12 @@ export default function CustomerDetails() {
     router.prefetch("/dashboard/customers")
     router.prefetch("/dashboard/invoices/create")
     allInvoices
-      .filter((invoice) => invoice.clientPhone === phone)
+      .filter((invoice) => matchesCustomerIdentity(invoice, customerIdentity))
       .slice(0, 8)
       .forEach((invoice) => {
         router.prefetch(`/dashboard/invoices/view/${encodeURIComponent(invoice.id)}`)
       })
-  }, [allInvoices, phone, router])
+  }, [allInvoices, customerIdentity, router])
 
   useEffect(() => {
     let refreshTimer: number | null = null
@@ -89,8 +90,8 @@ export default function CustomerDetails() {
   }, [])
 
   const invoices = useMemo(
-    () => sortInvoicesNewestFirst(allInvoices.filter((invoice) => invoice.clientPhone === phone)),
-    [allInvoices, phone]
+    () => sortInvoicesNewestFirst(allInvoices.filter((invoice) => matchesCustomerIdentity(invoice, customerIdentity))),
+    [allInvoices, customerIdentity]
   )
 
   const customer = useMemo<CustomerSummary | null>(() => {
@@ -125,7 +126,7 @@ export default function CustomerDetails() {
     () => Array.from(new Set(invoices.map((invoice) => new Date(invoice.date).getFullYear()))),
     [invoices]
   )
-  const customerViewReturnTo = `/dashboard/customers/${encodeURIComponent(phone)}?returnTo=${encodeURIComponent(returnTo)}&month=${month}&year=${year}`
+  const customerViewReturnTo = `/dashboard/customers/${encodeURIComponent(customerIdentity)}?returnTo=${encodeURIComponent(returnTo)}&month=${month}&year=${year}`
 
   const yearOptions = [{ value: "all", label: "All Years" }, ...years.map((value) => ({ value: String(value), label: String(value) }))]
   const monthOptions = [
@@ -201,7 +202,7 @@ export default function CustomerDetails() {
               <p className="text-xs uppercase tracking-[0.28em] text-slate-400">Phone</p>
               <div className="mt-2 flex min-w-0 items-center gap-3 text-slate-100">
                 <Phone className="h-4 w-4 shrink-0 text-emerald-300" />
-                <span className="min-w-0 break-words leading-snug">{customer?.phone || phone}</span>
+                <span className="min-w-0 break-words leading-snug">{customer?.phone || "Not added yet"}</span>
               </div>
               <div className="mt-4 border-t border-white/10 pt-4">
                 <p className="text-xs uppercase tracking-[0.28em] text-slate-400">Email</p>
@@ -216,7 +217,7 @@ export default function CustomerDetails() {
               <p className="text-xs uppercase tracking-[0.28em] text-slate-400">Phone</p>
               <div className="mt-2 flex min-w-0 items-center gap-3 text-slate-100">
                 <Phone className="h-4 w-4 shrink-0 text-emerald-300" />
-                <span className="min-w-0 break-words leading-snug">{customer?.phone || phone}</span>
+                <span className="min-w-0 break-words leading-snug">{customer?.phone || "Not added yet"}</span>
               </div>
             </div>
 

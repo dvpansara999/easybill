@@ -59,6 +59,7 @@ export type TemplateComponentProps = {
   fontFamily?: string
   fontSize?: number
   renderContext?: "screen" | "pdf"
+  amountInWords?: string
   subtotal?: number
   totalCGST?: number
   totalSGST?: number

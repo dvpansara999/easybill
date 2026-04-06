@@ -1,8 +1,11 @@
 ﻿import assert from "node:assert/strict"
 import {
   INVOICE_SCHEMA_VERSION,
+  validateInvoiceRecord,
   normalizeInvoiceStorePayload,
 } from "../lib/invoice.js"
+import { formatAmountInWordsIndian } from "../lib/amountInWords.js"
+import { buildCustomerIdentity } from "../lib/customerIdentity.js"
 import {
   generateInvoiceNumber,
   getFirstRepeatedInvoiceNumberWarning,
@@ -17,8 +20,11 @@ import {
   filterStaleInvoiceExportRows,
 } from "../lib/server/invoicePdfExportCache.js"
 
+let invoiceSeedCounter = 0
+
 function makeInvoice(overrides: Record<string, unknown> = {}) {
   return {
+    id: `inv_seed_${invoiceSeedCounter += 1}`,
     invoiceNumber: "DOC-001",
     clientName: "Raj",
     clientPhone: "9999999999",
@@ -198,6 +204,46 @@ runCase("invoice prefix validation blocks route-unsafe values", () => {
   assert.match(getInvoicePrefixError("DOC No"), /cannot contain spaces/i)
   assert.match(getInvoicePrefixError("DOC/"), /unsupported characters/i)
   assert.equal(getInvoicePrefixError("DOC-"), "")
+})
+
+runCase("customer identity uses phone first, GST fallback, and stable legacy fallback ids", () => {
+  const phoneIdentity = buildCustomerIdentity(makeInvoice({ id: "inv_phone", clientPhone: "9999999999", clientGST: "24ABCDE1234F1Z5" }) as never)
+  const gstIdentity = buildCustomerIdentity(makeInvoice({ id: "inv_gst", clientPhone: "", clientGST: "24AAAAA0000A1Z5" }) as never)
+  const legacyIdentityA = buildCustomerIdentity(makeInvoice({ id: "inv_legacy_1", clientPhone: "", clientGST: "", clientName: "Legacy A", clientEmail: "a@example.com", clientAddress: "Surat" }) as never)
+  const legacyIdentityB = buildCustomerIdentity(makeInvoice({ id: "inv_legacy_2", clientPhone: "", clientGST: "", clientName: "Legacy B", clientEmail: "b@example.com", clientAddress: "Vadodara" }) as never)
+
+  assert.deepEqual(phoneIdentity, { id: "phone:9999999999", kind: "phone" })
+  assert.deepEqual(gstIdentity, { id: "gst:24AAAAA0000A1Z5", kind: "gst" })
+  assert.match(legacyIdentityA.id, /^legacy:/)
+  assert.match(legacyIdentityB.id, /^legacy:/)
+  assert.notEqual(legacyIdentityA.id, legacyIdentityB.id)
+})
+
+runCase("invoice validation requires either phone or GSTIN for a customer", () => {
+  const invalid = validateInvoiceRecord(
+    makeInvoice({
+      id: "inv_missing_contact",
+      clientPhone: "",
+      clientGST: "",
+    }) as never
+  )
+  const validWithGst = validateInvoiceRecord(
+    makeInvoice({
+      id: "inv_gst_only",
+      clientPhone: "",
+      clientGST: "24ABCDE1234F1Z5",
+    }) as never
+  )
+
+  assert.match(invalid || "", /Add either phone number or GSTIN/i)
+  assert.equal(validWithGst, null)
+})
+
+runCase("amount in words uses Indian currency wording and honors decimals setting", () => {
+  assert.equal(formatAmountInWordsIndian(1534, { currencySymbol: "\u20B9", showDecimals: true }), "Rupees One Thousand Five Hundred Thirty Four Only")
+  assert.equal(formatAmountInWordsIndian(1534.5, { currencySymbol: "\u20B9", showDecimals: true }), "Rupees One Thousand Five Hundred Thirty Four and Fifty Paise Only")
+  assert.equal(formatAmountInWordsIndian(1534.5, { currencySymbol: "\u20B9", showDecimals: false }), "Rupees One Thousand Five Hundred Thirty Five Only")
+  assert.equal(formatAmountInWordsIndian(12345678, { currencySymbol: "\u20B9", showDecimals: true }), "Rupees One Crore Twenty Three Lakh Forty Five Thousand Six Hundred Seventy Eight Only")
 })
 
 runCase("pdf export cache matching stays scoped to the invoice internal id", () => {
