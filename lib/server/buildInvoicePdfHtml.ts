@@ -13,6 +13,7 @@ type InvoiceItem = {
   product?: string
   hsn?: string
   qty?: number
+  unit?: string
   price?: number
   cgst?: number | string
   sgst?: number | string
@@ -464,6 +465,7 @@ export function buildInvoicePdfHtml(input: BuildInvoicePdfHtmlInput): string {
   const rows = items
     .map((item) => {
       const qty = Number(item.qty) || 0
+      const unit = String(item.unit || "").trim()
       const price = Number(item.price) || 0
       const base = qty * price
       const cgstAmount = item.cgst ? (base * Number(item.cgst)) / 100 : 0
@@ -488,7 +490,7 @@ export function buildInvoicePdfHtml(input: BuildInvoicePdfHtmlInput): string {
         <tr>
           <td>${escapeHtml(item.product || "-")}</td>
           <td>${escapeHtml(item.hsn || "-")}</td>
-          <td>${escapeHtml(String(qty))}</td>
+          <td>${escapeHtml(String(qty))}${unit ? `<br><span class="muted">${escapeHtml(unit)}</span>` : ""}</td>
           <td>${escapeHtml(money(price))}</td>
           <td>${escapeHtml(gst(item.cgst, cgstAmount))}</td>
           <td>${escapeHtml(gst(item.sgst, sgstAmount))}</td>

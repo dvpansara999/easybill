@@ -282,7 +282,12 @@ function items({
                   </div>
                 </td>
               ) : null}
-              <td className="p-2 text-center align-middle" style={{ border: `${borderWidth} solid ${theme.line}` }}>{item.qty || 0}</td>
+              <td className="p-2 text-center align-middle" style={{ border: `${borderWidth} solid ${theme.line}` }}>
+                <div className="leading-tight">
+                  <div>{item.qty || 0}</div>
+                  {item.unit ? <div className="text-[11px] text-slate-500">{item.unit}</div> : null}
+                </div>
+              </td>
               <td className="p-2 text-right" style={{ border: `${borderWidth} solid ${theme.line}` }}>{money(item.price || 0)}</td>
               {hasCgst ? <td className="p-2 text-right" style={{ border: `${borderWidth} solid ${theme.line}` }}>{gstCell(item.cgst, cgstAmount)}</td> : null}
               {hasSgst ? <td className="p-2 text-right" style={{ border: `${borderWidth} solid ${theme.line}` }}>{gstCell(item.sgst, sgstAmount)}</td> : null}

@@ -236,7 +236,12 @@ function items({
                   </div>
                 </td>
               ) : null}
-              <td className="py-2 text-center align-middle">{item.qty || 0}</td>
+              <td className="py-2 text-center align-middle">
+                <div className="leading-tight">
+                  <div>{item.qty || 0}</div>
+                  {item.unit ? <div className="text-[11px] text-slate-400">{item.unit}</div> : null}
+                </div>
+              </td>
               <td className="py-2 text-right align-middle">{money(item.price || 0)}</td>
               {hasCgst ? <td className="py-2 text-right align-middle">{gstCell(item.cgst, cgstAmount)}</td> : null}
               {hasSgst ? <td className="py-2 text-right align-middle">{gstCell(item.sgst, sgstAmount)}</td> : null}

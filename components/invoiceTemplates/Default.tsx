@@ -31,6 +31,7 @@ type InvoiceItem = {
   product?: string
   hsn?: string
   qty?: number
+  unit?: string
   price?: number
   cgst?: number | string
   sgst?: number | string
@@ -216,7 +217,12 @@ export default function DefaultTemplate({
                 <tr key={index} className="border-b">
                   <td className="px-2 py-3">{item.product || "-"}</td>
                   <td className="px-2 py-3">{item.hsn || "-"}</td>
-                  <td className="px-2 py-3">{item.qty}</td>
+                  <td className="px-2 py-3">
+                    <div className="leading-tight">
+                      <div>{item.qty}</div>
+                      {item.unit ? <div className="text-xs text-gray-500">{item.unit}</div> : null}
+                    </div>
+                  </td>
                   <td className="px-2 py-3">{money(Number(item.price || 0))}</td>
                   <td className="px-2 py-3">{gstDisplay(item.cgst, cgstAmount)}</td>
                   <td className="px-2 py-3">{gstDisplay(item.sgst, sgstAmount)}</td>

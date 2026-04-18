@@ -24,6 +24,7 @@ export type TemplateInvoiceItem = {
   product?: string
   hsn?: string
   qty?: number
+  unit?: string
   price?: number
   cgst?: number | string
   sgst?: number | string
