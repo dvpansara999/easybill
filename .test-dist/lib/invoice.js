@@ -1,5 +1,6 @@
 import { normalizeBusinessProfile, readNormalizedBusinessProfileFromStorage } from "./businessProfile";
-export const INVOICE_SCHEMA_VERSION = 3;
+import { normalizeCustomerGstin, normalizeCustomerPhone } from "./customerIdentity";
+export const INVOICE_SCHEMA_VERSION = 4;
 function hashString(input) {
     let hash = 2166136261;
     for (let i = 0; i < input.length; i += 1) {
@@ -42,6 +43,25 @@ export function createInvoiceHistoryEntry(type, label, at) {
         label: label.trim(),
         at: at || new Date().toISOString(),
     };
+}
+function normalizeInvoiceCreatedAt(invoice) {
+    if (typeof invoice.createdAt === "string" && invoice.createdAt.trim()) {
+        return invoice.createdAt.trim();
+    }
+    if (!Array.isArray(invoice.history)) {
+        return undefined;
+    }
+    const createdEntry = invoice.history.find((entry) => {
+        if (!entry || typeof entry !== "object")
+            return false;
+        return entry.type === "created";
+    });
+    const createdAt = typeof createdEntry?.at === "string" ? createdEntry.at.trim() : "";
+    if (!createdAt || !createdAt.includes("T")) {
+        return undefined;
+    }
+    const createdTime = Date.parse(createdAt);
+    return Number.isFinite(createdTime) ? createdAt : undefined;
 }
 export function createEmptyInvoiceItem() {
     return {
@@ -104,6 +124,7 @@ export function normalizeInvoiceRecord(invoice, legacyIndex = 0) {
     return {
         id: normalizeInvoiceId(invoice.id, invoice, legacyIndex),
         invoiceNumber: invoice.invoiceNumber?.trim() || "",
+        createdAt: normalizeInvoiceCreatedAt(invoice),
         numberingModeAtCreation: invoice.numberingModeAtCreation === "financial-year-reset" ? "financial-year-reset" : "continuous",
         resetMonthDayAtCreation: typeof invoice.resetMonthDayAtCreation === "string" && invoice.resetMonthDayAtCreation.trim()
             ? invoice.resetMonthDayAtCreation.trim()
@@ -190,6 +211,14 @@ export function serializeInvoiceStore(invoices) {
 }
 export function findInvoiceById(invoices, invoiceId) {
     return invoices.find((invoice) => invoice.id === invoiceId) ?? null;
+}
+export function replaceInvoiceById(invoices, nextInvoice) {
+    const index = invoices.findIndex((invoice) => invoice.id === nextInvoice.id);
+    if (index === -1)
+        return null;
+    const updatedInvoices = [...invoices];
+    updatedInvoices[index] = nextInvoice;
+    return updatedInvoices;
 }
 export function appendInvoiceHistory(invoice, entry) {
     return normalizeInvoiceRecord({
@@ -285,6 +314,11 @@ export function validateInvoiceRecord(invoice) {
     }
     if (!invoice.clientName) {
         return "Client name is required.";
+    }
+    const hasPhone = Boolean(normalizeCustomerPhone(invoice.clientPhone));
+    const hasGstin = Boolean(normalizeCustomerGstin(invoice.clientGST));
+    if (!hasPhone && !hasGstin) {
+        return "Add either phone number or GSTIN for this customer.";
     }
     if (invoice.items.length === 0) {
         return "Add at least one invoice item.";

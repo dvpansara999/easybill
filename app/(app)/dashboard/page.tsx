@@ -3,10 +3,11 @@
 import { startTransition, useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useSettings } from "@/context/SettingsContext"
-import { formatDate } from "@/lib/dateFormat"
+import { formatDate, getStoredDateParts, parseStoredDate, storedDatePartsToDate } from "@/lib/dateFormat"
 import { getActiveUserId } from "@/lib/auth"
 import { formatCurrency, formatCurrencyQuickStatsMobile } from "@/lib/formatCurrency"
-import { sortInvoicesNewestFirst } from "@/lib/invoiceCollections"
+import { compareInvoicesNewestFirst, sortInvoicesNewestFirst } from "@/lib/invoiceCollections"
+import { buildCustomerIdentity } from "@/lib/customerIdentity"
 import { getAuthMode } from "@/lib/runtimeMode"
 import { getActiveOrGlobalItem, isActiveUserKvHydrated } from "@/lib/userStore"
 import { readStoredInvoices, type InvoiceRecord } from "@/lib/invoice"
@@ -42,6 +43,7 @@ type RevenuePoint = {
 }
 
 type TopCustomer = {
+  identity: string
   name: string
   revenue: number
   count: number
@@ -141,29 +143,36 @@ function buildDashboardSnapshot(): DashboardSnapshot {
   let gstYearTotal = 0
 
   const clients = new Set<string>()
-  const customerMap: Record<string, TopCustomer> = {}
+  const customerMap: Record<string, TopCustomer & { latestInvoice: InvoiceRecord }> = {}
   const revenueMap: Record<string, number> = {}
 
   sortedInvoices.forEach((invoice) => {
     const amount = Number(invoice.grandTotal || 0)
-    const date = new Date(invoice.date)
-    const key = `${date.getFullYear()}-${date.getMonth()}`
+    const dateParts = getStoredDateParts(invoice.date)
+    if (!dateParts) return
+    const key = `${dateParts.year}-${dateParts.month - 1}`
 
     revenueMap[key] = (revenueMap[key] || 0) + amount
 
-    if (invoice.clientName) {
-      clients.add(invoice.clientName)
+    const identity = buildCustomerIdentity(invoice)
+    clients.add(identity.id)
 
-      if (!customerMap[invoice.clientName]) {
-        customerMap[invoice.clientName] = {
-          name: invoice.clientName,
-          revenue: 0,
-          count: 0,
-        }
+    if (!customerMap[identity.id]) {
+      customerMap[identity.id] = {
+        identity: identity.id,
+        name: invoice.clientName || "Unknown",
+        revenue: 0,
+        count: 0,
+        latestInvoice: invoice,
       }
+    }
 
-      customerMap[invoice.clientName].revenue += amount
-      customerMap[invoice.clientName].count += 1
+    customerMap[identity.id].revenue += amount
+    customerMap[identity.id].count += 1
+
+    if (compareInvoicesNewestFirst(invoice, customerMap[identity.id].latestInvoice) > 0) {
+      customerMap[identity.id].latestInvoice = invoice
+      customerMap[identity.id].name = invoice.clientName || customerMap[identity.id].name
     }
 
     const invoiceTaxes = invoice.items.reduce(
@@ -177,27 +186,34 @@ function buildDashboardSnapshot(): DashboardSnapshot {
       { cgst: 0, sgst: 0, igst: 0 }
     )
 
-    if (date.getMonth() === currentMonth && date.getFullYear() === currentYear) {
+    if (dateParts.month - 1 === currentMonth && dateParts.year === currentYear) {
       monthRevenue += amount
       monthCount += 1
       gstTotal += invoiceTaxes.cgst + invoiceTaxes.sgst + invoiceTaxes.igst
     }
 
-    if (date.getFullYear() === currentYear) {
+    if (dateParts.year === currentYear) {
       gstYearTotal += invoiceTaxes.cgst + invoiceTaxes.sgst + invoiceTaxes.igst
       yearRevenue += amount
     }
 
-    if (date.getMonth() === lastMonth && date.getFullYear() === lastMonthYear) {
+    if (dateParts.month - 1 === lastMonth && dateParts.year === lastMonthYear) {
       lastRevenue += amount
     }
   })
 
   const topCustomers = Object.values(customerMap)
+    .map((customer) => ({
+      identity: customer.identity,
+      name: customer.name,
+      revenue: customer.revenue,
+      count: customer.count,
+    }))
     .sort((a, b) => b.revenue - a.revenue)
     .slice(0, 5)
 
-  const lastInvoiceDate = new Date(sortedInvoices[0]?.date || now.toISOString())
+  const lastInvoiceDateParts = parseStoredDate(sortedInvoices[0]?.date)
+  const lastInvoiceDate = lastInvoiceDateParts ? storedDatePartsToDate(lastInvoiceDateParts) : now
   const months: Array<{ year: number; month: number }> = []
 
   for (let index = 11; index >= 0; index -= 1) {

@@ -3,10 +3,6 @@ import { pdfError } from "@/lib/server/invoicePdfRouteHelpers"
 import { generateInvoicePdfForUser } from "@/lib/server/invoicePdfGenerationCore"
 import { createSupabaseServerClient } from "@/lib/supabase/server"
 
-// Use your local Chromium executable for debugging (must be set before launching Playwright).
-process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH =
-  "C:\\Users\\dvpan\\AppData\\Local\\ms-playwright\\chromium-1208\\chrome-win64\\chrome.exe"
-
 export const maxDuration = 60
 
 export const dynamic = "force-dynamic"

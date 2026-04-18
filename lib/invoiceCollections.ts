@@ -1,5 +1,6 @@
 import type { InvoiceRecord } from "@/lib/invoice"
 import { buildCustomerIdentity, normalizeCustomerGstin, normalizeCustomerPhone } from "@/lib/customerIdentity"
+import { compareStoredDates } from "@/lib/dateFormat"
 
 export type CustomerRow = {
   identity: string
@@ -31,8 +32,12 @@ export function parseInvoiceNumber(invoiceNumber: string) {
 }
 
 export function compareInvoicesNewestFirst(a: InvoiceRecord, b: InvoiceRecord) {
-  const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime()
+  const dateDiff = compareStoredDates(b.date, a.date)
   if (dateDiff !== 0) return dateDiff
+
+  const createdAtDiff =
+    (Date.parse(b.createdAt || "") || 0) - (Date.parse(a.createdAt || "") || 0)
+  if (createdAtDiff !== 0) return createdAtDiff
 
   const aNum = Number(String(a.invoiceNumber || "").replace(/\D/g, ""))
   const bNum = Number(String(b.invoiceNumber || "").replace(/\D/g, ""))
@@ -89,7 +94,7 @@ export function buildInvoiceRangeSummary(invoices: InvoiceRecord[]) {
 }
 
 export function buildCustomerRows(invoices: InvoiceRecord[]): CustomerRow[] {
-  const map: Record<string, CustomerRow> = {}
+  const map: Record<string, CustomerRow & { latestCreatedAt?: string }> = {}
 
   invoices.forEach((invoice) => {
     const identity = buildCustomerIdentity(invoice)
@@ -119,14 +124,20 @@ export function buildCustomerRows(invoices: InvoiceRecord[]): CustomerRow[] {
       map[identity.id].name = name
     }
 
-    const currentLatestTime = map[identity.id].latestDate ? new Date(map[identity.id].latestDate).getTime() : 0
-    const incomingTime = invoice.date ? new Date(invoice.date).getTime() : 0
+    const dateDiff = compareStoredDates(invoice.date, map[identity.id].latestDate)
+    const createdAtDiff =
+      (Date.parse(invoice.createdAt || "") || 0) - (Date.parse(map[identity.id].latestCreatedAt || "") || 0)
     const currentLatestNumber = Number(String(map[identity.id].latestInvoiceNumber || "").replace(/\D/g, ""))
     const incomingNumber = Number(String(invoice.invoiceNumber || "").replace(/\D/g, ""))
 
-    if (incomingTime > currentLatestTime || (incomingTime === currentLatestTime && incomingNumber > currentLatestNumber)) {
+    if (
+      dateDiff > 0 ||
+      (dateDiff === 0 && createdAtDiff > 0) ||
+      (dateDiff === 0 && createdAtDiff === 0 && incomingNumber > currentLatestNumber)
+    ) {
       map[identity.id].latestDate = invoice.date || ""
       map[identity.id].latestInvoiceNumber = invoice.invoiceNumber || ""
+      map[identity.id].latestCreatedAt = invoice.createdAt || ""
       map[identity.id].name = name || map[identity.id].name
       map[identity.id].phone = phone || map[identity.id].phone
       map[identity.id].gstin = gstin || map[identity.id].gstin
@@ -134,11 +145,24 @@ export function buildCustomerRows(invoices: InvoiceRecord[]): CustomerRow[] {
   })
 
   return Object.values(map).sort((a, b) => {
-    const dateDiff = new Date(b.latestDate).getTime() - new Date(a.latestDate).getTime()
+    const dateDiff = compareStoredDates(b.latestDate, a.latestDate)
     if (dateDiff !== 0) return dateDiff
+
+    const createdAtDiff =
+      (Date.parse(b.latestCreatedAt || "") || 0) - (Date.parse(a.latestCreatedAt || "") || 0)
+    if (createdAtDiff !== 0) return createdAtDiff
 
     const aNum = Number(String(a.latestInvoiceNumber || "").replace(/\D/g, ""))
     const bNum = Number(String(b.latestInvoiceNumber || "").replace(/\D/g, ""))
     return bNum - aNum
-  })
+  }).map((row) => ({
+    identity: row.identity,
+    name: row.name,
+    phone: row.phone,
+    gstin: row.gstin,
+    invoices: row.invoices,
+    revenue: row.revenue,
+    latestDate: row.latestDate,
+    latestInvoiceNumber: row.latestInvoiceNumber,
+  }))
 }

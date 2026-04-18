@@ -1,11 +1,14 @@
-﻿import assert from "node:assert/strict"
+import { readFileSync } from "node:fs"
+import assert from "node:assert/strict"
 import {
   INVOICE_SCHEMA_VERSION,
-  validateInvoiceRecord,
   normalizeInvoiceStorePayload,
+  replaceInvoiceById,
+  validateInvoiceRecord,
 } from "../lib/invoice.js"
 import { formatAmountInWordsIndian } from "../lib/amountInWords.js"
 import { buildCustomerIdentity } from "../lib/customerIdentity.js"
+import { compareStoredDates, formatDate, getStoredDateParts, parseStoredDate, storedDatePartsToDate } from "../lib/dateFormat.js"
 import {
   generateInvoiceNumber,
   getFirstRepeatedInvoiceNumberWarning,
@@ -86,6 +89,21 @@ runCase("invoice store keeps existing ids stable for edited invoices under the c
   assert.equal(normalized.changed, false)
   assert.equal(normalized.store.invoices[0]?.id, "inv_fixed_1")
   assert.equal(normalized.store.invoices[0]?.clientName, "Edited Name")
+})
+
+runCase("replaceInvoiceById preserves unrelated invoices when saving an edited invoice", () => {
+  const latestStore = [
+    makeInvoice({ id: "inv_edit", clientName: "Original Name", invoiceNumber: "DOC-001" }),
+    makeInvoice({ id: "inv_newer", clientName: "Later Invoice", invoiceNumber: "DOC-002" }),
+  ]
+  const editedInvoice = makeInvoice({ id: "inv_edit", clientName: "Edited Name", invoiceNumber: "DOC-001" })
+
+  const updated = replaceInvoiceById(latestStore as never, editedInvoice as never)
+
+  assert.ok(updated)
+  assert.equal(updated?.length, 2)
+  assert.equal(updated?.[0]?.clientName, "Edited Name")
+  assert.equal(updated?.[1]?.id, "inv_newer")
 })
 
 runCase("continuous numbering only counts invoices that match the current prefix", () => {
@@ -219,6 +237,12 @@ runCase("customer identity uses phone first, GST fallback, and stable legacy fal
   assert.notEqual(legacyIdentityA.id, legacyIdentityB.id)
 })
 
+runCase("customer rows use createdAt to break same-day latest-invoice ties", () => {
+  const source = readFileSync(new URL("../../lib/invoiceCollections.ts", import.meta.url), "utf8")
+  assert.match(source, /dateDiff === 0 && createdAtDiff > 0/)
+  assert.match(source, /map\[identity\.id\]\.latestCreatedAt = invoice\.createdAt \|\| ""/)
+})
+
 runCase("invoice validation requires either phone or GSTIN for a customer", () => {
   const invalid = validateInvoiceRecord(
     makeInvoice({
@@ -244,6 +268,26 @@ runCase("amount in words uses Indian currency wording and honors decimals settin
   assert.equal(formatAmountInWordsIndian(1534.5, { currencySymbol: "\u20B9", showDecimals: true }), "Rupees One Thousand Five Hundred Thirty Four and Fifty Paise Only")
   assert.equal(formatAmountInWordsIndian(1534.5, { currencySymbol: "\u20B9", showDecimals: false }), "Rupees One Thousand Five Hundred Thirty Five Only")
   assert.equal(formatAmountInWordsIndian(12345678, { currencySymbol: "\u20B9", showDecimals: true }), "Rupees One Crore Twenty Three Lakh Forty Five Thousand Six Hundred Seventy Eight Only")
+})
+
+runCase("stored invoice dates stay calendar-stable for formatting and filtering", () => {
+  const parsed = parseStoredDate("2026-04-01")
+
+  assert.deepEqual(parsed, { year: 2026, month: 4, day: 1 })
+  assert.deepEqual(getStoredDateParts("2026-04-01"), { year: 2026, month: 4, day: 1 })
+  assert.equal(formatDate("2026-04-01", "DD/MM/YYYY"), "01/04/2026")
+  assert.equal(compareStoredDates("2026-04-01", "2026-03-31") > 0, true)
+
+  const localDate = storedDatePartsToDate(parsed!)
+  assert.equal(localDate.getFullYear(), 2026)
+  assert.equal(localDate.getMonth(), 3)
+  assert.equal(localDate.getDate(), 1)
+})
+
+runCase("backup payload falls back to a clean rupee symbol", () => {
+  const source = readFileSync(new URL("../../lib/appBackup.ts", import.meta.url), "utf8")
+  assert.match(source, /currencySymbol: getActiveOrGlobalItem\("currencySymbol"\) \|\| "\u20B9"/)
+  assert.match(source, /setActiveOrGlobalItem\("currencySymbol", String\(settings\.currencySymbol \|\| "\u20B9"\)\)/)
 })
 
 runCase("pdf export cache matching stays scoped to the invoice internal id", () => {
@@ -336,3 +380,11 @@ runCase("logo storage paths are versioned and only owned urls can be deleted", (
 })
 
 console.log("All regression checks passed.")
+
+
+
+
+
+
+
+

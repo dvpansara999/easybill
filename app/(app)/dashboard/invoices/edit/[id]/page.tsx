@@ -14,6 +14,7 @@ import {
   getStoredBusinessRecord,
   normalizeInvoiceRecord,
   readStoredInvoices,
+  replaceInvoiceById,
   writeStoredInvoices,
   validateBusinessRecord,
   validateInvoiceRecord,
@@ -278,9 +279,10 @@ export default function EditInvoice() {
       return
     }
 
-    const index = initialState.invoices.findIndex((invoice) => invoice.id === invoiceId)
+    const latestInvoices = readStoredInvoices()
+    const existingInvoice = findInvoiceById(latestInvoices, invoiceId)
 
-    if (index === -1) {
+    if (!existingInvoice) {
       showAlert({
         tone: "danger",
         title: "Invoice not found",
@@ -292,11 +294,10 @@ export default function EditInvoice() {
       return
     }
 
-    const existingInvoice = initialState.invoices[index]
-
     const invoiceRecord = normalizeInvoiceRecord({
       id: invoiceId,
       invoiceNumber,
+      createdAt: existingInvoice?.createdAt,
       numberingModeAtCreation: existingInvoice?.numberingModeAtCreation,
       resetMonthDayAtCreation: existingInvoice?.resetMonthDayAtCreation,
       sequenceWindowStart: existingInvoice?.sequenceWindowStart,
@@ -327,8 +328,18 @@ export default function EditInvoice() {
       return
     }
 
-    const updatedInvoices = [...initialState.invoices]
-    updatedInvoices[index] = invoiceRecord
+    const updatedInvoices = replaceInvoiceById(latestInvoices, invoiceRecord)
+    if (!updatedInvoices) {
+      showAlert({
+        tone: "danger",
+        title: "Invoice not found",
+        actionHint: "Return to your invoice list and pick a valid invoice.",
+        message: "This invoice could not be found in your current account.",
+        primaryLabel: "Back",
+        onPrimary: () => router.push(returnTo),
+      })
+      return
+    }
 
     setUpdatingInvoice(true)
     writeStoredInvoices(updatedInvoices)

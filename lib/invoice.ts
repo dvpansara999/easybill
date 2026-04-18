@@ -30,6 +30,7 @@ export type InvoiceHistoryEntry = {
 export type InvoiceRecord = {
   id: string
   invoiceNumber: string
+  createdAt?: string
   numberingModeAtCreation?: "continuous" | "financial-year-reset"
   resetMonthDayAtCreation?: string | null
   sequenceWindowStart?: string | null
@@ -48,7 +49,7 @@ export type InvoiceRecord = {
   grandTotal: number
 }
 
-export const INVOICE_SCHEMA_VERSION = 3
+export const INVOICE_SCHEMA_VERSION = 4
 
 export type InvoiceStoreEnvelope = {
   schemaVersion: number
@@ -114,6 +115,29 @@ export function createInvoiceHistoryEntry(
     label: label.trim(),
     at: at || new Date().toISOString(),
   }
+}
+
+function normalizeInvoiceCreatedAt(invoice: InvoiceRecordInput) {
+  if (typeof invoice.createdAt === "string" && invoice.createdAt.trim()) {
+    return invoice.createdAt.trim()
+  }
+
+  if (!Array.isArray(invoice.history)) {
+    return undefined
+  }
+
+  const createdEntry = invoice.history.find((entry) => {
+    if (!entry || typeof entry !== "object") return false
+    return (entry as Partial<InvoiceHistoryEntry>).type === "created"
+  }) as Partial<InvoiceHistoryEntry> | undefined
+
+  const createdAt = typeof createdEntry?.at === "string" ? createdEntry.at.trim() : ""
+  if (!createdAt || !createdAt.includes("T")) {
+    return undefined
+  }
+
+  const createdTime = Date.parse(createdAt)
+  return Number.isFinite(createdTime) ? createdAt : undefined
 }
 
 export type BusinessRecord = {
@@ -203,6 +227,7 @@ export function normalizeInvoiceRecord(invoice: InvoiceRecordInput, legacyIndex 
   return {
     id: normalizeInvoiceId(invoice.id, invoice, legacyIndex),
     invoiceNumber: invoice.invoiceNumber?.trim() || "",
+    createdAt: normalizeInvoiceCreatedAt(invoice),
     numberingModeAtCreation:
       invoice.numberingModeAtCreation === "financial-year-reset" ? "financial-year-reset" : "continuous",
     resetMonthDayAtCreation:
@@ -301,6 +326,15 @@ export function serializeInvoiceStore(invoices: InvoiceRecord[]) {
 
 export function findInvoiceById(invoices: InvoiceRecord[], invoiceId: string) {
   return invoices.find((invoice) => invoice.id === invoiceId) ?? null
+}
+
+export function replaceInvoiceById(invoices: InvoiceRecord[], nextInvoice: InvoiceRecord) {
+  const index = invoices.findIndex((invoice) => invoice.id === nextInvoice.id)
+  if (index === -1) return null
+
+  const updatedInvoices = [...invoices]
+  updatedInvoices[index] = nextInvoice
+  return updatedInvoices
 }
 
 export function appendInvoiceHistory(

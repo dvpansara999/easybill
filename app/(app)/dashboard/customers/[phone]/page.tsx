@@ -3,7 +3,7 @@
 import { startTransition, useDeferredValue, useEffect, useMemo, useState } from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { useSettings } from "@/context/SettingsContext"
-import { formatDate } from "@/lib/dateFormat"
+import { formatDate, getStoredDateParts } from "@/lib/dateFormat"
 import { formatCurrency } from "@/lib/formatCurrency"
 import { sortInvoicesNewestFirst } from "@/lib/invoiceCollections"
 import { matchesCustomerIdentity } from "@/lib/customerIdentity"
@@ -111,11 +111,11 @@ export default function CustomerDetails() {
     let result = [...invoices]
 
     if (deferredMonth !== "all") {
-      result = result.filter((invoice) => new Date(invoice.date).getMonth() + 1 === Number(deferredMonth))
+      result = result.filter((invoice) => getStoredDateParts(invoice.date)?.month === Number(deferredMonth))
     }
 
     if (deferredYear !== "all") {
-      result = result.filter((invoice) => new Date(invoice.date).getFullYear() === Number(deferredYear))
+      result = result.filter((invoice) => getStoredDateParts(invoice.date)?.year === Number(deferredYear))
     }
 
     return sortInvoicesNewestFirst(result)
@@ -123,7 +123,14 @@ export default function CustomerDetails() {
 
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
   const years = useMemo(
-    () => Array.from(new Set(invoices.map((invoice) => new Date(invoice.date).getFullYear()))),
+    () =>
+      Array.from(
+        new Set(
+          invoices
+            .map((invoice) => getStoredDateParts(invoice.date)?.year)
+            .filter((year): year is number => year !== undefined)
+        )
+      ),
     [invoices]
   )
   const customerViewReturnTo = `/dashboard/customers/${encodeURIComponent(customerIdentity)}?returnTo=${encodeURIComponent(returnTo)}&month=${month}&year=${year}`

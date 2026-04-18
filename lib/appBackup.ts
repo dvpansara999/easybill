@@ -60,7 +60,7 @@ export function buildAppBackupPayload(): AppBackupPayload {
         invoiceStartNumber: Number(getActiveOrGlobalItem("invoiceStartNumber") || 1),
         resetYearly: (getActiveOrGlobalItem("resetYearly") || "true") === "true",
         invoiceResetMonthDay: normalizeResetMonthDay(getActiveOrGlobalItem("invoiceResetMonthDay") || DEFAULT_RESET_MONTH_DAY),
-        currencySymbol: getActiveOrGlobalItem("currencySymbol") || "â‚¹",
+        currencySymbol: getActiveOrGlobalItem("currencySymbol") || "₹",
         currencyPosition: getActiveOrGlobalItem("currencyPosition") === "after" ? "after" : "before",
         invoiceVisibility: { ...DEFAULT_INVOICE_VISIBILITY, ...visibilityParsed },
         invoiceTemplate: getActiveOrGlobalItem("invoiceTemplate") || "",
@@ -110,7 +110,7 @@ export async function importAppBackupJson(file: File) {
   setActiveOrGlobalItem("invoiceStartNumber", String(Number(settings.invoiceStartNumber || 1)))
   setActiveOrGlobalItem("resetYearly", String(Boolean(settings.resetYearly ?? true)))
   setActiveOrGlobalItem("invoiceResetMonthDay", normalizeResetMonthDay(String(settings.invoiceResetMonthDay || DEFAULT_RESET_MONTH_DAY)))
-  setActiveOrGlobalItem("currencySymbol", String(settings.currencySymbol || "â‚¹"))
+  setActiveOrGlobalItem("currencySymbol", String(settings.currencySymbol || "₹"))
   setActiveOrGlobalItem("currencyPosition", settings.currencyPosition === "after" ? "after" : "before")
   setActiveOrGlobalItem("invoiceVisibility", JSON.stringify(visibility))
   setActiveOrGlobalItem("invoiceTemplate", String(settings.invoiceTemplate || ""))

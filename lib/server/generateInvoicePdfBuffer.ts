@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs"
 import { chromium } from "playwright-core"
 
 export type PdfGenSuccess = {
@@ -25,6 +26,7 @@ async function launchBrowser() {
       // ignore
     }
     const executablePath = await chromiumPack.executablePath()
+    console.info("[invoice-pdf] browser-launch", { mode: "vercel-chromium", executablePath })
     return chromium.launch({
       args: chromiumPack.args,
       executablePath,
@@ -32,17 +34,33 @@ async function launchBrowser() {
     })
   }
 
-  // Localhost (Windows)
   const { chromium: full } = await import("playwright")
+  const args = [
+    "--no-sandbox",
+    "--disable-setuid-sandbox",
+    "--disable-dev-shm-usage",
+    "--disable-gpu",
+  ]
+  const configuredPath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH?.trim()
+  const configuredPathExists = configuredPath ? existsSync(configuredPath) : false
+
+  if (configuredPath && configuredPathExists) {
+    console.info("[invoice-pdf] browser-launch", { mode: "local-explicit-path", executablePath: configuredPath })
+    return full.launch({
+      headless: true,
+      executablePath: configuredPath,
+      args,
+    })
+  }
+
+  console.info("[invoice-pdf] browser-launch", {
+    mode: "local-default",
+    configuredPath: configuredPath || null,
+    configuredPathExists,
+  })
   return full.launch({
     headless: true,
-    executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,
-    args: [
-      "--no-sandbox",
-      "--disable-setuid-sandbox",
-      "--disable-dev-shm-usage",
-      "--disable-gpu",
-    ],
+    args,
   })
 }
 

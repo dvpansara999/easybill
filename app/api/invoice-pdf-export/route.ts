@@ -17,9 +17,6 @@ import {
 } from "@/lib/server/invoicePdfExportCache"
 import { createSupabaseServerClient } from "@/lib/supabase/server"
 
-process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH =
-  "C:\\Users\\dvpan\\AppData\\Local\\ms-playwright\\chromium-1208\\chrome-win64\\chrome.exe"
-
 export const maxDuration = 60
 export const dynamic = "force-dynamic"
 export const runtime = "nodejs"

@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useSettings } from "@/context/SettingsContext"
+import { compareStoredDates } from "@/lib/dateFormat"
 import { formatCurrency } from "@/lib/formatCurrency"
 import {
   generateInvoiceNumber,
@@ -357,6 +358,7 @@ export default function CreateInvoiceClient() {
     const invoiceRecord = normalizeInvoiceRecord({
       id: createInvoiceId(),
       invoiceNumber: nextInvoiceNumber,
+      createdAt: new Date().toISOString(),
       ...getInvoiceNumberingMetadata(
         {
           prefix: invoicePrefix,
@@ -398,9 +400,9 @@ export default function CreateInvoiceClient() {
     if (invoices.length > 0) {
       const latestInvoice = invoices.reduce((latest, current) => {
         if (!latest) return current
-        return new Date(current.date) > new Date(latest.date) ? current : latest
+        return compareStoredDates(current.date, latest.date) > 0 ? current : latest
       }, null as (typeof invoices)[number] | null)
-      if (latestInvoice && new Date(invoiceRecord.date) < new Date(latestInvoice.date)) {
+      if (latestInvoice && compareStoredDates(invoiceRecord.date, latestInvoice.date) < 0) {
         showAlert({
           tone: "warning",
           title: "Check the invoice date",
