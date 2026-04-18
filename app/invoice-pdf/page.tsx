@@ -1,6 +1,6 @@
 "use client"
 
-import { useLayoutEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import SharedInvoiceTemplate from "@/components/invoiceTemplates/SharedInvoiceTemplate"
 import type { TemplateComponentProps } from "@/components/invoiceTemplates/templateTypes"
@@ -34,6 +34,40 @@ function measureMeaningfulHeight(container: HTMLElement) {
   }
   if (maxBottom <= 0) return container.scrollHeight || container.offsetHeight || A4_HEIGHT_PX
   return Math.ceil(maxBottom + 2)
+}
+
+function waitForAnimationFrames(count = 2) {
+  return new Promise<void>((resolve) => {
+    const step = (remaining: number) => {
+      if (remaining <= 0) {
+        resolve()
+        return
+      }
+      requestAnimationFrame(() => step(remaining - 1))
+    }
+    step(count)
+  })
+}
+
+async function waitForImageAsset(url: string) {
+  if (!url.startsWith("http://") && !url.startsWith("https://")) return
+
+  await new Promise<void>((resolve) => {
+    const img = new Image()
+    const finish = () => resolve()
+    img.onload = finish
+    img.onerror = finish
+    img.src = url
+
+    if (img.complete) {
+      resolve()
+      return
+    }
+
+    if (typeof img.decode === "function") {
+      img.decode().then(finish).catch(finish)
+    }
+  })
 }
 
 type PdfRenderPayload = {
@@ -78,6 +112,7 @@ export default function InvoicePdfRenderPage() {
   const measureRef = useRef<HTMLDivElement | null>(null)
   const [contentHeight, setContentHeight] = useState(A4_HEIGHT_PX)
   const [dedicatedTermsPage, setDedicatedTermsPage] = useState(false)
+  const [assetsReady, setAssetsReady] = useState(false)
 
   const templateData = useMemo<TemplateComponentProps | null>(() => {
     if (!payload) return null
@@ -120,6 +155,38 @@ export default function InvoicePdfRenderPage() {
     }
   }, [payload])
 
+  useEffect(() => {
+    let cancelled = false
+
+    async function prepareAssets() {
+      setAssetsReady(false)
+      if (!templateData) return
+
+      try {
+        await document.fonts.ready
+      } catch {
+        // ignore - not all browsers expose FontFaceSet
+      }
+
+      const logo = String(payload?.business?.logo || "").trim()
+      if (logo) {
+        await waitForImageAsset(logo)
+      }
+
+      await waitForAnimationFrames(4)
+
+      if (!cancelled) {
+        setAssetsReady(true)
+      }
+    }
+
+    void prepareAssets()
+
+    return () => {
+      cancelled = true
+    }
+  }, [payload, templateData])
+
   useLayoutEffect(() => {
     if (!payload?.business?.logo) return
     const logo = String(payload.business.logo).trim()
@@ -156,8 +223,10 @@ export default function InvoicePdfRenderPage() {
     ro.observe(el)
     requestAnimationFrame(updateHeight)
 
-    return () => ro.disconnect()
-  }, [templateData])
+    return () => {
+      ro.disconnect()
+    }
+  }, [templateData, assetsReady])
 
   const pageCount = useMemo(() => {
     if (dedicatedTermsPage) return 2
@@ -165,6 +234,7 @@ export default function InvoicePdfRenderPage() {
     if (overflowPx <= OVERFLOW_EPSILON_PX) return 1
     return Math.max(1, Math.ceil(contentHeight / A4_HEIGHT_PX))
   }, [contentHeight, dedicatedTermsPage])
+  const pdfReady = Boolean(templateData) && assetsReady
 
   return (
     <main style={{ margin: 0, padding: 0, background: "#fff" }}>
@@ -178,7 +248,7 @@ export default function InvoicePdfRenderPage() {
             </div>
           </div>
 
-          <div data-easybill-pdf-ready="true">
+          <div data-easybill-pdf-ready={pdfReady ? "true" : "false"}>
             {Array.from({ length: pageCount }, (_, pageIndex) => {
               const pageClass = dedicatedTermsPage ? (pageIndex === 0 ? "eb-page-main" : "eb-page-terms") : ""
               const sliceTop = pageIndex * A4_HEIGHT_PX
