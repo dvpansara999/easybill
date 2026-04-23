@@ -28,6 +28,20 @@ function decryptValue(value: string) {
   }
 }
 
+export function revealSensitiveString(value: string) {
+  return decryptValue(value)
+}
+
+export function revealSensitiveFields<T extends Record<string, unknown>>(target: T, keys: string[]) {
+  const next: Record<string, unknown> = { ...target }
+  for (const key of keys) {
+    const raw = next[key]
+    if (typeof raw !== "string") continue
+    next[key] = decryptValue(raw)
+  }
+  return next as T
+}
+
 function transformFields(target: Record<string, unknown>, keys: string[], mode: "encrypt" | "decrypt") {
   const next: Record<string, unknown> = { ...target }
   for (const key of keys) {

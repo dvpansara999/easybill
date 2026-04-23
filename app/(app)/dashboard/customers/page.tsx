@@ -6,11 +6,7 @@ import { ChevronRight, IndianRupee, Search, TrendingUp, Users } from "lucide-rea
 import { buildCustomerRows, type CustomerRow } from "@/lib/invoiceCollections"
 import { readStoredInvoices } from "@/lib/invoice"
 import { formatCurrency } from "@/lib/formatCurrency"
-
-function readCustomerRows(): CustomerRow[] {
-  if (typeof window === "undefined") return []
-  return buildCustomerRows(readStoredInvoices())
-}
+import { useWorkspaceValue } from "@/lib/useWorkspaceValue"
 
 export default function CustomersPage() {
   const router = useRouter()
@@ -20,12 +16,12 @@ export default function CustomersPage() {
     const value = Number(searchParams.get("page") || "1")
     return Number.isFinite(value) && value > 0 ? value : 1
   })
-  const [customers, setCustomers] = useState<CustomerRow[]>(() => readCustomerRows())
-  const [refreshing, setRefreshing] = useState(false)
+  const invoices = useWorkspaceValue(["invoices"], readStoredInvoices)
 
   const rowsPerPage = 10
   const deferredSearch = useDeferredValue(search)
   const normalizedSearch = deferredSearch.trim().toLowerCase()
+  const customers = useMemo<CustomerRow[]>(() => buildCustomerRows(invoices), [invoices])
 
   useEffect(() => {
     router.prefetch("/dashboard/invoices/create")
@@ -33,50 +29,6 @@ export default function CustomersPage() {
       router.prefetch(`/dashboard/customers/${encodeURIComponent(customer.identity)}`)
     })
   }, [customers, router])
-
-  useEffect(() => {
-    let refreshTimer: number | null = null
-
-    const refreshCustomers = () => {
-      if (refreshTimer != null) {
-        window.clearTimeout(refreshTimer)
-      }
-      setRefreshing(true)
-      refreshTimer = window.setTimeout(() => {
-        startTransition(() => {
-          setCustomers(readCustomerRows())
-          setRefreshing(false)
-        })
-        refreshTimer = null
-      }, 80)
-    }
-
-    const onCloudSync = () => refreshCustomers()
-    const onKvWrite = (event: Event) => {
-      const detail = (event as CustomEvent<{ key?: string }>).detail
-      if (detail?.key === "invoices") {
-        refreshCustomers()
-      }
-    }
-    const onStorage = (event: StorageEvent) => {
-      const key = event.key || ""
-      if (key.startsWith("invoices::") || key === "invoices") {
-        refreshCustomers()
-      }
-    }
-
-    window.addEventListener("easybill:cloud-sync", onCloudSync as EventListener)
-    window.addEventListener("easybill:kv-write", onKvWrite as EventListener)
-    window.addEventListener("storage", onStorage)
-    return () => {
-      if (refreshTimer != null) {
-        window.clearTimeout(refreshTimer)
-      }
-      window.removeEventListener("easybill:cloud-sync", onCloudSync as EventListener)
-      window.removeEventListener("easybill:kv-write", onKvWrite as EventListener)
-      window.removeEventListener("storage", onStorage)
-    }
-  }, [])
 
   function money(value: number) {
     return formatCurrency(value, "\u20B9", "before", true, "indian")
@@ -183,7 +135,6 @@ export default function CustomersPage() {
           <p>
             Visible customers: <span className="font-semibold text-slate-900">{filteredCustomers.length}</span>
           </p>
-          {refreshing ? <p className="text-xs font-medium text-emerald-700">Refreshing customer list...</p> : null}
         </div>
 
         <div className="space-y-3 lg:hidden">

@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useState, type ReactNode } from "react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { getActiveUserId } from "@/lib/auth"
 import { getAuthMode } from "@/lib/runtimeMode"
-import { isActiveUserKvHydrated } from "@/lib/userStore"
+import { hasActiveUserWarmCache, isActiveUserKvHydrated } from "@/lib/userStore"
 
 function isPrintPdfBypassPath() {
   try {
@@ -46,7 +46,7 @@ export default function KvHydrationGate({ children }: { children: ReactNode }) {
 
       // If user exists, we only render once KV cache is hydrated.
       if (userId) {
-        if (isActiveUserKvHydrated()) setReady(true)
+        if (isActiveUserKvHydrated() || hasActiveUserWarmCache()) setReady(true)
         return
       }
 
@@ -103,4 +103,3 @@ export default function KvHydrationGate({ children }: { children: ReactNode }) {
 
   return <>{children}</>
 }
-

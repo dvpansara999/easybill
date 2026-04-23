@@ -100,17 +100,38 @@ export async function uploadLogoToSupabase(file: File) {
   })
   if (error) throw new Error(error.message)
 
-  // Cheapest: use a public bucket and store public URL.
-  const { data } = supabase.storage.from(LOGO_BUCKET).getPublicUrl(path)
-  return { publicUrl: data.publicUrl, path, size: blob.size }
+  const { data, error: signError } = await supabase.storage.from(LOGO_BUCKET).createSignedUrl(path, 60 * 60 * 24 * 7)
+  if (signError || !data?.signedUrl) {
+    await supabase.storage.from(LOGO_BUCKET).remove([path]).catch(() => {})
+    throw new Error(signError?.message || "Unable to create a secure logo URL.")
+  }
+
+  return { publicUrl: data.signedUrl, path, size: blob.size }
 }
 
-export async function deleteLogoFromSupabase(publicUrl: string | null | undefined) {
+export async function getSignedLogoUrlFromSupabase(
+  path: string | null | undefined,
+  expiresInSeconds = 60 * 60 * 24 * 7
+) {
   const userId = getActiveUserId()
-  if (!userId || !publicUrl) return
+  if (!userId || !path) return null
+  if (getAuthMode() === "local") return path
+
+  const storagePath = getOwnedLogoStoragePath(path, userId)
+  if (!storagePath) return null
+
+  const supabase = createSupabaseBrowserClient()
+  const { data, error } = await supabase.storage.from(LOGO_BUCKET).createSignedUrl(storagePath, expiresInSeconds)
+  if (error) return null
+  return data?.signedUrl || null
+}
+
+export async function deleteLogoFromSupabase(source: string | null | undefined) {
+  const userId = getActiveUserId()
+  if (!userId || !source) return
   if (getAuthMode() === "local") return
 
-  const storagePath = getOwnedLogoStoragePath(publicUrl, userId)
+  const storagePath = getOwnedLogoStoragePath(source, userId)
   if (!storagePath) return
 
   const supabase = createSupabaseBrowserClient()

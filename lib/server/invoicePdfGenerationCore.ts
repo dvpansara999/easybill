@@ -1,15 +1,17 @@
 import { createHash } from "node:crypto"
 import { normalizeBusinessProfile } from "@/lib/businessProfile"
+import { mapStoredDateToLocalDate } from "@/lib/dateFormat"
+import { LOGO_BUCKET } from "@/lib/logoStorage"
 import { generateInvoicePdfBuffer } from "@/lib/server/generateInvoicePdfBuffer"
 import { parseJsonLoose } from "@/lib/server/invoicePdfRouteHelpers"
-import { findInvoiceById, normalizeInvoiceStorePayload } from "@/lib/invoice"
+import { normalizeInvoiceRecord } from "@/lib/invoice"
 import { normalizeInvoiceForPdf } from "@/lib/server/normalizeInvoiceForPdf"
-import { revealSensitiveDataFromStorage } from "@/lib/sensitiveData"
 import type { InvoiceVisibilitySettings } from "@/lib/invoiceVisibilityShared"
 import { defaultTemplateTypography, getTemplateFontCss } from "@/lib/templateTypography"
 import { normalizeTemplateTypography } from "@/lib/globalTemplateTypography"
 import { DEFAULT_TEMPLATE_ID, resolveTemplateId } from "@/lib/templateIds"
 import type { PdfApiErrorBody } from "@/lib/pdfApiContract"
+import { revealSensitiveFields } from "@/lib/sensitiveData"
 import type { SupabaseClient } from "@supabase/supabase-js"
 
 export type InvoicePdfRequestBody = {
@@ -37,16 +39,6 @@ type PdfRenderPayload = {
     totalCGST: number
     totalSGST: number
     totalIGST: number
-  }
-}
-
-function toRawString(value: unknown): string | null {
-  if (value == null) return null
-  if (typeof value === "string") return value
-  try {
-    return JSON.stringify(value)
-  } catch {
-    return null
   }
 }
 
@@ -208,74 +200,118 @@ export async function resolveInvoicePdfSourceForUser(
     return { ok: false, message: "Sign in to download invoices.", code: "UNAUTHORIZED", httpStatus: 401 }
   }
 
-  const wantedKeys = [
-    "invoices",
-    "businessProfile",
-    "accountSetupBundle",
-    "invoiceTemplate",
-    "dateFormat",
-    "amountFormat",
-    "showDecimals",
-    "currencySymbol",
-    "currencyPosition",
-    "invoiceVisibility",
-    "templateTypography",
-    "invoiceTemplateFontId",
-    "invoiceTemplateFontSize",
-  ]
+  const [profileRes, settingsRes, invoiceRes] = await Promise.all([
+    supabase.from("profiles").select("*").eq("user_id", user.id).maybeSingle(),
+    supabase.from("user_settings").select("*").eq("user_id", user.id).maybeSingle(),
+    supabase
+      .from("invoices")
+      .select(
+        "id,invoice_number,created_at,invoice_date,numbering_mode_at_creation,reset_month_day_at_creation,sequence_window_start,sequence_window_end,client_name,client_phone,client_email,client_gst,client_address,custom_details,notes,status,grand_total,invoice_items(position,product,hsn,qty,unit,price,cgst,sgst,igst,total),invoice_history(id,event_type,label,happened_at)"
+      )
+      .eq("user_id", user.id)
+      .eq("id", String(body.invoiceId))
+      .maybeSingle(),
+  ])
 
-  const { data: rows, error } = await supabase
-    .from("user_kv")
-    .select("key,value")
-    .eq("user_id", user.id)
-    .in("key", wantedKeys)
-
-  if (error) {
+  if (profileRes.error || settingsRes.error || invoiceRes.error) {
     return { ok: false, message: "Unable to load your account data.", code: "KV_ERROR", httpStatus: 500 }
   }
 
-  const kv = new Map<string, unknown>()
-  for (const row of rows || []) {
-    kv.set(String((row as { key: string }).key), (row as { value: unknown }).value)
-  }
-  const bundle = parseJsonLoose(kv.get("accountSetupBundle")) || {}
-  const getKvOrBundle = (key: string) => {
-    const direct = kv.get(key)
-    if (direct != null) return direct
-    if (bundle && typeof bundle === "object" && key in bundle) return (bundle as Record<string, unknown>)[key]
-    return null
-  }
-
-  const invoicesRaw = toRawString(getKvOrBundle("invoices"))
-  const invoicesDecrypted = invoicesRaw ? revealSensitiveDataFromStorage("invoices", invoicesRaw) : null
-  const invoicesParsed = parseJsonLoose(invoicesDecrypted) || []
-  const { store } = normalizeInvoiceStorePayload(invoicesParsed)
-  const invoices = store.invoices
-  const found = findInvoiceById(invoices, String(body.invoiceId))
-
-  if (!found) {
+  if (!invoiceRes.data) {
     return { ok: false, message: "Invoice not found.", code: "NOT_FOUND", httpStatus: 404 }
   }
+
+  const invoiceRow = invoiceRes.data as Record<string, unknown>
+  const safeInvoiceRow = revealSensitiveFields(invoiceRow, ["client_phone", "client_gst"])
+  const found = normalizeInvoiceRecord({
+    id: safeInvoiceRow.id,
+    invoiceNumber: safeInvoiceRow.invoice_number,
+    createdAt: safeInvoiceRow.created_at,
+    numberingModeAtCreation: safeInvoiceRow.numbering_mode_at_creation,
+    resetMonthDayAtCreation: safeInvoiceRow.reset_month_day_at_creation,
+    sequenceWindowStart: safeInvoiceRow.sequence_window_start,
+    sequenceWindowEnd: safeInvoiceRow.sequence_window_end,
+    clientName: safeInvoiceRow.client_name,
+    clientPhone: safeInvoiceRow.client_phone,
+    clientEmail: safeInvoiceRow.client_email,
+    clientGST: safeInvoiceRow.client_gst,
+    clientAddress: safeInvoiceRow.client_address,
+    date:
+      typeof safeInvoiceRow.invoice_date === "string"
+        ? safeInvoiceRow.invoice_date
+        : mapStoredDateToLocalDate(new Date(String(safeInvoiceRow.invoice_date || ""))) || "",
+    customDetails: safeInvoiceRow.custom_details,
+    items: Array.isArray(safeInvoiceRow.invoice_items) ? safeInvoiceRow.invoice_items : [],
+    notes: safeInvoiceRow.notes,
+    status: safeInvoiceRow.status,
+    history:
+      Array.isArray(safeInvoiceRow.invoice_history)
+        ? safeInvoiceRow.invoice_history.map((entry) => ({
+            id: String((entry as Record<string, unknown>).id || ""),
+            type: ((entry as Record<string, unknown>).event_type || "created") as
+              | "created"
+              | "edited"
+              | "exported"
+              | "status"
+              | "duplicated",
+            label: String((entry as Record<string, unknown>).label || ""),
+            at: String((entry as Record<string, unknown>).happened_at || new Date().toISOString()),
+          }))
+        : [],
+    grandTotal: safeInvoiceRow.grand_total,
+  })
 
   const invoiceData = normalizeInvoiceForPdf(found as Record<string, unknown>)
   const fileInvoiceNumber = String((invoiceData as { invoiceNumber?: string }).invoiceNumber || "invoice")
 
-  const businessRaw = toRawString(getKvOrBundle("businessProfile"))
-  const businessDataRaw = businessRaw ? revealSensitiveDataFromStorage("businessProfile", businessRaw) : null
-  const businessObj = businessDataRaw ? normalizeBusinessProfile(parseJsonLoose(businessDataRaw)) : null
+  const profile = revealSensitiveFields((profileRes.data || {}) as Record<string, unknown>, [
+    "business_name",
+    "phone",
+    "gst",
+    "bank_name",
+    "account_number",
+    "ifsc",
+    "upi",
+  ])
+  const settings = (settingsRes.data || {}) as Record<string, unknown>
+  const logoStoragePath = typeof profile.logo_storage_path === "string" ? profile.logo_storage_path : ""
+  let logoSignedUrl: string | null = null
+  if (logoStoragePath) {
+    const { data } = await supabase.storage.from(LOGO_BUCKET).createSignedUrl(logoStoragePath, 60 * 60)
+    logoSignedUrl = data?.signedUrl || null
+  }
 
-  const invoiceVisibilityRaw = toRawString(getKvOrBundle("invoiceVisibility"))
-  const visibility = (parseJsonLoose(invoiceVisibilityRaw) || null) as Partial<InvoiceVisibilitySettings> | null
-  const storedTemplateId = resolveTemplateId(getKvOrBundle("invoiceTemplate") || DEFAULT_TEMPLATE_ID)
+  const businessObj = normalizeBusinessProfile({
+    businessName: profile.business_name,
+    phone: profile.phone,
+    email: profile.email,
+    gst: profile.gst,
+    address: profile.address,
+    bankName: profile.bank_name,
+    accountNumber: profile.account_number,
+    ifsc: profile.ifsc,
+    upi: profile.upi,
+    terms: profile.terms,
+    logo: logoSignedUrl || "",
+    logoStoragePath,
+    logoShape: profile.logo_shape,
+  })
+
+  const visibility = ((settings.invoice_visibility as Partial<InvoiceVisibilitySettings> | null) || null) as
+    | Partial<InvoiceVisibilitySettings>
+    | null
+  const storedTemplateId = resolveTemplateId(settings.invoice_template || DEFAULT_TEMPLATE_ID)
   const templateId = resolveTemplateId(sanitizeTemplateId(body.templateId) || storedTemplateId)
-  const templateTypography = parseJsonLoose(toRawString(getKvOrBundle("templateTypography"))) as
+  const templateTypography = parseJsonLoose(
+    typeof settings.template_typography === "string" ? settings.template_typography : null
+  ) as
     | { fontId?: string; fontSize?: number | string; fontFamily?: string }
     | null
   const kvFontId = String(
-    getKvOrBundle("invoiceTemplateFontId") || templateTypography?.fontId || defaultTemplateTypography.fontId
+    settings.template_font_id || templateTypography?.fontId || defaultTemplateTypography.fontId
   )
   const storedFontSizeRaw = Number(
-    getKvOrBundle("invoiceTemplateFontSize") ?? templateTypography?.fontSize ?? defaultTemplateTypography.fontSize
+    settings.template_font_size ?? templateTypography?.fontSize ?? defaultTemplateTypography.fontSize
   )
   const kvFontSize = Number.isFinite(storedFontSizeRaw)
     ? Math.max(7, Math.min(17, Math.round(storedFontSizeRaw)))
@@ -303,11 +339,11 @@ export async function resolveInvoicePdfSourceForUser(
     userIdSuffix: user.id.slice(-6),
   })
 
-  const dateFormat = String(getKvOrBundle("dateFormat") || "YYYY-MM-DD")
-  const amountFormat = String(getKvOrBundle("amountFormat") || "indian")
-  const showDecimals = String(getKvOrBundle("showDecimals") || "true") === "true"
-  const currencySymbol = String(getKvOrBundle("currencySymbol") || "₹")
-  const currencyPosition = (String(getKvOrBundle("currencyPosition") || "before") === "after" ? "after" : "before") as
+  const dateFormat = String(settings.date_format || "YYYY-MM-DD")
+  const amountFormat = String(settings.amount_format || "indian")
+  const showDecimals = Boolean(settings.show_decimals ?? true)
+  const currencySymbol = String(settings.currency_symbol || "₹")
+  const currencyPosition = (String(settings.currency_position || "before") === "after" ? "after" : "before") as
     | "before"
     | "after"
   const totals = (() => {

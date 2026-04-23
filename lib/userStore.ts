@@ -28,6 +28,34 @@ const BUNDLED_KEYS = new Set([
 const cloudCache = new Map<string, string>()
 const hydratedUsers = new Set<string>()
 
+function warmCacheStorageKey(key: string, userId: string) {
+  return scopedKey(`warm-cache:${key}`, userId)
+}
+
+function readWarmCache(key: string, userId: string) {
+  try {
+    return localStorage.getItem(warmCacheStorageKey(key, userId))
+  } catch {
+    return null
+  }
+}
+
+function writeWarmCache(key: string, userId: string, value: string) {
+  try {
+    localStorage.setItem(warmCacheStorageKey(key, userId), value)
+  } catch {
+    // ignore storage failures
+  }
+}
+
+function removeWarmCache(key: string, userId: string) {
+  try {
+    localStorage.removeItem(warmCacheStorageKey(key, userId))
+  } catch {
+    // ignore storage failures
+  }
+}
+
 function isSetupKey(key: string) {
   return key === "setupProfileDraft" || key === "setupResumePath"
 }
@@ -69,6 +97,7 @@ export function primeUserKvCache(userId: string, entries: Array<{ key: string; v
   for (const row of entries) {
     if (!row?.key) continue
     cloudCache.set(cacheId(userId, row.key), row.value)
+    writeWarmCache(row.key, userId, row.value)
   }
 }
 
@@ -88,6 +117,18 @@ export function isActiveUserKvHydrated() {
   if (!userId) return true
   if (getAuthMode() !== "supabase") return true
   return isUserKvHydrated(userId)
+}
+
+export function hasUserWarmCache(userId: string, keys: string[] = ["accountSetupBundle", "businessProfile", "invoices"]) {
+  if (typeof window === "undefined") return false
+  return keys.some((key) => readWarmCache(key, userId) != null)
+}
+
+export function hasActiveUserWarmCache(keys?: string[]) {
+  const userId = getActiveUserId()
+  if (!userId) return false
+  if (getAuthMode() !== "supabase") return false
+  return hasUserWarmCache(userId, keys)
 }
 
 export function getActiveScopedKey(key: string) {
@@ -111,7 +152,7 @@ export function getUserItem(key: string, userId: string) {
   if (getAuthMode() === "supabase") {
     const bundled = readBundledValue(userId, key)
     if (bundled != null) return revealSensitiveDataFromStorage(key, bundled)
-    const raw = cloudCache.get(cacheId(userId, key)) ?? null
+    const raw = cloudCache.get(cacheId(userId, key)) ?? readWarmCache(key, userId)
     return raw == null ? null : revealSensitiveDataFromStorage(key, raw)
   }
   const raw = localStorage.getItem(scopedKey(key, userId))
@@ -141,6 +182,8 @@ export function setUserItem(key: string, value: string, userId: string) {
       cloudCache.set(cacheId(userId, ACCOUNT_SETUP_BUNDLE_KEY), bundleRaw)
       // Keep in-memory reads consistent immediately.
       cloudCache.set(cacheId(userId, key), valueForStorage)
+      writeWarmCache(ACCOUNT_SETUP_BUNDLE_KEY, userId, bundleRaw)
+      writeWarmCache(key, userId, valueForStorage)
       schedulePush(ACCOUNT_SETUP_BUNDLE_KEY, bundleRaw)
       // Remove legacy per-key row for cleanliness.
       scheduleDelete(key)
@@ -150,6 +193,7 @@ export function setUserItem(key: string, value: string, userId: string) {
       return
     }
     cloudCache.set(cacheId(userId, key), valueForStorage)
+    writeWarmCache(key, userId, valueForStorage)
     schedulePush(key, valueForStorage)
     if (typeof window !== "undefined") {
       window.dispatchEvent(new CustomEvent("easybill:kv-write", { detail: { key } }))
@@ -177,6 +221,8 @@ export function removeUserItem(key: string, userId: string) {
       const bundleRaw = JSON.stringify(bundle)
       cloudCache.set(cacheId(userId, ACCOUNT_SETUP_BUNDLE_KEY), bundleRaw)
       cloudCache.delete(cacheId(userId, key))
+      writeWarmCache(ACCOUNT_SETUP_BUNDLE_KEY, userId, bundleRaw)
+      removeWarmCache(key, userId)
       schedulePush(ACCOUNT_SETUP_BUNDLE_KEY, bundleRaw)
       scheduleDelete(key)
       if (typeof window !== "undefined") {
@@ -185,6 +231,7 @@ export function removeUserItem(key: string, userId: string) {
       return
     }
     cloudCache.delete(cacheId(userId, key))
+    removeWarmCache(key, userId)
     scheduleDelete(key)
     if (typeof window !== "undefined") {
       window.dispatchEvent(new CustomEvent("easybill:kv-write", { detail: { key } }))

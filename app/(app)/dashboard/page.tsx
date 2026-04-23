@@ -1,16 +1,15 @@
 "use client"
 
-import { startTransition, useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { useSettings } from "@/context/SettingsContext"
 import { formatDate, getStoredDateParts, parseStoredDate, storedDatePartsToDate } from "@/lib/dateFormat"
-import { getActiveUserId } from "@/lib/auth"
 import { formatCurrency, formatCurrencyQuickStatsMobile } from "@/lib/formatCurrency"
 import { compareInvoicesNewestFirst, sortInvoicesNewestFirst } from "@/lib/invoiceCollections"
 import { buildCustomerIdentity } from "@/lib/customerIdentity"
-import { getAuthMode } from "@/lib/runtimeMode"
-import { getActiveOrGlobalItem, isActiveUserKvHydrated } from "@/lib/userStore"
+import { getActiveOrGlobalItem } from "@/lib/userStore"
 import { readStoredInvoices, type InvoiceRecord } from "@/lib/invoice"
+import { useWorkspaceValue } from "@/lib/useWorkspaceValue"
 import {
   ArrowRight,
   BarChart3,
@@ -112,10 +111,7 @@ function safeParseProducts(raw: string | null): ProductRecord[] {
   }
 }
 
-function buildDashboardSnapshot(): DashboardSnapshot {
-  const invoices = readStoredInvoices()
-  const products = safeParseProducts(getActiveOrGlobalItem("products"))
-
+function buildDashboardSnapshot(invoices: InvoiceRecord[], products: ProductRecord[]): DashboardSnapshot {
   if (invoices.length === 0) {
     return {
       ...EMPTY_SNAPSHOT,
@@ -267,8 +263,10 @@ export default function Dashboard() {
 
   const router = useRouter()
   const dashboardReturnTo = "/dashboard"
-  const [snapshot, setSnapshot] = useState<DashboardSnapshot>(EMPTY_SNAPSHOT)
-  const [loadingSnapshot, setLoadingSnapshot] = useState(true)
+  const invoices = useWorkspaceValue(["invoices"], readStoredInvoices)
+  const products = useWorkspaceValue(["products"], () => safeParseProducts(getActiveOrGlobalItem("products")))
+  const snapshot = useMemo(() => buildDashboardSnapshot(invoices, products), [invoices, products])
+  const loadingSnapshot = false
 
   useEffect(() => {
     router.prefetch("/dashboard/invoices")
@@ -280,79 +278,6 @@ export default function Dashboard() {
       router.prefetch(`/dashboard/invoices/view/${encodeURIComponent(invoice.id)}`)
     })
   }, [router, snapshot.recentInvoices])
-
-  useEffect(() => {
-    let initialLoaded = false
-
-    const loadIfReady = () => {
-      if (initialLoaded) return
-
-      const userId = getActiveUserId()
-      const mode = getAuthMode()
-
-      if (mode === "supabase") {
-        if (!userId) return
-        if (!isActiveUserKvHydrated()) return
-      }
-
-      initialLoaded = true
-      startTransition(() => {
-        setSnapshot(buildDashboardSnapshot())
-        setLoadingSnapshot(false)
-      })
-    }
-
-    const refreshSnapshot = () => {
-      initialLoaded = true
-      setLoadingSnapshot(true)
-      window.requestAnimationFrame(() => {
-        startTransition(() => {
-          setSnapshot(buildDashboardSnapshot())
-          setLoadingSnapshot(false)
-        })
-      })
-    }
-    const onCloudSync = () => refreshSnapshot()
-    const onKvWrite = (event: Event) => {
-      const key = (event as CustomEvent<{ key?: string }>).detail?.key
-      if (key === "invoices" || key === "products") {
-        refreshSnapshot()
-      }
-    }
-    const onStorage = (event: StorageEvent) => {
-      const key = event.key || ""
-      if (key.startsWith("invoices::") || key.startsWith("products::") || key === "invoices" || key === "products") {
-        refreshSnapshot()
-      }
-    }
-
-    window.addEventListener("easybill:cloud-sync", onCloudSync as EventListener)
-    window.addEventListener("easybill:kv-write", onKvWrite as EventListener)
-    window.addEventListener("storage", onStorage)
-
-    loadIfReady()
-    let attempts = 0
-    const intervalId = window.setInterval(() => {
-      if (initialLoaded) {
-        window.clearInterval(intervalId)
-        return
-      }
-
-      attempts += 1
-      loadIfReady()
-      if (attempts >= 20) {
-        setLoadingSnapshot(false)
-        window.clearInterval(intervalId)
-      }
-    }, 150)
-
-    return () => {
-      window.removeEventListener("easybill:cloud-sync", onCloudSync as EventListener)
-      window.removeEventListener("easybill:kv-write", onKvWrite as EventListener)
-      window.removeEventListener("storage", onStorage)
-      window.clearInterval(intervalId)
-    }
-  }, [])
 
   function money(value: number) {
     return formatCurrency(

@@ -5,6 +5,9 @@ import { useRouter } from "next/navigation"
 import { Skeleton } from "@/components/ui/skeleton"
 import { clearSetupProfileDraft } from "@/lib/setupProfileDraft"
 import { getAuthMode } from "@/lib/runtimeMode"
+import { createSupabaseBrowserClient } from "@/lib/supabase/browser"
+import { getActiveUserId } from "@/lib/auth"
+import { markSupabaseOnboardingComplete } from "@/lib/supabase/setupState"
 import { flushCloudKeyNow, removeActiveOrGlobalItem } from "@/lib/userStore"
 
 export default function SetupFinalizingPage() {
@@ -16,7 +19,11 @@ export default function SetupFinalizingPage() {
     async function finalizeSetup() {
       try {
         if (getAuthMode() === "supabase") {
-          await flushCloudKeyNow("accountSetupBundle")
+          await Promise.allSettled([flushCloudKeyNow("accountSetupBundle"), flushCloudKeyNow("businessProfile")])
+          const userId = getActiveUserId()
+          if (userId) {
+            await markSupabaseOnboardingComplete(createSupabaseBrowserClient(), userId)
+          }
         }
       } catch {
         // Non-blocking: user can still continue with local fallback.

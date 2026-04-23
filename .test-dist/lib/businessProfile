@@ -10,6 +10,7 @@ export const EMPTY_BUSINESS_PROFILE = {
     upi: "",
     terms: "",
     logo: "",
+    logoStoragePath: "",
     logoShape: "square",
 };
 export function normalizeBusinessProfile(value) {
@@ -26,6 +27,7 @@ export function normalizeBusinessProfile(value) {
         upi: parsed.upi || "",
         terms: typeof parsed.terms === "string" ? parsed.terms : "",
         logo: parsed.logo || "",
+        logoStoragePath: typeof parsed.logoStoragePath === "string" ? parsed.logoStoragePath : "",
         logoShape: parsed.logoShape === "round" ? "round" : "square",
     };
 }

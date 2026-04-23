@@ -1,6 +1,7 @@
 "use client"
 
 import { createSupabaseBrowserClient, getSupabaseUser } from "@/lib/supabase/browser"
+import { clearUserKvCache } from "@/lib/userStore"
 
 export type AuthRecord = {
   userId: string
@@ -282,12 +283,19 @@ export async function verifyEmailChangeOtp(newEmail: string, token: string) {
 }
 
 export async function signOut() {
+  const activeUserId = getActiveUserId()
   try {
     const supabase = createSupabaseBrowserClient()
     await supabase.auth.signOut()
   } finally {
+    if (activeUserId) {
+      clearUserKvCache(activeUserId)
+    }
     setActiveUserId(null)
     setLastEmail(null)
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("easybill:cloud-sync"))
+    }
   }
 }
 
@@ -326,4 +334,3 @@ export async function updateCredentials(params: {
     return { record: null as AuthRecord | null, error: "Unable to reach server. Check internet and try again." }
   }
 }
-

@@ -180,7 +180,16 @@ export async function signInWithProvider(provider: "google" | "apple") {
 }
 
 export async function signOut() {
+  const activeUserId = getActiveUserId()
+  if (activeUserId) {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { clearUserKvCache } = require("@/lib/userStore") as typeof import("@/lib/userStore")
+    clearUserKvCache(activeUserId)
+  }
   setActiveUserId(null)
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event("easybill:cloud-sync"))
+  }
 }
 
 export async function updatePasswordAfterOtp(password: string) {

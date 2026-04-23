@@ -188,8 +188,8 @@ export default function BusinessProfileClient() {
     setSavingProfile(true)
     setSaveMessage("")
     let nextProfile = { ...profile }
-    const previousRemoteLogo = profile.logo.startsWith("http://") || profile.logo.startsWith("https://") ? profile.logo : ""
-    let uploadedRemoteLogo = ""
+    const previousRemoteLogoPath = profile.logoStoragePath || ""
+    let uploadedRemoteLogoPath = ""
 
     if (logoSource) {
       try {
@@ -197,9 +197,9 @@ export default function BusinessProfileClient() {
         const res = await fetch(croppedLogo)
         const blob = await res.blob()
         const file = new File([blob], "logo.webp", { type: blob.type || "image/webp" })
-        const { publicUrl } = await uploadLogoToSupabase(file)
-        uploadedRemoteLogo = publicUrl
-        nextProfile = { ...nextProfile, logo: publicUrl }
+        const { publicUrl, path } = await uploadLogoToSupabase(file)
+        uploadedRemoteLogoPath = path
+        nextProfile = { ...nextProfile, logo: publicUrl, logoStoragePath: path }
       } catch (err) {
         setSavingProfile(false)
         showAlert({
@@ -212,12 +212,16 @@ export default function BusinessProfileClient() {
       }
     }
 
-    if (!nextProfile.logo && previousRemoteLogo) {
-      await deleteLogoFromSupabase(previousRemoteLogo)
+    if (!nextProfile.logo && previousRemoteLogoPath) {
+      await deleteLogoFromSupabase(previousRemoteLogoPath)
     }
 
-    if (uploadedRemoteLogo && previousRemoteLogo && previousRemoteLogo !== uploadedRemoteLogo) {
-      await deleteLogoFromSupabase(previousRemoteLogo)
+    if (uploadedRemoteLogoPath && previousRemoteLogoPath && previousRemoteLogoPath !== uploadedRemoteLogoPath) {
+      await deleteLogoFromSupabase(previousRemoteLogoPath)
+    }
+
+    if (!nextProfile.logo) {
+      nextProfile = { ...nextProfile, logoStoragePath: "" }
     }
 
     // Persist via context so `terms` and all fields stay in sync (setBusiness normalizes + writes KV).

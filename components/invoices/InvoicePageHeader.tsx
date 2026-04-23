@@ -24,6 +24,7 @@ export default function InvoicePageHeader({
     <section className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
       <div className="min-w-0">
         <button
+          type="button"
           onClick={onBack}
           className="mb-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-600 transition hover:bg-slate-50 hover:text-slate-950 sm:mb-5 sm:w-auto sm:justify-start sm:rounded-full sm:px-4 sm:py-2"
         >
@@ -39,3 +40,4 @@ export default function InvoicePageHeader({
     </section>
   )
 }
+

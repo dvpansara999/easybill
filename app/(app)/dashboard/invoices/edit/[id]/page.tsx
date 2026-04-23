@@ -1,12 +1,14 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useRouter, useParams, useSearchParams } from "next/navigation"
 import { useSettings } from "@/context/SettingsContext"
 import { formatDate } from "@/lib/dateFormat"
 import { formatCurrency } from "@/lib/formatCurrency"
 import { getActiveOrGlobalItem } from "@/lib/userStore"
 import { useAppAlert } from "@/components/providers/AppAlertProvider"
+import { updateInvoiceViaSupabase } from "@/lib/supabase/invoiceMutations"
+import { useWorkspaceValue } from "@/lib/useWorkspaceValue"
 import {
   createInvoiceHistoryEntry,
   createEmptyInvoiceItem,
@@ -14,8 +16,6 @@ import {
   getStoredBusinessRecord,
   normalizeInvoiceRecord,
   readStoredInvoices,
-  replaceInvoiceById,
-  writeStoredInvoices,
   validateBusinessRecord,
   validateInvoiceRecord,
   type CustomDetail,
@@ -37,7 +37,7 @@ type ProductRecord = {
   igst: number
 }
 
-type EditInvoiceState = {
+type EditInvoiceSnapshot = {
   products: ProductRecord[]
   invoice: InvoiceRecord | null
   invoices: InvoiceRecord[]
@@ -65,7 +65,7 @@ function safeParseProducts(raw: string | null): ProductRecord[] {
   }
 }
 
-function readEditInvoiceState(invoiceId: string): EditInvoiceState {
+function readEditInvoiceSnapshot(invoiceId: string): EditInvoiceSnapshot {
   const products = safeParseProducts(getActiveOrGlobalItem("products"))
   const invoices = readStoredInvoices()
   const invoice = findInvoiceById(invoices, invoiceId)
@@ -104,7 +104,21 @@ function updateTotals(updated: InvoiceItem[], index: number) {
   return updated
 }
 
-export default function EditInvoice() {
+type EditInvoiceScreenProps = {
+  invoice: InvoiceRecord
+  products: ProductRecord[]
+  invoices: InvoiceRecord[]
+  invoiceId: string
+  returnTo: string
+}
+
+function EditInvoiceScreen({
+  invoice,
+  products,
+  invoices,
+  invoiceId,
+  returnTo,
+}: EditInvoiceScreenProps) {
   const {
     dateFormat,
     amountFormat,
@@ -114,27 +128,20 @@ export default function EditInvoice() {
   } = useSettings()
 
   const router = useRouter()
-  const params = useParams()
-  const searchParams = useSearchParams()
-  const invoiceId = getInvoiceIdFromParams(params?.id)
-  const returnTo = searchParams.get("returnTo") || "/dashboard/invoices"
   const { showAlert } = useAppAlert()
-
-  const initialState = useMemo(() => readEditInvoiceState(invoiceId), [invoiceId])
   const dropdownRef = useRef<HTMLDivElement>(null)
 
-  const [products] = useState(initialState.products)
-  const [invoiceNumber] = useState(initialState.invoice?.invoiceNumber || "")
-  const [clientName, setClientName] = useState(initialState.invoice?.clientName || "")
-  const [clientPhone, setClientPhone] = useState(initialState.invoice?.clientPhone || "")
-  const [clientEmail, setClientEmail] = useState(initialState.invoice?.clientEmail || "")
-  const [clientGST, setClientGST] = useState(initialState.invoice?.clientGST || "")
-  const [clientAddress, setClientAddress] = useState(initialState.invoice?.clientAddress || "")
-  const [date] = useState(initialState.invoice?.date || "")
-  const [customDetails, setCustomDetails] = useState<CustomDetail[]>(initialState.invoice?.customDetails || [])
-  const [notes] = useState(initialState.invoice?.notes || "")
+  const [invoiceNumber] = useState(invoice.invoiceNumber || "")
+  const [clientName, setClientName] = useState(invoice.clientName || "")
+  const [clientPhone, setClientPhone] = useState(invoice.clientPhone || "")
+  const [clientEmail, setClientEmail] = useState(invoice.clientEmail || "")
+  const [clientGST, setClientGST] = useState(invoice.clientGST || "")
+  const [clientAddress, setClientAddress] = useState(invoice.clientAddress || "")
+  const [date] = useState(invoice.date || "")
+  const [customDetails, setCustomDetails] = useState<CustomDetail[]>(invoice.customDetails || [])
+  const [notes] = useState(invoice.notes || "")
   const [items, setItems] = useState<InvoiceItem[]>(
-    initialState.invoice?.items?.length ? initialState.invoice.items : [createEmptyInvoiceItem()]
+    invoice.items?.length ? invoice.items : [createEmptyInvoiceItem()]
   )
   const [suggestions, setSuggestions] = useState<ProductRecord[]>([])
   const [activeRow, setActiveRow] = useState<number | null>(null)
@@ -279,8 +286,7 @@ export default function EditInvoice() {
       return
     }
 
-    const latestInvoices = readStoredInvoices()
-    const existingInvoice = findInvoiceById(latestInvoices, invoiceId)
+    const existingInvoice = findInvoiceById(invoices, invoiceId)
 
     if (!existingInvoice) {
       showAlert({
@@ -328,44 +334,29 @@ export default function EditInvoice() {
       return
     }
 
-    const updatedInvoices = replaceInvoiceById(latestInvoices, invoiceRecord)
-    if (!updatedInvoices) {
-      showAlert({
-        tone: "danger",
-        title: "Invoice not found",
-        actionHint: "Return to your invoice list and pick a valid invoice.",
-        message: "This invoice could not be found in your current account.",
-        primaryLabel: "Back",
-        onPrimary: () => router.push(returnTo),
-      })
-      return
-    }
-
     setUpdatingInvoice(true)
-    writeStoredInvoices(updatedInvoices)
-
-    showAlert({
-      tone: "success",
-      title: "Invoice updated",
-      actionHint: "View, print, or download the PDF anytime from your list.",
-      message: "Your changes have been saved.",
-      primaryLabel: "Back to invoices",
-      onPrimary: () => router.push(returnTo),
-    })
-    window.setTimeout(() => setUpdatingInvoice(false), 800)
-  }
-
-  if (!initialState.invoice) {
-    return (
-      <NotFoundRecoveryCard
-        title="Invoice not found"
-        description="This invoice is no longer available in the current account. You can return to your invoices, go back to the dashboard, or retry syncing your workspace."
-        backLabel="Back to invoices"
-        onBack={goBackToInvoices}
-        onDashboard={() => router.push("/dashboard")}
-        onRetry={() => setTimeout(() => window.dispatchEvent(new CustomEvent("easybill:cloud-sync")), 0)}
-      />
-    )
+    void updateInvoiceViaSupabase(invoiceRecord)
+      .then(() => {
+        showAlert({
+          tone: "success",
+          title: "Invoice updated",
+          actionHint: "View, print, or download the PDF anytime from your list.",
+          message: "Your changes have been saved.",
+          primaryLabel: "Back to invoices",
+          onPrimary: () => router.push(returnTo),
+        })
+      })
+      .catch((error) => {
+        showAlert({
+          tone: "danger",
+          title: "Could not update invoice",
+          actionHint: "Please try again. If the problem continues, refresh the page and retry.",
+          message: error instanceof Error ? error.message : "Unable to update the invoice right now.",
+        })
+      })
+      .finally(() => {
+        window.setTimeout(() => setUpdatingInvoice(false), 400)
+      })
   }
 
   return (
@@ -589,5 +580,41 @@ export default function EditInvoice() {
         </button>
       </div>
     </div>
+  )
+}
+
+export default function EditInvoice() {
+  const router = useRouter()
+  const params = useParams()
+  const searchParams = useSearchParams()
+  const invoiceId = getInvoiceIdFromParams(params?.id)
+  const returnTo = searchParams.get("returnTo") || "/dashboard/invoices"
+  const workspace = useWorkspaceValue(
+    ["products", "invoices"],
+    () => readEditInvoiceSnapshot(invoiceId)
+  )
+
+  if (!workspace.invoice) {
+    return (
+      <NotFoundRecoveryCard
+        title="Invoice not found"
+        description="This invoice is no longer available in the current account. You can return to your invoices, go back to the dashboard, or retry syncing your workspace."
+        backLabel="Back to invoices"
+        onBack={() => router.push(returnTo)}
+        onDashboard={() => router.push("/dashboard")}
+        onRetry={() => setTimeout(() => window.dispatchEvent(new CustomEvent("easybill:cloud-sync")), 0)}
+      />
+    )
+  }
+
+  return (
+    <EditInvoiceScreen
+      key={workspace.invoice.id}
+      invoice={workspace.invoice}
+      products={workspace.products}
+      invoices={workspace.invoices}
+      invoiceId={invoiceId}
+      returnTo={returnTo}
+    />
   )
 }

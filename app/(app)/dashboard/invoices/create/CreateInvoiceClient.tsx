@@ -14,6 +14,7 @@ import { getActiveOrGlobalItem, isActiveUserKvHydrated } from "@/lib/userStore"
 import { bumpInvoiceUsageCount, canCreateAnotherInvoice } from "@/lib/plans"
 import { useAppAlert } from "@/components/providers/AppAlertProvider"
 import { getAuthMode } from "@/lib/runtimeMode"
+import { createInvoiceViaSupabase } from "@/lib/supabase/invoiceMutations"
 import {
   createInvoiceHistoryEntry,
   createInvoiceId,
@@ -24,11 +25,11 @@ import {
   getStoredBusinessRecord,
   normalizeInvoiceRecord,
   readStoredInvoices,
-  writeStoredInvoices,
   validateBusinessRecord,
   validateInvoiceRecord,
 } from "@/lib/invoice"
 import { buildCustomerIdentity } from "@/lib/customerIdentity"
+import { useWorkspaceValue } from "@/lib/useWorkspaceValue"
 import { CirclePlus, Package2, Plus, Save, Trash2, UserRound } from "lucide-react"
 import InvoicePageHeader from "@/components/invoices/InvoicePageHeader"
 
@@ -50,10 +51,10 @@ type CustomerRecord = {
   address: string
 }
 
-type CreateInvoiceState = {
+type CreateInvoiceSnapshot = {
   products: ProductRecord[]
-  items: InvoiceItem[]
   customers: CustomerRecord[]
+  invoices: ReturnType<typeof readStoredInvoices>
 }
 
 function getTodayLocalDate() {
@@ -64,7 +65,7 @@ function getTodayLocalDate() {
   return `${year}-${month}-${day}`
 }
 
-function readCreateInvoiceState(): CreateInvoiceState {
+function readCreateInvoiceSnapshot(): CreateInvoiceSnapshot {
   const savedProducts = getActiveOrGlobalItem("products")
   let products: ProductRecord[] = []
   if (savedProducts) {
@@ -91,8 +92,8 @@ function readCreateInvoiceState(): CreateInvoiceState {
 
   return {
     products,
-    items: [createEmptyInvoiceItem()],
     customers: Object.values(customerMap),
+    invoices,
   }
 }
 
@@ -114,20 +115,17 @@ export default function CreateInvoiceClient() {
   const { showAlert } = useAppAlert()
   const dropdownRef = useRef<HTMLDivElement>(null)
 
-  const initialState = useMemo(
-    () => readCreateInvoiceState(),
-    []
-  )
+  const workspace = useWorkspaceValue(["products", "invoices"], readCreateInvoiceSnapshot)
   const duplicateInvoiceId = searchParams.get("duplicateId") || ""
   const duplicateSource = useMemo(
-    () => (duplicateInvoiceId ? findInvoiceById(readStoredInvoices(), duplicateInvoiceId) : null),
-    [duplicateInvoiceId]
+    () => (duplicateInvoiceId ? findInvoiceById(workspace.invoices, duplicateInvoiceId) : null),
+    [duplicateInvoiceId, workspace.invoices]
   )
 
-  const [products] = useState(initialState.products)
-  const [customers] = useState(initialState.customers)
+  const products = workspace.products
+  const customers = workspace.customers
   const [items, setItems] = useState<InvoiceItem[]>(
-    duplicateSource?.items?.length ? duplicateSource.items : initialState.items
+    duplicateSource?.items?.length ? duplicateSource.items : [createEmptyInvoiceItem()]
   )
 
   const [clientName, setClientName] = useState(duplicateSource?.clientName || searchParams.get("name") || "")
@@ -282,9 +280,8 @@ export default function CreateInvoiceClient() {
   const igstTotal = items.reduce((sum, item) => sum + Number(item.qty || 0) * Number(item.price || 0) * (Number(item.igst || 0) / 100), 0)
   const grandTotal = subtotal + cgstTotal + sgstTotal + igstTotal
   const invoiceNumber = useMemo(() => {
-    const invoices = readStoredInvoices()
     return generateInvoiceNumber(
-      invoices,
+      workspace.invoices,
       invoicePrefix,
       invoicePadding,
       invoiceStartNumber,
@@ -292,11 +289,10 @@ export default function CreateInvoiceClient() {
       invoiceResetMonthDay,
       date
     )
-  }, [date, invoicePadding, invoicePrefix, invoiceResetMonthDay, invoiceStartNumber, resetYearly])
+  }, [date, invoicePadding, invoicePrefix, invoiceResetMonthDay, invoiceStartNumber, resetYearly, workspace.invoices])
   const duplicateCycleWarning = useMemo(() => {
-    const invoices = readStoredInvoices()
     return getFirstRepeatedInvoiceNumberWarning(
-      invoices,
+      workspace.invoices,
       {
         prefix: invoicePrefix,
         padding: invoicePadding,
@@ -306,9 +302,9 @@ export default function CreateInvoiceClient() {
       },
       date
     )
-  }, [date, invoicePadding, invoicePrefix, invoiceResetMonthDay, invoiceStartNumber, resetYearly])
+  }, [date, invoicePadding, invoicePrefix, invoiceResetMonthDay, invoiceStartNumber, resetYearly, workspace.invoices])
 
-  function saveInvoice() {
+  async function saveInvoice() {
     if (savingInvoice) return
     if (getAuthMode() === "supabase" && !isActiveUserKvHydrated()) {
       showAlert({
@@ -345,9 +341,8 @@ export default function CreateInvoiceClient() {
       return
     }
 
-    const invoices = readStoredInvoices()
     const nextInvoiceNumber = generateInvoiceNumber(
-      invoices,
+      workspace.invoices,
       invoicePrefix,
       invoicePadding,
       invoiceStartNumber,
@@ -397,11 +392,11 @@ export default function CreateInvoiceClient() {
       return
     }
 
-    if (invoices.length > 0) {
-      const latestInvoice = invoices.reduce((latest, current) => {
+    if (workspace.invoices.length > 0) {
+      const latestInvoice = workspace.invoices.reduce((latest, current) => {
         if (!latest) return current
         return compareStoredDates(current.date, latest.date) > 0 ? current : latest
-      }, null as (typeof invoices)[number] | null)
+      }, null as ReturnType<typeof readStoredInvoices>[number] | null)
       if (latestInvoice && compareStoredDates(invoiceRecord.date, latestInvoice.date) < 0) {
         showAlert({
           tone: "warning",
@@ -414,19 +409,30 @@ export default function CreateInvoiceClient() {
     }
 
     setSavingInvoice(true)
-    invoices.push(invoiceRecord)
-    writeStoredInvoices(invoices)
-    bumpInvoiceUsageCount(1)
+    try {
+      const createdInvoice = await createInvoiceViaSupabase(invoiceRecord, {
+        duplicateSourceInvoiceNumber: duplicateSource?.invoiceNumber || undefined,
+      })
+      bumpInvoiceUsageCount(1)
 
-    showAlert({
-      tone: "success",
-      title: "Invoice saved",
-      actionHint: "Open your list to view, print, or share the PDF.",
-      message: "Your invoice is saved and ready to view, print, or download as PDF.",
-      primaryLabel: "Go to invoices",
-      onPrimary: () => router.push("/dashboard/invoices"),
-    })
-    window.setTimeout(() => setSavingInvoice(false), 800)
+      showAlert({
+        tone: "success",
+        title: "Invoice saved",
+        actionHint: "Open your list to view, print, or share the PDF.",
+        message: `${createdInvoice.invoiceNumber} is saved and ready to view, print, or download as PDF.`,
+        primaryLabel: "Go to invoices",
+        onPrimary: () => router.push("/dashboard/invoices"),
+      })
+    } catch (error) {
+      showAlert({
+        tone: "danger",
+        title: "Could not save invoice",
+        actionHint: "Please try again. If the problem continues, refresh the page and retry.",
+        message: error instanceof Error ? error.message : "Unable to create the invoice right now.",
+      })
+    } finally {
+      window.setTimeout(() => setSavingInvoice(false), 400)
+    }
   }
 
   return (

@@ -1,9 +1,8 @@
--- Persisted invoice PDFs (export flow) - fresh v2 schema.
+-- Persisted invoice PDFs (export flow) - secure schema.
 -- Use this when you are okay resetting existing PDF cache data.
 
 -- 1) Storage: Dashboard -> Storage -> New bucket -> name: invoice-pdfs
---    - Enable "Public bucket" so getPublicUrl works for share/download links.
---    Or keep private and switch app to signed URLs later.
+--    - Keep the bucket private. The app now serves signed URLs when needed.
 
 -- 2) Policies for authenticated users (upload/read/delete own folder = first path segment = user uuid)
 
@@ -41,7 +40,7 @@ create table public.invoice_pdf_exports (
   invoice_number text not null,
   source_fingerprint text not null,
   storage_path text not null,
-  public_url text not null,
+  last_accessed_at timestamptz,
   created_at timestamptz not null default now(),
   unique (user_id, invoice_id, source_fingerprint)
 );

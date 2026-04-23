@@ -77,7 +77,7 @@ export async function POST(req: Request) {
 
   const cachedQuery = await supabase
     .from("invoice_pdf_exports")
-    .select("id, invoice_id, source_fingerprint, public_url, created_at, storage_path")
+    .select("id, invoice_id, source_fingerprint, created_at, storage_path")
     .eq("user_id", user.id)
     .eq("invoice_id", resolvedSource.source.invoiceRecordId)
     .gte("created_at", retentionCutoffIso)
@@ -92,20 +92,30 @@ export async function POST(req: Request) {
   const cached = findMatchingCachedInvoiceExport(cachedRows, resolvedSource.source.invoiceRecordId)
   const cachedFingerprint = cached?.source_fingerprint || null
 
-  if (cached?.public_url && cachedFingerprint && cachedFingerprint === resolvedSource.source.sourceFingerprint) {
+  if (cached?.storage_path && cachedFingerprint && cachedFingerprint === resolvedSource.source.sourceFingerprint) {
+    const { data: signedData } = await supabase.storage.from(INVOICE_PDF_BUCKET).createSignedUrl(cached.storage_path, 60 * 30)
+    const signedUrl = signedData?.signedUrl || ""
+    if (!signedUrl) {
+      return pdfError("Could not prepare secure PDF access.", "EXPORT_STORAGE", 500)
+    }
+    await supabase
+      .from("invoice_pdf_exports")
+      .update({ last_accessed_at: new Date().toISOString() })
+      .eq("id", cached.id)
+      .catch(() => {})
     logExport("cache-hit", {
       invoiceId: resolvedSource.source.invoiceRecordId,
       invoiceNumber: resolvedSource.source.fileInvoiceNumber,
       userSuffix: user.id.slice(-6),
     })
     return NextResponse.json({
-      url: cached.public_url,
+      url: signedUrl,
       createdAt: cached.created_at,
       cached: true,
     })
   }
 
-  if (cached?.public_url) {
+  if (cached?.storage_path) {
     logExport("fingerprint-mismatch", {
       invoiceId: resolvedSource.source.invoiceRecordId,
       invoiceNumber: resolvedSource.source.fileInvoiceNumber,
@@ -124,7 +134,7 @@ export async function POST(req: Request) {
   logExport("export-regeneration", {
     invoiceId: resolvedSource.source.invoiceRecordId,
     invoiceNumber: resolvedSource.source.fileInvoiceNumber,
-    reason: cached?.public_url ? "fingerprint-mismatch" : "cache-miss",
+    reason: cached?.storage_path ? "fingerprint-mismatch" : "cache-miss",
     userSuffix: user.id.slice(-6),
   })
 
@@ -182,12 +192,12 @@ export async function POST(req: Request) {
     )
   }
 
-  const { data: pub } = supabase.storage.from(INVOICE_PDF_BUCKET).getPublicUrl(storagePath)
-  const publicUrl = pub?.publicUrl || ""
+  const { data: signedData } = await supabase.storage.from(INVOICE_PDF_BUCKET).createSignedUrl(storagePath, 60 * 30)
+  const signedUrl = signedData?.signedUrl || ""
 
-  if (!publicUrl) {
+  if (!signedUrl) {
     await supabase.storage.from(INVOICE_PDF_BUCKET).remove([storagePath]).catch(() => {})
-    return pdfError("Storage returned no public URL for the PDF.", "EXPORT_STORAGE", 500)
+    return pdfError("Storage returned no secure URL for the PDF.", "EXPORT_STORAGE", 500)
   }
 
   const insertResult = await supabase
@@ -198,7 +208,6 @@ export async function POST(req: Request) {
       invoice_number: gen.fileInvoiceNumber,
       source_fingerprint: gen.sourceFingerprint,
       storage_path: storagePath,
-      public_url: publicUrl,
     })
     .select("id, created_at")
     .maybeSingle()
@@ -226,7 +235,7 @@ export async function POST(req: Request) {
   })
 
   return NextResponse.json({
-    url: publicUrl,
+    url: signedUrl,
     createdAt: inserted.created_at,
     cached: false,
   })

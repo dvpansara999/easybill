@@ -45,6 +45,7 @@ function businessEquals(a: BusinessType, b: BusinessType) {
     a.upi === b.upi &&
     a.terms === b.terms &&
     a.logo === b.logo &&
+    a.logoStoragePath === b.logoStoragePath &&
     a.logoShape === b.logoShape
   )
 }
