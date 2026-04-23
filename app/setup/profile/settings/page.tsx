@@ -5,14 +5,19 @@ import { useRouter } from "next/navigation"
 import SetupWizardFrame from "@/components/setup/SetupWizardFrame"
 import { useBusiness } from "@/context/BusinessContext"
 import { useSettings } from "@/context/SettingsContext"
+import { useAppAlert } from "@/components/providers/AppAlertProvider"
+import SelectMenu from "@/components/ui/SelectMenu"
 import { getSetupProfileDraft } from "@/lib/setupProfileDraft"
-import { buildInvoiceNumberPreviewSeries, generateInvoiceNumber, getFirstRepeatedInvoiceNumberWarning } from "@/lib/invoiceNumber"
+import {
+  buildInvoiceNumberPreviewSeries,
+  generateInvoiceNumber,
+  getFirstRepeatedInvoiceNumberWarning,
+} from "@/lib/invoiceNumber"
 import { getInvoicePrefixError } from "@/lib/invoicePrefixValidation"
 import { formatResetMonthLabel, RESET_MONTH_DAY_OPTIONS } from "@/lib/invoiceResetDate"
-import { flushCloudKeyNow, setActiveOrGlobalItem } from "@/lib/userStore"
-import SelectMenu from "@/components/ui/SelectMenu"
-import { useAppAlert } from "@/components/providers/AppAlertProvider"
 import { readStoredInvoices } from "@/lib/invoice"
+import { flushCloudKeyNow, setActiveOrGlobalItem } from "@/lib/userStore"
+import { useWorkspaceValue } from "@/lib/useWorkspaceValue"
 
 type InvoiceHistoryRecord = {
   invoiceNumber: string
@@ -47,7 +52,7 @@ export default function SetupProfileSettingsPage() {
   } = useSettings()
 
   const [draftProfile] = useState(() => getSetupProfileDraft())
-  const [invoiceHistory] = useState<InvoiceHistoryRecord[]>(() => readStoredInvoices())
+  const invoiceHistory = useWorkspaceValue<InvoiceHistoryRecord[]>(["invoices"], () => readStoredInvoices())
   const [draftDateFormat, setDraftDateFormat] = useState(dateFormat)
   const [draftAmountFormat, setDraftAmountFormat] = useState(amountFormat)
   const [draftShowDecimals, setDraftShowDecimals] = useState(showDecimals)
@@ -74,18 +79,23 @@ export default function SetupProfileSettingsPage() {
       draftResetYearly,
       draftInvoiceResetMonthDay
     )
-  }, [invoiceHistory, draftInvoicePadding, draftInvoicePrefix, draftInvoiceStartNumber, draftResetYearly, draftInvoiceResetMonthDay])
+  }, [
+    invoiceHistory,
+    draftInvoicePadding,
+    draftInvoicePrefix,
+    draftInvoiceStartNumber,
+    draftResetYearly,
+    draftInvoiceResetMonthDay,
+  ])
+
   const duplicateCycleWarning = useMemo(() => {
-    return getFirstRepeatedInvoiceNumberWarning(
-      invoiceHistory,
-      {
-        prefix: draftInvoicePrefix,
-        padding: draftInvoicePadding,
-        startNumber: Math.max(1, Number.isFinite(draftInvoiceStartNumber) ? draftInvoiceStartNumber : 1),
-        resetYearly: draftResetYearly,
-        resetMonthDay: draftInvoiceResetMonthDay,
-      }
-    )
+    return getFirstRepeatedInvoiceNumberWarning(invoiceHistory, {
+      prefix: draftInvoicePrefix,
+      padding: draftInvoicePadding,
+      startNumber: Math.max(1, Number.isFinite(draftInvoiceStartNumber) ? draftInvoiceStartNumber : 1),
+      resetYearly: draftResetYearly,
+      resetMonthDay: draftInvoiceResetMonthDay,
+    })
   }, [
     draftInvoicePadding,
     draftInvoicePrefix,
@@ -94,7 +104,9 @@ export default function SetupProfileSettingsPage() {
     draftResetYearly,
     invoiceHistory,
   ])
+
   const invoicePrefixError = getInvoicePrefixError(draftInvoicePrefix)
+
   const invoicePreviewSeries = useMemo(() => {
     return buildInvoiceNumberPreviewSeries(
       invoiceHistory,
@@ -115,6 +127,7 @@ export default function SetupProfileSettingsPage() {
     draftResetYearly,
     invoiceHistory,
   ])
+
   const numberingScopeNotice =
     invoiceHistory.length > 0 &&
     (draftInvoicePrefix !== invoicePrefix ||
@@ -127,7 +140,7 @@ export default function SetupProfileSettingsPage() {
     router.push("/setup/profile")
     return null
   }
- 
+
   const selectStyle =
     "w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
 
@@ -143,6 +156,7 @@ export default function SetupProfileSettingsPage() {
       })
       return
     }
+
     setFinishing(true)
     setPrefixErrorMessage("")
     updateDateFormat(draftDateFormat)
@@ -159,7 +173,6 @@ export default function SetupProfileSettingsPage() {
     setActiveOrGlobalItem("businessProfile", JSON.stringify(draftProfile))
     setBusiness(draftProfile)
     await flushCloudKeyNow("businessProfile").catch(() => {})
-    // Route to a finalizing step that blocks until cloud sync is completed.
     router.push("/setup/profile/finalizing")
   }
 
@@ -177,7 +190,7 @@ export default function SetupProfileSettingsPage() {
       onBack={() => router.push("/setup/profile/logo")}
     >
       <div className="grid gap-6 lg:grid-cols-2 lg:items-stretch">
-        <div className="lg:col-span-2 overflow-hidden rounded-[34px] border border-slate-200 bg-gradient-to-br from-slate-950 to-slate-900 px-4 py-5 sm:px-7 sm:py-6 text-white shadow-[0_30px_90px_rgba(15,23,42,0.22)]">
+        <div className="lg:col-span-2 overflow-hidden rounded-[34px] border border-slate-200 bg-gradient-to-br from-slate-950 to-slate-900 px-4 py-5 text-white shadow-[0_30px_90px_rgba(15,23,42,0.22)] sm:px-7 sm:py-6">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.32em] text-white/60">Next invoice</p>
@@ -201,8 +214,7 @@ export default function SetupProfileSettingsPage() {
               ) : null}
             </div>
             <div className="rounded-[22px] border border-white/10 bg-white/5 px-4 py-3 text-xs text-white/70">
-              These defaults apply to{" "}
-              <span className="font-semibold text-white">new</span> invoices.
+              These defaults apply to <span className="font-semibold text-white">new</span> invoices.
             </div>
           </div>
         </div>
@@ -225,9 +237,7 @@ export default function SetupProfileSettingsPage() {
                 className={`${selectStyle} ${invoicePrefixError ? "border-rose-300 focus:border-rose-400 focus:ring-rose-100" : ""}`}
               />
               {invoicePrefixError ? (
-                <p className="mt-2 text-xs leading-5 text-rose-600">
-                  {prefixErrorMessage || invoicePrefixError}
-                </p>
+                <p className="mt-2 text-xs leading-5 text-rose-600">{prefixErrorMessage || invoicePrefixError}</p>
               ) : (
                 <p className="mt-2 text-xs leading-5 text-slate-500">Examples: INV-, DOC_, BILL(2026)-</p>
               )}
@@ -331,7 +341,7 @@ export default function SetupProfileSettingsPage() {
                 value={draftCurrencySymbol}
                 onChange={setDraftCurrencySymbol}
                 options={[
-                  { value: "₹", label: "₹ Indian Rupee" },
+                  { value: "?", label: "? Indian Rupee" },
                   { value: "$", label: "$ US Dollar" },
                   { value: "EUR", label: "EUR Euro" },
                   { value: "GBP", label: "GBP Pound" },
@@ -344,8 +354,8 @@ export default function SetupProfileSettingsPage() {
                 value={draftCurrencyPosition}
                 onChange={(v) => setDraftCurrencyPosition(v as "before" | "after")}
                 options={[
-                  { value: "before", label: "₹ 1,250" },
-                  { value: "after", label: "1,250 ₹" },
+                  { value: "before", label: "? 1,250" },
+                  { value: "after", label: "1,250 ?" },
                 ]}
               />
               <p className="mt-2 text-xs leading-5 text-slate-500">Choose what looks most natural to your customers.</p>
@@ -354,17 +364,19 @@ export default function SetupProfileSettingsPage() {
         </section>
       </div>
 
-      <div className="mt-6 flex flex-col-reverse gap-3 rounded-[34px] border border-slate-200 bg-slate-50/70 px-4 py-5 sm:px-7 sm:py-6 shadow-[0_18px_44px_rgba(15,23,42,0.05)] sm:flex-row sm:items-center sm:justify-between">
+      <div className="mt-6 flex flex-col-reverse gap-3 rounded-[34px] border border-slate-200 bg-slate-50/70 px-4 py-5 shadow-[0_18px_44px_rgba(15,23,42,0.05)] sm:flex-row sm:items-center sm:justify-between sm:px-7 sm:py-6">
         <button
+          type="button"
           onClick={() => router.push("/setup/profile/logo")}
-          className="w-full sm:w-auto rounded-2xl border border-slate-200 bg-white px-6 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 hover:text-slate-950 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-100"
+          className="w-full rounded-2xl border border-slate-200 bg-white px-6 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 hover:text-slate-950 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-100 sm:w-auto"
         >
           Back
         </button>
         <button
+          type="button"
           onClick={finishSetup}
           disabled={finishing}
-          className={`w-full sm:w-auto rounded-2xl px-6 py-3 text-sm font-semibold text-white shadow-[0_18px_44px_rgba(15,23,42,0.18)] transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-100 ${
+          className={`w-full rounded-2xl px-6 py-3 text-sm font-semibold text-white shadow-[0_18px_44px_rgba(15,23,42,0.18)] transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-100 sm:w-auto ${
             finishing ? "cursor-not-allowed bg-slate-400" : "bg-slate-950 hover:bg-slate-800"
           }`}
         >

@@ -1,10 +1,11 @@
 "use client"
 
-import { useEffect, useLayoutEffect, useState, type ReactNode } from "react"
+import { useEffect, useState, type ReactNode } from "react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { getActiveUserId } from "@/lib/auth"
 import { getAuthMode } from "@/lib/runtimeMode"
-import { hasActiveUserWarmCache, isActiveUserKvHydrated } from "@/lib/userStore"
+import { getSupabaseUser } from "@/lib/supabase/browser"
+import { hasActiveUserWarmCache, hasUserWarmCache, isActiveUserKvHydrated, isUserKvHydrated } from "@/lib/userStore"
 
 function isPrintPdfBypassPath() {
   try {
@@ -16,42 +17,50 @@ function isPrintPdfBypassPath() {
 }
 
 export default function KvHydrationGate({ children }: { children: ReactNode }) {
-  const [ready, setReady] = useState(false)
-
-  // Run before paint so lightweight routes (e.g. legacy `/invoice-pdf`) are not blocked by KV gating.
-  useLayoutEffect(() => {
-    if (isPrintPdfBypassPath()) {
-      setReady(true)
-    }
-  }, [])
+  const [ready, setReady] = useState(() => {
+    if (typeof window === "undefined") return false
+    if (isPrintPdfBypassPath()) return true
+    if (getAuthMode() !== "supabase") return true
+    return Boolean(getActiveUserId() && (isActiveUserKvHydrated() || hasActiveUserWarmCache()))
+  })
 
   useEffect(() => {
+    if (ready) return
+
     // Important for PDF generation:
     // Avoid delaying routes that do not need a hydrated KV cache.
     if (isPrintPdfBypassPath()) {
-      setReady(true)
       return
     }
 
     const mode = getAuthMode()
     if (mode !== "supabase") {
-      setReady(true)
       return
     }
 
     let authInitSeen = false
+    let cancelled = false
 
-    const checkReady = () => {
-      const userId = getActiveUserId()
+    const checkReady = (explicitUserId?: string | null) => {
+      const userId = explicitUserId ?? getActiveUserId()
 
-      // If user exists, we only render once KV cache is hydrated.
       if (userId) {
-        if (isActiveUserKvHydrated() || hasActiveUserWarmCache()) setReady(true)
-        return
+        if (
+          (explicitUserId ? isUserKvHydrated(userId) : isActiveUserKvHydrated()) ||
+          (explicitUserId ? hasUserWarmCache(userId) : hasActiveUserWarmCache())
+        ) {
+          setReady(true)
+          return true
+        }
+        return false
       }
 
-      // No user yet: wait briefly for auth init, then assume logged out.
-      if (authInitSeen) setReady(true)
+      if (authInitSeen) {
+        setReady(true)
+        return true
+      }
+
+      return false
     }
 
     const onAuthInit = () => {
@@ -63,28 +72,30 @@ export default function KvHydrationGate({ children }: { children: ReactNode }) {
       checkReady()
     }
 
+    if (checkReady()) {
+      return
+    }
+
     window.addEventListener("easybill:auth-sync-initialized", onAuthInit as EventListener)
     window.addEventListener("easybill:cloud-sync", onCloudSync as EventListener)
-
-    let attempts = 0
-    const intervalId = window.setInterval(() => {
-      attempts++
-      checkReady()
-
-      // Safety: don't block the whole app if auth init event is missed.
-      if (attempts >= 20) {
+    void getSupabaseUser()
+      .then(({ data }) => {
+        if (cancelled) return
+        authInitSeen = true
+        checkReady(data.user?.id || null)
+      })
+      .catch(() => {
+        if (cancelled) return
         authInitSeen = true
         checkReady()
-        window.clearInterval(intervalId)
-      }
-    }, 150)
+      })
 
     return () => {
+      cancelled = true
       window.removeEventListener("easybill:auth-sync-initialized", onAuthInit as EventListener)
       window.removeEventListener("easybill:cloud-sync", onCloudSync as EventListener)
-      window.clearInterval(intervalId)
     }
-  }, [])
+  }, [ready])
 
   if (!ready) {
     return (

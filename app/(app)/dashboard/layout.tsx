@@ -8,7 +8,8 @@ import { getSupabaseUser } from "@/lib/supabase/browser"
 import { getActiveAuthRecord } from "@/lib/auth"
 import { enforceFreeRestrictions, getActivePlanId, type PlanId } from "@/lib/plans"
 import { getAuthMode } from "@/lib/runtimeMode"
-import { hasActiveUserWarmCache, isActiveUserKvHydrated } from "@/lib/userStore"
+import { hasUserWarmCache, isUserKvHydrated } from "@/lib/userStore"
+import { useWorkspaceValue } from "@/lib/useWorkspaceValue"
 import { Menu } from "lucide-react"
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
 
@@ -19,8 +20,8 @@ export default function DashboardLayout({
 }) {
   const router = useRouter()
   const [ready, setReady] = useState(false)
-  const [planId, setPlanId] = useState<PlanId>("free")
   const [menuOpen, setMenuOpen] = useState(false)
+  const planId = useWorkspaceValue<PlanId>(["subscriptionPlanId"], () => getActivePlanId())
 
   useEffect(() => {
     async function guard() {
@@ -32,7 +33,6 @@ export default function DashboardLayout({
           return
         }
         enforceFreeRestrictions()
-        setPlanId(getActivePlanId())
         setReady(true)
         return
       }
@@ -45,13 +45,11 @@ export default function DashboardLayout({
       }
       const applyPlanAndRestrictions = () => {
         enforceFreeRestrictions()
-        setPlanId(getActivePlanId())
       }
 
-      if (mode !== "supabase" || isActiveUserKvHydrated() || hasActiveUserWarmCache()) {
+      if (mode !== "supabase" || isUserKvHydrated(data.user.id) || hasUserWarmCache(data.user.id)) {
         applyPlanAndRestrictions()
       } else {
-        // Wait for initial cloud KV pull to avoid overwriting remote values.
         const onCloud = () => {
           window.removeEventListener("easybill:cloud-sync", onCloud as EventListener)
           applyPlanAndRestrictions()
@@ -62,26 +60,6 @@ export default function DashboardLayout({
     }
     void guard()
   }, [router])
-
-  useEffect(() => {
-    function onStorage(e: StorageEvent) {
-      if (e.key === "subscriptionPlanId") setPlanId(getActivePlanId())
-    }
-
-    function onKvWrite(e: Event) {
-      const ce = e as CustomEvent<{ key?: string }>
-      if (ce.detail?.key === "subscriptionPlanId") {
-        setPlanId(getActivePlanId())
-      }
-    }
-
-    window.addEventListener("storage", onStorage)
-    window.addEventListener("easybill:kv-write", onKvWrite as EventListener)
-    return () => {
-      window.removeEventListener("storage", onStorage)
-      window.removeEventListener("easybill:kv-write", onKvWrite as EventListener)
-    }
-  }, [])
 
   useEffect(() => {
     router.prefetch("/dashboard/invoices")

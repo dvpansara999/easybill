@@ -1,7 +1,8 @@
 "use client"
 
-import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react"
+import { createContext, useCallback, useContext, useMemo } from "react"
 import { getActiveOrGlobalItem, setActiveOrGlobalItem } from "@/lib/userStore"
+import { useWorkspaceValue } from "@/lib/useWorkspaceValue"
 import {
   EMPTY_BUSINESS_PROFILE,
   normalizeBusinessProfile,
@@ -32,82 +33,17 @@ function readBusinessFromStore() {
   }
 }
 
-function businessEquals(a: BusinessType, b: BusinessType) {
-  return (
-    a.businessName === b.businessName &&
-    a.phone === b.phone &&
-    a.email === b.email &&
-    a.gst === b.gst &&
-    a.address === b.address &&
-    a.bankName === b.bankName &&
-    a.accountNumber === b.accountNumber &&
-    a.ifsc === b.ifsc &&
-    a.upi === b.upi &&
-    a.terms === b.terms &&
-    a.logo === b.logo &&
-    a.logoStoragePath === b.logoStoragePath &&
-    a.logoShape === b.logoShape
-  )
-}
-
 export function BusinessProvider({ children }: { children: React.ReactNode }) {
-  const [business, setBusinessState] = useState<BusinessType>(() => readBusinessFromStore())
-  const refreshFrameRef = useRef<number | null>(null)
+  const business = useWorkspaceValue(["businessProfile"], readBusinessFromStore)
 
-  useEffect(() => {
-    const scheduleRefresh = () => {
-      if (refreshFrameRef.current != null) {
-        window.cancelAnimationFrame(refreshFrameRef.current)
-      }
-      refreshFrameRef.current = window.requestAnimationFrame(() => {
-        refreshFrameRef.current = null
-        const nextBusiness = readBusinessFromStore()
-        setBusinessState((prev) => (businessEquals(prev, nextBusiness) ? prev : nextBusiness))
-      })
-    }
-
-    function onCloud() {
-      scheduleRefresh()
-    }
-
-    function onKvWrite(e: Event) {
-      const ce = e as CustomEvent<{ key?: string }>
-      if (ce.detail?.key === "businessProfile") {
-        scheduleRefresh()
-      }
-    }
-
-    function onStorage(e: StorageEvent) {
-      if (e.key?.startsWith("businessProfile::") || e.key === "businessProfile") {
-        scheduleRefresh()
-      }
-    }
-
-    scheduleRefresh()
-
-    window.addEventListener("easybill:cloud-sync", onCloud as EventListener)
-    window.addEventListener("easybill:kv-write", onKvWrite as EventListener)
-    window.addEventListener("storage", onStorage)
-    return () => {
-      if (refreshFrameRef.current != null) {
-        window.cancelAnimationFrame(refreshFrameRef.current)
-      }
-      window.removeEventListener("easybill:cloud-sync", onCloud as EventListener)
-      window.removeEventListener("easybill:kv-write", onKvWrite as EventListener)
-      window.removeEventListener("storage", onStorage)
-    }
+  const setBusiness = useCallback((data: BusinessType) => {
+    const normalizedBusiness = normalizeBusinessProfile(data)
+    setActiveOrGlobalItem("businessProfile", JSON.stringify(normalizedBusiness))
   }, [])
 
   const value = useMemo<BusinessContextType>(
-    () => ({
-      business,
-      setBusiness(data: BusinessType) {
-        const normalizedBusiness = normalizeBusinessProfile(data)
-        setBusinessState(normalizedBusiness)
-        setActiveOrGlobalItem("businessProfile", JSON.stringify(normalizedBusiness))
-      },
-    }),
-    [business]
+    () => ({ business, setBusiness }),
+    [business, setBusiness]
   )
 
   return <BusinessContext.Provider value={value}>{children}</BusinessContext.Provider>

@@ -8,7 +8,7 @@ import { templateRegistry } from "@/components/invoiceTemplates/loadTemplates"
 import { previewTemplateProps } from "@/lib/templatePreviewData"
 import { getStoredTemplateTypography, saveStoredTemplateTypography, templateFontOptions, templateFontSizeOptions } from "@/lib/templateTypography"
 import { normalizeTemplateTypography } from "@/lib/globalTemplateTypography"
-import { getActiveOrGlobalItem, isActiveUserKvHydrated, setActiveOrGlobalItem } from "@/lib/userStore"
+import { getActiveOrGlobalItem, hasActiveUserWarmCache, isActiveUserKvHydrated, setActiveOrGlobalItem } from "@/lib/userStore"
 import { useWorkspaceValue } from "@/lib/useWorkspaceValue"
 import A4LargePreview from "@/components/templatePreview/A4LargePreview"
 import { canUseTemplate, getActivePlanId } from "@/lib/plans"
@@ -104,7 +104,7 @@ useEffect(()=>{
 
 useEffect(() => {
   const shouldWriteDefaults =
-    getAuthMode() !== "supabase" || isActiveUserKvHydrated()
+    getAuthMode() !== "supabase" || isActiveUserKvHydrated() || hasActiveUserWarmCache(["invoiceTemplate"])
 
   if (!templateWorkspaceState.hasSavedTemplate && shouldWriteDefaults) {
     setActiveOrGlobalItem("invoiceTemplate", DEFAULT_TEMPLATE_ID)
@@ -163,7 +163,12 @@ saveStoredTemplateTypography(normalized.fontId,normalized.fontSize)
 
 function updateFontSize(nextFontSize:number){
 
-const normalized = normalizeTemplateTypography({ fontId, fontFamily, fontSize: nextFontSize })
+const latestTypography = getStoredTemplateTypography()
+const normalized = normalizeTemplateTypography({
+  fontId: latestTypography.fontId,
+  fontFamily: latestTypography.fontFamily,
+  fontSize: nextFontSize,
+})
 saveStoredTemplateTypography(normalized.fontId,normalized.fontSize)
 
 }

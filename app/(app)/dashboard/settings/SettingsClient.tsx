@@ -1147,9 +1147,11 @@ export default function SettingsClient() {
           <p className="text-sm text-slate-500">
             {savingSettings
               ? "Saving your settings..."
-              : hasPendingChanges
-                ? "Your invoice settings will apply only after you save."
-                : saveMessage || "No pending updates right now."}
+              : saveMessage
+                ? saveMessage
+                : hasPendingChanges
+                  ? "Your invoice settings will apply only after you save."
+                  : "No pending updates right now."}
           </p>
         </div>
 

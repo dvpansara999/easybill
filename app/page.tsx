@@ -10,6 +10,7 @@ import { signIn, signInWithOtp, signInWithProvider, signOut, signUp, updatePassw
 import { runSeedAndScopeMigration } from "@/lib/seedDataMigration"
 import { emptySetupProfileDraft, saveSetupProfileDraft } from "@/lib/setupProfileDraft"
 import { createSupabaseBrowserClient, getSupabaseUser } from "@/lib/supabase/browser"
+import { getActiveOrGlobalItem, setActiveOrGlobalItem } from "@/lib/userStore"
 import { cn } from "@/lib/utils"
 import {
   ArrowRight,
@@ -325,7 +326,7 @@ const LandingStack = memo(function LandingStack({
             </div>
 
             <h1 className="mt-4 max-w-[9ch] text-balance text-[clamp(2.35rem,12vw,3.3rem)] font-semibold leading-[0.92] tracking-[-0.07em] text-slate-950">
-              Billing that feels sharp on the first tap.
+              Professional invoices, made easy.
             </h1>
 
             <p className="mt-4 max-w-md text-[15px] leading-7 text-slate-600">
@@ -813,11 +814,19 @@ export default function Home() {
       // ignore
     }
 
+    const waitForSignedInUser = async () => {
+      for (let attempt = 0; attempt < 10; attempt += 1) {
+        const { data } = await getSupabaseUser()
+        if (data.user?.id) return data.user.id
+        await new Promise((resolve) => window.setTimeout(resolve, 200))
+      }
+      return null
+    }
+
     // After sign-in, check onboarding completion from the relational profile row.
     const navigate = async () => {
       const supabase = createSupabaseBrowserClient()
-      const { data: me } = await getSupabaseUser()
-      const userId = me.user?.id
+      const userId = await waitForSignedInUser()
       if (!userId) {
         router.push("/dashboard")
         return
@@ -844,7 +853,6 @@ export default function Home() {
 
       if (!hasBusinessProfile) {
         // Prepare Step-1 locally (email locked, business name blank until user edits).
-        const { setActiveOrGlobalItem } = await import("@/lib/userStore")
         setActiveOrGlobalItem(
           "setupProfileDraft",
           JSON.stringify({
@@ -862,16 +870,7 @@ export default function Home() {
       router.push("/dashboard")
     }
 
-    // Wait briefly so auth session + any KV hydration has settled.
-    const onCloud = () => {
-      window.removeEventListener("easybill:cloud-sync", onCloud as EventListener)
-      void navigate()
-    }
-    window.addEventListener("easybill:cloud-sync", onCloud as EventListener)
-    window.setTimeout(() => {
-      window.removeEventListener("easybill:cloud-sync", onCloud as EventListener)
-      void navigate()
-    }, 2500)
+    void navigate()
   }
 
   async function startOAuth(provider: "google" | "apple") {
@@ -913,8 +912,17 @@ export default function Home() {
       return
     }
 
+    const waitForSignedInUser = async () => {
+      for (let attempt = 0; attempt < 10; attempt += 1) {
+        const { data } = await getSupabaseUser()
+        if (data.user?.id) return data.user.id
+        await new Promise((resolve) => window.setTimeout(resolve, 200))
+      }
+      return null
+    }
+
     async function navigate() {
-      const { getActiveOrGlobalItem } = await import("@/lib/userStore")
+      await waitForSignedInUser()
       const resumePath = getActiveOrGlobalItem("setupResumePath")
       const businessProfileRaw = getActiveOrGlobalItem("businessProfile")
       const hasBusinessProfile = Boolean(businessProfileRaw)
@@ -936,16 +944,7 @@ export default function Home() {
       else router.push("/setup/profile")
     }
 
-    // Wait for cloud KV hydration (so getActiveOrGlobalItem reads correct scoped values).
-    const onCloud = () => {
-      window.removeEventListener("easybill:cloud-sync", onCloud as EventListener)
-      void navigate()
-    }
-    window.addEventListener("easybill:cloud-sync", onCloud as EventListener)
-    window.setTimeout(() => {
-      window.removeEventListener("easybill:cloud-sync", onCloud as EventListener)
-      void navigate()
-    }, 2500)
+    void navigate()
   }
 
   async function sendForgotOtp() {

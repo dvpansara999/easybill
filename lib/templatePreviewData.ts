@@ -24,9 +24,7 @@ export const previewInvoice = {
   clientEmail: "john@example.com",
   clientGST: "24AAAAA0000A1Z5",
   clientAddress: "Mumbai, India",
-  customDetails: [
-    { label: "Project", value: "Landscape Work" },
-  ],
+  customDetails: [{ label: "Project", value: "Landscape Work" }],
   items: [
     {
       product: "Product A",

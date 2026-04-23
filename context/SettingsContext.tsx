@@ -1,9 +1,10 @@
 "use client"
 
-import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react"
+import { createContext, useContext, useEffect, useMemo } from "react"
 import { getActiveOrGlobalItem, setActiveOrGlobalItem } from "@/lib/userStore"
 import { getAuthMode } from "@/lib/runtimeMode"
 import { getActiveUserId } from "@/lib/auth"
+import { useWorkspaceValue } from "@/lib/useWorkspaceValue"
 import {
   DEFAULT_INVOICE_VISIBILITY,
   type InvoiceVisibilitySettings,
@@ -132,155 +133,65 @@ function writeMissingDefaults(snapshot: SettingsSnapshot) {
   }
 }
 
-function settingsEqual(a: SettingsSnapshot, b: SettingsSnapshot) {
-  return (
-    a.dateFormat === b.dateFormat &&
-    a.amountFormat === b.amountFormat &&
-    a.showDecimals === b.showDecimals &&
-    a.invoicePrefix === b.invoicePrefix &&
-    a.invoicePadding === b.invoicePadding &&
-    a.invoiceStartNumber === b.invoiceStartNumber &&
-    a.resetYearly === b.resetYearly &&
-    a.invoiceResetMonthDay === b.invoiceResetMonthDay &&
-    a.currencySymbol === b.currencySymbol &&
-    a.currencyPosition === b.currencyPosition &&
-    JSON.stringify(a.invoiceVisibility) === JSON.stringify(b.invoiceVisibility)
-  )
-}
-
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
-  const [settings, setSettings] = useState<SettingsSnapshot>(() => readSettingsFromStorage())
-  const refreshFrameRef = useRef<number | null>(null)
+  const settings = useWorkspaceValue(
+    [
+      "dateFormat",
+      "amountFormat",
+      "showDecimals",
+      "invoicePrefix",
+      "invoicePadding",
+      "invoiceStartNumber",
+      "resetYearly",
+      "invoiceResetMonthDay",
+      "currencySymbol",
+      "currencyPosition",
+      "invoiceVisibility",
+    ],
+    readSettingsFromStorage
+  )
 
   useEffect(() => {
-    const scheduleRefresh = () => {
-      if (refreshFrameRef.current != null) {
-        window.cancelAnimationFrame(refreshFrameRef.current)
-      }
-      refreshFrameRef.current = window.requestAnimationFrame(() => {
-        refreshFrameRef.current = null
-        const nextSettings = readSettingsFromStorage()
-        setSettings((prev) => (settingsEqual(prev, nextSettings) ? prev : nextSettings))
-      })
-    }
-
-    const initialSettings = readSettingsFromStorage()
-    scheduleRefresh()
-
     const supabaseNeedsHydration = getAuthMode() === "supabase" && Boolean(getActiveUserId())
     if (!supabaseNeedsHydration) {
-      writeMissingDefaults(initialSettings)
+      writeMissingDefaults(settings)
     }
-
-    function onCloud() {
-      const nextSettings = readSettingsFromStorage()
-      setSettings((prev) => (settingsEqual(prev, nextSettings) ? prev : nextSettings))
-      writeMissingDefaults(nextSettings)
-    }
-
-    function onKvWrite(e: Event) {
-      const ce = e as CustomEvent<{ key?: string }>
-      if (!ce.detail?.key) return
-      if (
-        ![
-          "dateFormat",
-          "amountFormat",
-          "showDecimals",
-          "invoicePrefix",
-          "invoicePadding",
-          "invoiceStartNumber",
-          "resetYearly",
-          "invoiceResetMonthDay",
-          "currencySymbol",
-          "currencyPosition",
-          "invoiceVisibility",
-        ].includes(ce.detail.key)
-      ) {
-        return
-      }
-      scheduleRefresh()
-    }
-
-    function onStorage(e: StorageEvent) {
-      if (!e.key) return
-      if (
-        [
-          "dateFormat",
-          "amountFormat",
-          "showDecimals",
-          "invoicePrefix",
-          "invoicePadding",
-          "invoiceStartNumber",
-          "resetYearly",
-          "invoiceResetMonthDay",
-          "currencySymbol",
-          "currencyPosition",
-          "invoiceVisibility",
-        ].some((key) => e.key?.startsWith(`${key}::`) || e.key === key)
-      ) {
-        scheduleRefresh()
-      }
-    }
-
-    window.addEventListener("easybill:cloud-sync", onCloud as EventListener)
-    window.addEventListener("easybill:kv-write", onKvWrite as EventListener)
-    window.addEventListener("storage", onStorage)
-    return () => {
-      if (refreshFrameRef.current != null) {
-        window.cancelAnimationFrame(refreshFrameRef.current)
-      }
-      window.removeEventListener("easybill:cloud-sync", onCloud as EventListener)
-      window.removeEventListener("easybill:kv-write", onKvWrite as EventListener)
-      window.removeEventListener("storage", onStorage)
-    }
-  }, [])
+  }, [settings])
 
   const value = useMemo<SettingsContextType>(
     () => ({
       ...settings,
       updateDateFormat(format: string) {
-        setSettings((prev) => ({ ...prev, dateFormat: format }))
         setActiveOrGlobalItem("dateFormat", format)
       },
       updateAmountFormat(format: string) {
-        setSettings((prev) => ({ ...prev, amountFormat: format }))
         setActiveOrGlobalItem("amountFormat", format)
       },
       updateShowDecimals(next: boolean) {
-        setSettings((prev) => ({ ...prev, showDecimals: next }))
         setActiveOrGlobalItem("showDecimals", String(next))
       },
       updateInvoicePrefix(next: string) {
-        setSettings((prev) => ({ ...prev, invoicePrefix: next }))
         setActiveOrGlobalItem("invoicePrefix", next)
       },
       updateInvoicePadding(next: number) {
-        setSettings((prev) => ({ ...prev, invoicePadding: next }))
         setActiveOrGlobalItem("invoicePadding", String(next))
       },
       updateInvoiceStartNumber(next: number) {
-        setSettings((prev) => ({ ...prev, invoiceStartNumber: next }))
         setActiveOrGlobalItem("invoiceStartNumber", String(next))
       },
       updateResetYearly(next: boolean) {
-        setSettings((prev) => ({ ...prev, resetYearly: next }))
         setActiveOrGlobalItem("resetYearly", String(next))
       },
       updateInvoiceResetMonthDay(next: string) {
-        const normalized = normalizeResetMonthDay(next)
-        setSettings((prev) => ({ ...prev, invoiceResetMonthDay: normalized }))
-        setActiveOrGlobalItem("invoiceResetMonthDay", normalized)
+        setActiveOrGlobalItem("invoiceResetMonthDay", normalizeResetMonthDay(next))
       },
       updateCurrencySymbol(next: string) {
-        setSettings((prev) => ({ ...prev, currencySymbol: next }))
         setActiveOrGlobalItem("currencySymbol", next)
       },
       updateCurrencyPosition(next: "before" | "after") {
-        setSettings((prev) => ({ ...prev, currencyPosition: next }))
         setActiveOrGlobalItem("currencyPosition", next)
       },
       updateInvoiceVisibility(next: InvoiceVisibilitySettings) {
-        setSettings((prev) => ({ ...prev, invoiceVisibility: next }))
         setActiveOrGlobalItem("invoiceVisibility", JSON.stringify(next))
       },
     }),

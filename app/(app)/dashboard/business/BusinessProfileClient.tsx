@@ -3,123 +3,119 @@
 import "react-easy-crop/react-easy-crop.css"
 
 import NextImage from "next/image"
-import { type Area, type Point } from "react-easy-crop"
-import Cropper from "react-easy-crop"
-import { type ChangeEvent, useCallback, useEffect, useMemo, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { useBusiness } from "@/context/BusinessContext"
+import { type ChangeEvent, useCallback, useEffect, useMemo, useState } from "react"
+import Cropper from "react-easy-crop"
+import { type Area, type Point } from "react-easy-crop"
 import { Building2, Check, Circle, Landmark, ScrollText, Square, Upload } from "lucide-react"
-import { flushCloudKeyNow, getActiveOrGlobalItem } from "@/lib/userStore"
+import { useBusiness } from "@/context/BusinessContext"
 import { useAppAlert } from "@/components/providers/AppAlertProvider"
 import { deleteLogoFromSupabase, uploadLogoToSupabase } from "@/lib/logoUpload"
+import { flushCloudKeyNow } from "@/lib/userStore"
 import { useUnsavedChangesGuard } from "@/lib/unsavedChangesGuard"
 import { getLogoUploadRuleText, validateLogoFile } from "@/lib/logoValidation"
-import { EMPTY_BUSINESS_PROFILE, normalizeBusinessProfile, type BusinessProfileRecord } from "@/lib/businessProfile"
+import { EMPTY_BUSINESS_PROFILE, type BusinessProfileRecord } from "@/lib/businessProfile"
 
 type BusinessProfile = BusinessProfileRecord
 
 const emptyProfile: BusinessProfile = EMPTY_BUSINESS_PROFILE
 
-function readProfileFromStore(): BusinessProfile {
-  if (typeof window === "undefined") return emptyProfile
+function buildProfileKey(profile: BusinessProfile) {
+  return JSON.stringify([
+    profile.businessName,
+    profile.phone,
+    profile.email,
+    profile.gst,
+    profile.address,
+    profile.bankName,
+    profile.accountNumber,
+    profile.ifsc,
+    profile.upi,
+    profile.terms,
+    profile.logo,
+    profile.logoStoragePath,
+    profile.logoShape,
+  ])
+}
 
-  const saved = getActiveOrGlobalItem("businessProfile")
-  if (!saved) return emptyProfile
+function createImage(src: string) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image()
+    image.addEventListener("load", () => resolve(image))
+    image.addEventListener("error", reject)
+    image.src = src
+  })
+}
 
-  try {
-    return normalizeBusinessProfile(JSON.parse(saved))
-  } catch {
-    return emptyProfile
-  }
+async function getCroppedLogo(imageSrc: string, pixelCrop: Area | null) {
+  if (!imageSrc) return ""
+  if (!pixelCrop) return imageSrc
+
+  const image = await createImage(imageSrc)
+  const canvas = document.createElement("canvas")
+  const context = canvas.getContext("2d")
+  if (!context) return imageSrc
+
+  canvas.width = pixelCrop.width
+  canvas.height = pixelCrop.height
+
+  context.drawImage(
+    image,
+    pixelCrop.x,
+    pixelCrop.y,
+    pixelCrop.width,
+    pixelCrop.height,
+    0,
+    0,
+    pixelCrop.width,
+    pixelCrop.height
+  )
+
+  return canvas.toDataURL("image/webp", 0.82)
 }
 
 export default function BusinessProfileClient() {
-  const { setBusiness } = useBusiness()
+  const { business, setBusiness } = useBusiness()
   const router = useRouter()
   const searchParams = useSearchParams()
   const setupMode = searchParams.get("setup") === "1"
-  const { showAlert } = useAppAlert()
-
-  const [profile, setProfile] = useState<BusinessProfile>(() => readProfileFromStore())
-  const [savedProfileSnapshot, setSavedProfileSnapshot] = useState<BusinessProfile>(() => readProfileFromStore())
-  const [logoSource, setLogoSource] = useState("")
-  const [logoCrop, setLogoCrop] = useState<Point>({ x: 0, y: 0 })
-  const [logoZoom, setLogoZoom] = useState(1)
-  const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null)
-  const [savingProfile, setSavingProfile] = useState(false)
-  const [saveMessage, setSaveMessage] = useState("")
-
-  function createImage(src: string) {
-    return new Promise<HTMLImageElement>((resolve, reject) => {
-      const image = new Image()
-      image.addEventListener("load", () => resolve(image))
-      image.addEventListener("error", reject)
-      image.src = src
-    })
-  }
-
-  async function getCroppedLogo(imageSrc: string, pixelCrop: Area | null) {
-    if (!imageSrc) return ""
-    if (!pixelCrop) return imageSrc
-
-    const image = await createImage(imageSrc)
-    const canvas = document.createElement("canvas")
-    const context = canvas.getContext("2d")
-    if (!context) return imageSrc
-
-    canvas.width = pixelCrop.width
-    canvas.height = pixelCrop.height
-
-    context.drawImage(
-      image,
-      pixelCrop.x,
-      pixelCrop.y,
-      pixelCrop.width,
-      pixelCrop.height,
-      0,
-      0,
-      pixelCrop.width,
-      pixelCrop.height
-    )
-
-    return canvas.toDataURL("image/webp", 0.82)
-  }
 
   useEffect(() => {
     router.prefetch("/dashboard/settings")
     router.prefetch("/dashboard/invoices/create")
   }, [router])
 
-  useEffect(() => {
-    function refreshProfile() {
-      const nextProfile = readProfileFromStore()
-      setSavedProfileSnapshot(nextProfile)
-      setProfile(nextProfile)
-    }
+  return (
+    <BusinessProfileForm
+      key={buildProfileKey(business)}
+      initialProfile={business}
+      setupMode={setupMode}
+      setBusiness={setBusiness}
+    />
+  )
+}
 
-    function onKvWrite(e: Event) {
-      const key = (e as CustomEvent<{ key?: string }>).detail?.key
-      if (key === "businessProfile") {
-        refreshProfile()
-      }
-    }
+type BusinessProfileFormProps = {
+  initialProfile: BusinessProfile
+  setupMode: boolean
+  setBusiness: (data: BusinessProfile) => void
+}
 
-    function onStorage(e: StorageEvent) {
-      if (!e.key) return
-      if (e.key.startsWith("businessProfile::") || e.key === "businessProfile") {
-        refreshProfile()
-      }
-    }
-
-    window.addEventListener("easybill:cloud-sync", refreshProfile as EventListener)
-    window.addEventListener("easybill:kv-write", onKvWrite as EventListener)
-    window.addEventListener("storage", onStorage)
-    return () => {
-      window.removeEventListener("easybill:cloud-sync", refreshProfile as EventListener)
-      window.removeEventListener("easybill:kv-write", onKvWrite as EventListener)
-      window.removeEventListener("storage", onStorage)
-    }
-  }, [])
+function BusinessProfileForm({
+  initialProfile,
+  setupMode,
+  setBusiness,
+}: BusinessProfileFormProps) {
+  const router = useRouter()
+  const { showAlert } = useAppAlert()
+  const [profile, setProfile] = useState<BusinessProfile>(initialProfile || emptyProfile)
+  const [savedProfileSnapshot, setSavedProfileSnapshot] = useState<BusinessProfile>(initialProfile || emptyProfile)
+  const [logoSource, setLogoSource] = useState("")
+  const [logoCrop, setLogoCrop] = useState<Point>({ x: 0, y: 0 })
+  const [logoZoom, setLogoZoom] = useState(1)
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null)
+  const [savingProfile, setSavingProfile] = useState(false)
+  const [saveMessage, setSaveMessage] = useState("")
 
   const handleChange = (field: keyof BusinessProfile, value: string) => {
     setProfile((prev) => ({
@@ -144,6 +140,7 @@ export default function BusinessProfileClient() {
   const handleLogoUpload = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
+
     const reader = new FileReader()
     void validateLogoFile(file)
       .then(() => {
@@ -154,7 +151,6 @@ export default function BusinessProfileClient() {
           setLogoZoom(1)
           setLogoCrop({ x: 0, y: 0 })
           setCroppedAreaPixels(null)
-          // Preview while editing before cloud upload on save.
           setProfile((prev) => ({ ...prev, logo: source }))
         }
         reader.readAsDataURL(file)
@@ -224,7 +220,6 @@ export default function BusinessProfileClient() {
       nextProfile = { ...nextProfile, logoStoragePath: "" }
     }
 
-    // Persist via context so `terms` and all fields stay in sync (setBusiness normalizes + writes KV).
     setBusiness(nextProfile)
     await flushCloudKeyNow("businessProfile").catch(() => {})
     setSavedProfileSnapshot(nextProfile)
@@ -264,7 +259,7 @@ export default function BusinessProfileClient() {
         <section className="rounded-[24px] border border-emerald-200 bg-emerald-50/80 p-4 sm:p-5 lg:p-5">
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-emerald-700">Setup Step 1</p>
           <p className="mt-2 text-sm leading-7 text-slate-600">
-            Start by saving your business profile. Once this is done, we’ll take you to settings so you can finalize invoice behavior like numbering, currency, and decimals.
+            Start by saving your business profile. Once this is done, we&apos;ll take you to settings so you can finalize invoice behavior like numbering, currency, and decimals.
           </p>
           <p className="mt-2 text-xs leading-6 text-emerald-800">
             Sensitive profile fields, including bank details, are stored with encrypted handling so your business data stays protected.
@@ -519,19 +514,20 @@ export default function BusinessProfileClient() {
         </section>
       </div>
 
-        <button
-          onClick={() => void saveProfile()}
-          disabled={savingProfile}
-          className={`hidden lg:inline-flex items-center rounded-2xl px-6 py-3 text-sm font-semibold text-white transition ${
-            savingProfile ? "cursor-not-allowed bg-slate-400" : "bg-slate-950 hover:bg-slate-800"
+      <button
+        type="button"
+        onClick={() => void saveProfile()}
+        disabled={savingProfile}
+        className={`hidden lg:inline-flex items-center rounded-2xl px-6 py-3 text-sm font-semibold text-white transition ${
+          savingProfile ? "cursor-not-allowed bg-slate-400" : "bg-slate-950 hover:bg-slate-800"
         }`}
       >
         {savingProfile ? "Saving..." : setupMode ? "Save And Continue" : "Save Business Profile"}
       </button>
 
-      {/* Mobile sticky save */}
       <div className="eb-safe-bottom-pad fixed inset-x-0 bottom-0 z-40 bg-white/95 px-4 pt-3 shadow-[0_-12px_40px_rgba(15,23,42,0.08)] backdrop-blur-md lg:hidden">
         <button
+          type="button"
           onClick={() => void saveProfile()}
           disabled={savingProfile}
           className={`inline-flex w-full items-center justify-center gap-2 rounded-2xl px-6 py-3 text-sm font-semibold text-white transition ${
@@ -544,4 +540,3 @@ export default function BusinessProfileClient() {
     </div>
   )
 }
-

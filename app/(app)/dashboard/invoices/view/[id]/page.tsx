@@ -446,34 +446,45 @@ export default function ViewInvoice() {
     return new File([blob], `Invoice-${invoiceNumber}.pdf`, { type: "application/pdf" })
   }
 
+  async function sharePreparedExport({
+    url,
+    file,
+  }: {
+    url: string
+    file: File | null
+  }) {
+    const canShareFiles =
+      file && typeof navigator.canShare === "function" ? navigator.canShare({ files: [file] }) : Boolean(file)
+
+    if (typeof navigator.share === "function" && file && canShareFiles) {
+      await navigator.share({ files: [file], title: "Invoice" })
+      return true
+    }
+
+    if (typeof navigator.share === "function") {
+      await navigator.share({ url, title: "Invoice" })
+      return true
+    }
+
+    return false
+  }
+
   async function shareExportedPdf() {
     if (!exportedPdfUrl || !invoice || exportSheetBusy) return
     setExportSheetBusy("share")
     try {
-      const file = exportedPdfFile
-      const canShareFiles =
-        file && typeof navigator.canShare === "function" ? navigator.canShare({ files: [file] }) : Boolean(file)
-
-      if (typeof navigator.share === "function" && file && canShareFiles) {
-        try {
-          await navigator.share({ files: [file], title: "Invoice" })
+      try {
+        const shared = await sharePreparedExport({
+          url: exportedPdfUrl,
+          file: exportedPdfFile,
+        })
+        if (shared) {
           markInvoiceIssued()
           setExportSheetOpen(false)
           return
-        } catch {
-          // User cancelled or share failed. Fall through to the direct PDF link.
         }
-      }
-
-      if (typeof navigator.share === "function") {
-        try {
-          await navigator.share({ url: exportedPdfUrl, title: "Invoice" })
-          markInvoiceIssued()
-          setExportSheetOpen(false)
-          return
-        } catch {
-          // User cancelled or share failed. Fall through to a new tab.
-        }
+      } catch {
+        // User cancelled or share failed. Fall through to a new tab.
       }
 
       window.open(exportedPdfUrl, "_blank", "noopener,noreferrer")
@@ -555,7 +566,7 @@ export default function ViewInvoice() {
             setExportedPdfFile(preparedFile)
             setExportSheetOpen(true)
             setDownloadNoticeTone("success")
-            setDownloadNotice("PDF is ready - share or download below.")
+            setDownloadNotice("PDF is ready.")
             window.setTimeout(() => setDownloadNotice(""), 8000)
             return
           }

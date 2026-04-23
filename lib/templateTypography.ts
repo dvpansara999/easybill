@@ -75,6 +75,14 @@ export function saveStoredTemplateTypography(fontId: string, fontSize: number) {
 
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { setActiveOrGlobalItem } = require("@/lib/userStore") as typeof import("@/lib/userStore")
+  setActiveOrGlobalItem(
+    "templateTypography",
+    JSON.stringify({
+      fontId,
+      fontFamily: getTemplateFontCss(fontId),
+      fontSize,
+    })
+  )
   setActiveOrGlobalItem("invoiceTemplateFontId", fontId)
   setActiveOrGlobalItem("invoiceTemplateFontSize", String(fontSize))
 }
