@@ -98,11 +98,10 @@ export async function POST(req: Request) {
     if (!signedUrl) {
       return pdfError("Could not prepare secure PDF access.", "EXPORT_STORAGE", 500)
     }
-    await supabase
+    void supabase
       .from("invoice_pdf_exports")
       .update({ last_accessed_at: new Date().toISOString() })
       .eq("id", cached.id)
-      .catch(() => {})
     logExport("cache-hit", {
       invoiceId: resolvedSource.source.invoiceRecordId,
       invoiceNumber: resolvedSource.source.fileInvoiceNumber,

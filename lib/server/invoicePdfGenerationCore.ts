@@ -224,26 +224,35 @@ export async function resolveInvoicePdfSourceForUser(
   const invoiceRow = invoiceRes.data as Record<string, unknown>
   const safeInvoiceRow = revealSensitiveFields(invoiceRow, ["client_phone", "client_gst"])
   const found = normalizeInvoiceRecord({
-    id: safeInvoiceRow.id,
-    invoiceNumber: safeInvoiceRow.invoice_number,
-    createdAt: safeInvoiceRow.created_at,
-    numberingModeAtCreation: safeInvoiceRow.numbering_mode_at_creation,
-    resetMonthDayAtCreation: safeInvoiceRow.reset_month_day_at_creation,
-    sequenceWindowStart: safeInvoiceRow.sequence_window_start,
-    sequenceWindowEnd: safeInvoiceRow.sequence_window_end,
-    clientName: safeInvoiceRow.client_name,
-    clientPhone: safeInvoiceRow.client_phone,
-    clientEmail: safeInvoiceRow.client_email,
-    clientGST: safeInvoiceRow.client_gst,
-    clientAddress: safeInvoiceRow.client_address,
+    id: String(safeInvoiceRow.id || ""),
+    invoiceNumber: String(safeInvoiceRow.invoice_number || ""),
+    createdAt: typeof safeInvoiceRow.created_at === "string" ? safeInvoiceRow.created_at : undefined,
+    numberingModeAtCreation:
+      safeInvoiceRow.numbering_mode_at_creation === "financial-year-reset" ? "financial-year-reset" : "continuous",
+    resetMonthDayAtCreation:
+      typeof safeInvoiceRow.reset_month_day_at_creation === "string"
+        ? safeInvoiceRow.reset_month_day_at_creation
+        : null,
+    sequenceWindowStart:
+      typeof safeInvoiceRow.sequence_window_start === "string" ? safeInvoiceRow.sequence_window_start : null,
+    sequenceWindowEnd:
+      typeof safeInvoiceRow.sequence_window_end === "string" ? safeInvoiceRow.sequence_window_end : null,
+    clientName: String(safeInvoiceRow.client_name || ""),
+    clientPhone: String(safeInvoiceRow.client_phone || ""),
+    clientEmail: String(safeInvoiceRow.client_email || ""),
+    clientGST: String(safeInvoiceRow.client_gst || ""),
+    clientAddress: String(safeInvoiceRow.client_address || ""),
     date:
       typeof safeInvoiceRow.invoice_date === "string"
         ? safeInvoiceRow.invoice_date
         : mapStoredDateToLocalDate(new Date(String(safeInvoiceRow.invoice_date || ""))) || "",
-    customDetails: safeInvoiceRow.custom_details,
+    customDetails: Array.isArray(safeInvoiceRow.custom_details) ? safeInvoiceRow.custom_details : [],
     items: Array.isArray(safeInvoiceRow.invoice_items) ? safeInvoiceRow.invoice_items : [],
-    notes: safeInvoiceRow.notes,
-    status: safeInvoiceRow.status,
+    notes: typeof safeInvoiceRow.notes === "string" ? safeInvoiceRow.notes : "",
+    status:
+      safeInvoiceRow.status === "paid" || safeInvoiceRow.status === "issued" || safeInvoiceRow.status === "draft"
+        ? safeInvoiceRow.status
+        : "draft",
     history:
       Array.isArray(safeInvoiceRow.invoice_history)
         ? safeInvoiceRow.invoice_history.map((entry) => ({
@@ -258,7 +267,7 @@ export async function resolveInvoicePdfSourceForUser(
             at: String((entry as Record<string, unknown>).happened_at || new Date().toISOString()),
           }))
         : [],
-    grandTotal: safeInvoiceRow.grand_total,
+    grandTotal: Number(safeInvoiceRow.grand_total || 0),
   })
 
   const invoiceData = normalizeInvoiceForPdf(found as Record<string, unknown>)
@@ -282,16 +291,16 @@ export async function resolveInvoicePdfSourceForUser(
   }
 
   const businessObj = normalizeBusinessProfile({
-    businessName: profile.business_name,
-    phone: profile.phone,
-    email: profile.email,
-    gst: profile.gst,
-    address: profile.address,
-    bankName: profile.bank_name,
-    accountNumber: profile.account_number,
-    ifsc: profile.ifsc,
-    upi: profile.upi,
-    terms: profile.terms,
+    businessName: String(profile.business_name || ""),
+    phone: String(profile.phone || ""),
+    email: String(profile.email || ""),
+    gst: String(profile.gst || ""),
+    address: String(profile.address || ""),
+    bankName: String(profile.bank_name || ""),
+    accountNumber: String(profile.account_number || ""),
+    ifsc: String(profile.ifsc || ""),
+    upi: String(profile.upi || ""),
+    terms: String(profile.terms || ""),
     logo: logoSignedUrl || "",
     logoStoragePath,
     logoShape: profile.logo_shape,
