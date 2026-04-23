@@ -5,7 +5,7 @@ import { DEFAULT_RESET_MONTH_DAY, normalizeResetMonthDay } from "@/lib/invoiceRe
 import { getActiveOrGlobalItem, setActiveOrGlobalItem } from "@/lib/userStore"
 
 export type AppBackupPayload = {
-  version: 1
+  version: 1 | 2
   exportedAt: string
   data: {
     businessProfile: BusinessProfileRecord
@@ -26,6 +26,8 @@ export type AppBackupPayload = {
       invoiceVisibility: InvoiceVisibilitySettings
       invoiceTemplate: string
       templateTypography: string
+      templateFontId?: string
+      templateFontSize?: number
     }
   }
 }
@@ -44,7 +46,7 @@ export function buildAppBackupPayload(): AppBackupPayload {
   const visibilityParsed = safeParse<Partial<InvoiceVisibilitySettings>>(visibilityRaw, {})
 
   return {
-    version: 1,
+    version: 2,
     exportedAt: new Date().toISOString(),
     data: {
       businessProfile: normalizeBusinessProfile(safeParse(getActiveOrGlobalItem("businessProfile"), {})),
@@ -65,6 +67,8 @@ export function buildAppBackupPayload(): AppBackupPayload {
         invoiceVisibility: { ...DEFAULT_INVOICE_VISIBILITY, ...visibilityParsed },
         invoiceTemplate: getActiveOrGlobalItem("invoiceTemplate") || "",
         templateTypography: getActiveOrGlobalItem("templateTypography") || "",
+        templateFontId: getActiveOrGlobalItem("invoiceTemplateFontId") || "",
+        templateFontSize: Number(getActiveOrGlobalItem("invoiceTemplateFontSize") || 10),
       },
     },
   }
@@ -86,7 +90,7 @@ export function downloadAppBackupJson() {
 export async function importAppBackupJson(file: File) {
   const raw = await file.text()
   const parsed = JSON.parse(raw) as Partial<AppBackupPayload>
-  if (!parsed || parsed.version !== 1 || !parsed.data) {
+  if (!parsed || (parsed.version !== 1 && parsed.version !== 2) || !parsed.data) {
     throw new Error("This backup file is not valid for easyBILL import.")
   }
 
@@ -115,6 +119,8 @@ export async function importAppBackupJson(file: File) {
   setActiveOrGlobalItem("invoiceVisibility", JSON.stringify(visibility))
   setActiveOrGlobalItem("invoiceTemplate", String(settings.invoiceTemplate || ""))
   setActiveOrGlobalItem("templateTypography", String(settings.templateTypography || ""))
+  setActiveOrGlobalItem("invoiceTemplateFontId", String(settings.templateFontId || ""))
+  setActiveOrGlobalItem("invoiceTemplateFontSize", String(Number(settings.templateFontSize || 10)))
 
   window.dispatchEvent(new CustomEvent("easybill:cloud-sync"))
 

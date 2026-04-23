@@ -17,30 +17,26 @@ export async function GET(request: Request) {
       return NextResponse.redirect(new URL("/dashboard", url.origin))
     }
 
-    const { data: setupRows } = await supabase
-      .from("user_kv")
-      .select("key,value")
-      .eq("user_id", user.id)
-      .in("key", ["businessProfile", "accountSetupBundle"])
+    await Promise.allSettled([
+      supabase.from("profiles").upsert({ user_id: user.id, onboarding_completed: false }, { onConflict: "user_id" }),
+      supabase.from("user_settings").upsert({ user_id: user.id }, { onConflict: "user_id" }),
+    ])
 
-    const rows = (setupRows ?? []) as Array<{ key: string; value: unknown }>
-    const legacy = rows.find((r) => r.key === "businessProfile")?.value
-    const bundledRaw = rows.find((r) => r.key === "accountSetupBundle")?.value
-    let bundledProfile: unknown = null
-    if (bundledRaw && typeof bundledRaw === "object") {
-      bundledProfile = (bundledRaw as Record<string, unknown>).businessProfile
-    } else if (typeof bundledRaw === "string") {
-      try {
-        const parsed = JSON.parse(bundledRaw) as Record<string, unknown>
-        bundledProfile = parsed.businessProfile
-      } catch {
-        bundledProfile = null
-      }
-    }
-    const hasBusinessProfile = Boolean(legacy || bundledProfile)
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("onboarding_completed,business_name,address,phone,email")
+      .eq("user_id", user.id)
+      .maybeSingle()
+
+    const hasBusinessProfile = Boolean(
+      profile?.onboarding_completed ||
+        profile?.business_name ||
+        profile?.address ||
+        profile?.phone ||
+        profile?.email
+    )
 
     return NextResponse.redirect(new URL(hasBusinessProfile ? "/dashboard" : "/setup/profile", url.origin))
   }
   return NextResponse.redirect(new URL("/dashboard", url.origin))
 }
-

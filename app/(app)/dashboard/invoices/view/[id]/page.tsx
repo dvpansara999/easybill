@@ -1,8 +1,7 @@
-﻿"use client"
+"use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Minus, Plus, Share2, X } from "lucide-react"
-import { flushSync } from "react-dom"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { useSettings } from "@/context/SettingsContext"
 import { formatAmountInWordsIndian } from "@/lib/amountInWords"
@@ -23,6 +22,7 @@ import {
 import { getStoredTemplateTypography } from "@/lib/templateTypography"
 import { normalizeTemplateTypography } from "@/lib/globalTemplateTypography"
 import { getActiveOrGlobalItem } from "@/lib/userStore"
+import { useWorkspaceValue } from "@/lib/useWorkspaceValue"
 import A4InvoiceView from "@/components/invoiceView/A4InvoiceView"
 
 import html2canvas from "html2canvas"
@@ -95,7 +95,10 @@ export default function ViewInvoice() {
   const invoiceId = getInvoiceIdFromParams(params?.id)
   const returnTo = searchParams.get("returnTo") || "/dashboard/invoices"
 
-  const [viewState, setViewState] = useState<InvoiceViewState>(() => readInvoiceViewState(invoiceId))
+  const viewState = useWorkspaceValue(
+    ["invoices", "businessProfile", "invoiceTemplate", "templateTypography", "invoiceTemplateFontId", "invoiceTemplateFontSize"],
+    () => readInvoiceViewState(invoiceId)
+  )
   const [downloadingPdf, setDownloadingPdf] = useState(false)
   const [downloadError, setDownloadError] = useState("")
   const [downloadNotice, setDownloadNotice] = useState("")
@@ -120,23 +123,6 @@ export default function ViewInvoice() {
     return () => mq.removeEventListener("change", apply)
   }, [])
 
-  // Stay in sync with Templates page + KV (template, typography, invoices) without full remount.
-  useEffect(() => {
-    setViewState(readInvoiceViewState(invoiceId))
-  }, [invoiceId])
-
-  useEffect(() => {
-    const refresh = () => setViewState(readInvoiceViewState(invoiceId))
-    window.addEventListener("easybill:kv-write", refresh as EventListener)
-    window.addEventListener("easybill:cloud-sync", refresh as EventListener)
-    window.addEventListener("storage", refresh)
-    return () => {
-      window.removeEventListener("easybill:kv-write", refresh as EventListener)
-      window.removeEventListener("easybill:cloud-sync", refresh as EventListener)
-      window.removeEventListener("storage", refresh)
-    }
-  }, [invoiceId])
-
   const invoice = viewState.invoice
   const business = viewState.business
   const template = viewState.template
@@ -150,7 +136,6 @@ export default function ViewInvoice() {
       if (index === -1) return
       invoices[index] = normalizeInvoiceRecord(updater(invoices[index]))
       writeStoredInvoices(invoices)
-      setViewState(readInvoiceViewState(invoiceId))
     },
     [invoiceId]
   )
@@ -379,9 +364,6 @@ export default function ViewInvoice() {
   async function downloadInvoiceDirect() {
     if (!invoice) return
 
-    flushSync(() => {
-      setViewState(readInvoiceViewState(invoiceId))
-    })
     await new Promise<void>((resolve) => {
       requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
     })
@@ -539,9 +521,6 @@ export default function ViewInvoice() {
     setExportSheetBusy(null)
 
     try {
-      flushSync(() => {
-        setViewState(readInvoiceViewState(invoiceId))
-      })
       await new Promise<void>((resolve) => {
         requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
       })
@@ -633,6 +612,7 @@ export default function ViewInvoice() {
               Duplicate
             </button>
             <button
+              type="button"
               onClick={downloadInvoice}
               disabled={downloadingPdf}
               className={`w-full rounded-2xl px-4 py-3 text-sm font-semibold text-white transition sm:w-auto ${
@@ -807,4 +787,6 @@ export default function ViewInvoice() {
     </div>
   )
 }
+
+
 

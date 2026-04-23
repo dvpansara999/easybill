@@ -18,6 +18,7 @@ import { flushCloudKeyNow, setActiveOrGlobalItem } from "@/lib/userStore"
 import { getSupabaseUser } from "@/lib/supabase/browser"
 import SelectMenu from "@/components/ui/SelectMenu"
 import { readStoredInvoices, type InvoiceRecord } from "@/lib/invoice"
+import { useWorkspaceValue } from "@/lib/useWorkspaceValue"
 import { useAppAlert } from "@/components/providers/AppAlertProvider"
 import { requestGuardedNavigation, useUnsavedChangesGuard } from "@/lib/unsavedChangesGuard"
 import { downloadAppBackupJson, importAppBackupJson } from "@/lib/appBackup"
@@ -71,7 +72,7 @@ export default function SettingsClient() {
   const [draftCurrencyPosition, setDraftCurrencyPosition] = useState(currencyPosition)
   const [ready, setReady] = useState(false)
   const [saveMessage, setSaveMessage] = useState("")
-  const [invoiceHistory, setInvoiceHistory] = useState<InvoiceRecord[]>([])
+  const invoiceHistory = useWorkspaceValue<InvoiceRecord[]>(["invoices"], readStoredInvoices)
   const [accountEmail, setAccountEmail] = useState("")
   const [accountUserId, setAccountUserId] = useState("")
   const [currentPassword, setCurrentPassword] = useState("")
@@ -137,7 +138,6 @@ export default function SettingsClient() {
     setDraftCurrencySymbol(currencySymbol)
     setDraftCurrencyPosition(currencyPosition)
 
-    setInvoiceHistory(readStoredInvoices())
     setReady(true)
   }, [
     dateFormat,
@@ -549,6 +549,9 @@ export default function SettingsClient() {
         flushCloudKeyNow("currencyPosition"),
         flushCloudKeyNow("invoiceVisibility"),
         flushCloudKeyNow("invoiceTemplate"),
+        flushCloudKeyNow("templateTypography"),
+        flushCloudKeyNow("invoiceTemplateFontId"),
+        flushCloudKeyNow("invoiceTemplateFontSize"),
       ])
       showAlert({
         tone: "success",

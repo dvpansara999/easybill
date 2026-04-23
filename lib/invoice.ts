@@ -152,6 +152,7 @@ export type BusinessRecord = {
   upi: string
   terms: string
   logo: string
+  logoStoragePath?: string
   logoShape: "square" | "round"
 }
 

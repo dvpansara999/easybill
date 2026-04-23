@@ -1,6 +1,6 @@
 "use client"
 
-import { startTransition, useDeferredValue, useEffect, useMemo, useState } from "react"
+import { useDeferredValue, useEffect, useMemo, useState } from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { useSettings } from "@/context/SettingsContext"
 import { formatDate, getStoredDateParts } from "@/lib/dateFormat"
@@ -9,6 +9,7 @@ import { sortInvoicesNewestFirst } from "@/lib/invoiceCollections"
 import { matchesCustomerIdentity } from "@/lib/customerIdentity"
 import { ArrowLeft, FilePlus2, Mail, MapPin, Phone, ReceiptIndianRupee } from "lucide-react"
 import { readStoredInvoices, type InvoiceRecord } from "@/lib/invoice"
+import { useWorkspaceValue } from "@/lib/useWorkspaceValue"
 import SelectMenu from "@/components/ui/SelectMenu"
 import NotFoundRecoveryCard from "@/components/shared/NotFoundRecoveryCard"
 
@@ -29,8 +30,7 @@ export default function CustomerDetails() {
   const returnTo = searchParams.get("returnTo") || "/dashboard/customers"
   const [month, setMonth] = useState(searchParams.get("month") || "all")
   const [year, setYear] = useState(searchParams.get("year") || "all")
-  const [allInvoices, setAllInvoices] = useState<InvoiceRecord[]>(() => readStoredInvoices())
-  const [refreshing, setRefreshing] = useState(false)
+  const allInvoices = useWorkspaceValue<InvoiceRecord[]>(["invoices"], readStoredInvoices)
   const deferredMonth = useDeferredValue(month)
   const deferredYear = useDeferredValue(year)
 
@@ -44,50 +44,6 @@ export default function CustomerDetails() {
         router.prefetch(`/dashboard/invoices/view/${encodeURIComponent(invoice.id)}`)
       })
   }, [allInvoices, customerIdentity, router])
-
-  useEffect(() => {
-    let refreshTimer: number | null = null
-
-    const refreshInvoices = () => {
-      if (refreshTimer != null) {
-        window.clearTimeout(refreshTimer)
-      }
-      setRefreshing(true)
-      refreshTimer = window.setTimeout(() => {
-        startTransition(() => {
-          setAllInvoices(readStoredInvoices())
-          setRefreshing(false)
-        })
-        refreshTimer = null
-      }, 80)
-    }
-
-    const onCloudSync = () => refreshInvoices()
-    const onKvWrite = (event: Event) => {
-      const detail = (event as CustomEvent<{ key?: string }>).detail
-      if (detail?.key === "invoices") {
-        refreshInvoices()
-      }
-    }
-    const onStorage = (event: StorageEvent) => {
-      const key = event.key || ""
-      if (key.startsWith("invoices::") || key === "invoices") {
-        refreshInvoices()
-      }
-    }
-
-    window.addEventListener("easybill:cloud-sync", onCloudSync as EventListener)
-    window.addEventListener("easybill:kv-write", onKvWrite as EventListener)
-    window.addEventListener("storage", onStorage)
-    return () => {
-      if (refreshTimer != null) {
-        window.clearTimeout(refreshTimer)
-      }
-      window.removeEventListener("easybill:cloud-sync", onCloudSync as EventListener)
-      window.removeEventListener("easybill:kv-write", onKvWrite as EventListener)
-      window.removeEventListener("storage", onStorage)
-    }
-  }, [])
 
   const invoices = useMemo(
     () => sortInvoicesNewestFirst(allInvoices.filter((invoice) => matchesCustomerIdentity(invoice, customerIdentity))),
@@ -310,7 +266,6 @@ export default function CustomerDetails() {
             <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-500">
               Use the month and year filters to narrow down this customer&apos;s invoice timeline.
             </p>
-            {refreshing ? <p className="mt-2 text-xs font-medium text-emerald-700">Refreshing invoice history...</p> : null}
           </div>
 
           <div className="grid grid-cols-2 gap-3">

@@ -1,7 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
-import { revealSensitiveDataFromStorage } from "@/lib/sensitiveData"
-import { normalizeInvoiceStorePayload } from "@/lib/invoice"
-import { LOGO_BUCKET, getOwnedLogoStoragePath } from "@/lib/logoStorage"
+import { LOGO_BUCKET } from "@/lib/logoStorage"
 import { INVOICE_PDF_BUCKET } from "@/lib/server/invoicePdfExportConfig"
 
 type StorageObjectRow = {
@@ -16,11 +14,9 @@ type InvoicePdfExportDbRow = {
   created_at?: string | null
 }
 
-type UserKvRow = {
+type ProfileRow = {
   user_id: string
-  key: string
-  value: unknown
-  updated_at?: string | null
+  logo_storage_path?: string | null
 }
 
 const STORAGE_BATCH_SIZE = 1000
@@ -100,73 +96,30 @@ export function buildPdfExportReferenceSet(rows: Array<{ storage_path?: string |
   return new Set(rows.map((row) => row.storage_path).filter((value): value is string => Boolean(value)))
 }
 
-function parseJsonLoose(raw: unknown) {
-  if (typeof raw !== "string" || !raw) return null
-  try {
-    return JSON.parse(raw) as unknown
-  } catch {
-    return null
-  }
-}
-
-function extractBusinessProfileFromKvRow(row: UserKvRow) {
-  if (row.key === "businessProfile") {
-    const raw = typeof row.value === "string" ? row.value : JSON.stringify(row.value)
-    const revealed = revealSensitiveDataFromStorage("businessProfile", raw)
-    const parsed = parseJsonLoose(revealed)
-    return parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : null
-  }
-
-  if (row.key === "accountSetupBundle") {
-    const bundle = parseJsonLoose(typeof row.value === "string" ? row.value : JSON.stringify(row.value))
-    if (!bundle || typeof bundle !== "object") return null
-    const businessRaw = (bundle as Record<string, unknown>).businessProfile
-    if (typeof businessRaw !== "string") return null
-    const revealed = revealSensitiveDataFromStorage("businessProfile", businessRaw)
-    const parsed = parseJsonLoose(revealed)
-    return parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : null
-  }
-
-  return null
-}
-
 export async function buildReferencedLogoPathSet(admin: SupabaseClient) {
-  const rows: UserKvRow[] = []
+  const rows: ProfileRow[] = []
   let from = 0
 
   for (;;) {
     const to = from + STORAGE_BATCH_SIZE - 1
     const query = await admin
-      .from("user_kv")
-      .select("user_id, key, value, updated_at")
-      .in("key", ["businessProfile", "accountSetupBundle"])
-      .order("updated_at", { ascending: false })
+      .from("profiles")
+      .select("user_id, logo_storage_path")
       .range(from, to)
 
     if (query.error) {
       throw new Error(query.error.message)
     }
 
-    const batch = (query.data || []) as UserKvRow[]
+    const batch = (query.data || []) as ProfileRow[]
     rows.push(...batch)
     if (batch.length < STORAGE_BATCH_SIZE) break
     from += STORAGE_BATCH_SIZE
   }
 
-  const latestByUser = new Map<string, Record<string, unknown>>()
-  for (const row of rows) {
-    if (latestByUser.has(row.user_id)) continue
-    const businessProfile = extractBusinessProfileFromKvRow(row)
-    if (businessProfile) {
-      latestByUser.set(row.user_id, businessProfile)
-    }
-  }
-
   const referenced = new Set<string>()
-  for (const [userId, profile] of latestByUser.entries()) {
-    const logo = typeof profile.logo === "string" ? profile.logo.trim() : ""
-    if (!logo) continue
-    const storagePath = getOwnedLogoStoragePath(logo, userId)
+  for (const row of rows) {
+    const storagePath = typeof row.logo_storage_path === "string" ? row.logo_storage_path.trim() : ""
     if (storagePath) referenced.add(storagePath)
   }
 
@@ -174,22 +127,21 @@ export async function buildReferencedLogoPathSet(admin: SupabaseClient) {
 }
 
 export async function buildReferencedInvoiceIdsByUser(admin: SupabaseClient) {
-  const rows: UserKvRow[] = []
+  const rows: Array<{ user_id: string; id: string }> = []
   let from = 0
 
   for (;;) {
     const to = from + STORAGE_BATCH_SIZE - 1
     const query = await admin
-      .from("user_kv")
-      .select("user_id, key, value")
-      .in("key", ["invoices", "accountSetupBundle"])
+      .from("invoices")
+      .select("user_id, id")
       .range(from, to)
 
     if (query.error) {
       throw new Error(query.error.message)
     }
 
-    const batch = (query.data || []) as UserKvRow[]
+    const batch = (query.data || []) as Array<{ user_id: string; id: string }>
     rows.push(...batch)
     if (batch.length < STORAGE_BATCH_SIZE) break
     from += STORAGE_BATCH_SIZE
@@ -198,24 +150,8 @@ export async function buildReferencedInvoiceIdsByUser(admin: SupabaseClient) {
   const invoiceIdsByUser = new Map<string, Set<string>>()
 
   for (const row of rows) {
-    const raw = typeof row.value === "string" ? row.value : JSON.stringify(row.value)
-    const revealed = revealSensitiveDataFromStorage("invoices", raw)
-    const parsed = parseJsonLoose(revealed)
-
-    let invoicePayload: unknown = null
-    if (row.key === "invoices") {
-      invoicePayload = parsed
-    } else if (parsed && typeof parsed === "object" && "invoices" in parsed) {
-      invoicePayload = (parsed as Record<string, unknown>).invoices
-    }
-
-    if (!invoicePayload) continue
-
-    const { store } = normalizeInvoiceStorePayload(invoicePayload)
     const target = invoiceIdsByUser.get(row.user_id) || new Set<string>()
-    for (const invoice of store.invoices) {
-      if (invoice.id) target.add(invoice.id)
-    }
+    if (row.id) target.add(row.id)
     invoiceIdsByUser.set(row.user_id, target)
   }
 

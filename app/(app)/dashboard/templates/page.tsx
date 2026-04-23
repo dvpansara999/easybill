@@ -1,6 +1,6 @@
 "use client"
 
-import { createElement, startTransition, useMemo, useState, useEffect, useRef } from "react"
+import { createElement, useMemo, useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { ChevronDown, Sparkles } from "lucide-react"
 import { templates as templateEngines } from "@/components/invoiceTemplates"
@@ -9,6 +9,7 @@ import { previewTemplateProps } from "@/lib/templatePreviewData"
 import { getStoredTemplateTypography, saveStoredTemplateTypography, templateFontOptions, templateFontSizeOptions } from "@/lib/templateTypography"
 import { normalizeTemplateTypography } from "@/lib/globalTemplateTypography"
 import { getActiveOrGlobalItem, isActiveUserKvHydrated, setActiveOrGlobalItem } from "@/lib/userStore"
+import { useWorkspaceValue } from "@/lib/useWorkspaceValue"
 import A4LargePreview from "@/components/templatePreview/A4LargePreview"
 import { canUseTemplate, getActivePlanId } from "@/lib/plans"
 import SelectMenu from "@/components/ui/SelectMenu"
@@ -44,21 +45,36 @@ function getTemplateEngine(id: string) {
   return templateEngines.default
 }
 
+function readTemplateWorkspaceState() {
+  const saved = getActiveOrGlobalItem("invoiceTemplate")
+  const typography = normalizeTemplateTypography(getStoredTemplateTypography())
+  return {
+    templateId: resolveTemplateId(saved),
+    hasSavedTemplate: Boolean(saved),
+    typography,
+  }
+}
+
 export default function TemplatesPage(){
 
 const router = useRouter()
 const { showAlert } = useAppAlert()
 
 const [previewTemplate,setPreviewTemplate] = useState(DEFAULT_TEMPLATE_ID)
-const [activeTemplate,setActiveTemplate] = useState(DEFAULT_TEMPLATE_ID)
-const [fontId,setFontId] = useState("system")
-const [fontFamily,setFontFamily] = useState(previewTemplateProps.fontFamily)
-const [fontSize,setFontSize] = useState(previewTemplateProps.fontSize)
 const leftColumnRef = useRef<HTMLDivElement | null>(null)
 const [leftColumnHeight,setLeftColumnHeight] = useState<number>(0)
 const [isXl, setIsXl] = useState(false)
 const [applyingTemplate, setApplyingTemplate] = useState(false)
 const [templateStatus, setTemplateStatus] = useState("")
+const previousActiveTemplateRef = useRef(DEFAULT_TEMPLATE_ID)
+const templateWorkspaceState = useWorkspaceValue(
+  ["invoiceTemplate", "templateTypography", "invoiceTemplateFontId", "invoiceTemplateFontSize"],
+  readTemplateWorkspaceState
+)
+const activeTemplate = templateWorkspaceState.hasSavedTemplate ? templateWorkspaceState.templateId : DEFAULT_TEMPLATE_ID
+const fontId = templateWorkspaceState.typography.fontId
+const fontFamily = templateWorkspaceState.typography.fontFamily
+const fontSize = templateWorkspaceState.typography.fontSize
 
 const templates: TemplateListItem[] = templateRegistry
 
@@ -86,63 +102,20 @@ useEffect(()=>{
   return ()=>ro.disconnect()
 },[])
 
-useEffect(()=>{
-  function initFromStore(writeDefaults: boolean) {
-    const saved = getActiveOrGlobalItem("invoiceTemplate")
-    const resolvedSaved = resolveTemplateId(saved)
-    if (saved) {
-      setActiveTemplate(resolvedSaved)
-      setPreviewTemplate(resolvedSaved)
-      if (saved !== resolvedSaved) {
-        setActiveOrGlobalItem("invoiceTemplate", resolvedSaved)
-      }
-    } else if (writeDefaults) {
-      // Brand-new user default.
-      setActiveOrGlobalItem("invoiceTemplate", DEFAULT_TEMPLATE_ID)
-      setActiveTemplate(DEFAULT_TEMPLATE_ID)
-      setPreviewTemplate(DEFAULT_TEMPLATE_ID)
-    }
-
-    const typography = normalizeTemplateTypography(getStoredTemplateTypography())
-    setFontId(typography.fontId)
-    setFontFamily(typography.fontFamily)
-    setFontSize(typography.fontSize)
-  }
-
+useEffect(() => {
   const shouldWriteDefaults =
     getAuthMode() !== "supabase" || isActiveUserKvHydrated()
 
-  initFromStore(shouldWriteDefaults)
+  if (!templateWorkspaceState.hasSavedTemplate && shouldWriteDefaults) {
+    setActiveOrGlobalItem("invoiceTemplate", DEFAULT_TEMPLATE_ID)
+  }
+}, [templateWorkspaceState.hasSavedTemplate])
 
-  function onCloud() {
-    initFromStore(true)
-  }
-  function onKvWrite(e: Event) {
-    const key = (e as CustomEvent<{ key?: string }>).detail?.key
-    if (key === "invoiceTemplate" || key === "templateTypography" || key === "invoiceTemplateFontId" || key === "invoiceTemplateFontSize") {
-      initFromStore(true)
-    }
-  }
-  function onStorage(e: StorageEvent) {
-    const key = e.key || ""
-    if (
-      key.startsWith("invoiceTemplate::") ||
-      key.startsWith("templateTypography::") ||
-      key.startsWith("invoiceTemplateFontId::") ||
-      key.startsWith("invoiceTemplateFontSize::")
-    ) {
-      initFromStore(true)
-    }
-  }
-  window.addEventListener("easybill:cloud-sync", onCloud as EventListener)
-  window.addEventListener("easybill:kv-write", onKvWrite as EventListener)
-  window.addEventListener("storage", onStorage)
-  return () => {
-    window.removeEventListener("easybill:cloud-sync", onCloud as EventListener)
-    window.removeEventListener("easybill:kv-write", onKvWrite as EventListener)
-    window.removeEventListener("storage", onStorage)
-  }
-},[])
+useEffect(() => {
+  const previousActiveTemplate = previousActiveTemplateRef.current
+  setPreviewTemplate((current) => (current === previousActiveTemplate ? activeTemplate : current))
+  previousActiveTemplateRef.current = activeTemplate
+}, [activeTemplate])
 
 async function activateTemplate(){
 
@@ -162,9 +135,6 @@ if(!canUseTemplate(previewTemplate)){
 setApplyingTemplate(true)
 setTemplateStatus("")
 setActiveOrGlobalItem("invoiceTemplate",previewTemplate)
-startTransition(() => {
-  setActiveTemplate(previewTemplate)
-})
 await new Promise((resolve) => window.setTimeout(resolve, 100))
 setApplyingTemplate(false)
 setTemplateStatus("Template is now active for new invoices and previews.")
@@ -187,9 +157,6 @@ const normalized = normalizeTemplateTypography({
   fontSize,
 })
 
-setFontId(normalized.fontId)
-setFontFamily(normalized.fontFamily)
-setFontSize(normalized.fontSize)
 saveStoredTemplateTypography(normalized.fontId,normalized.fontSize)
 
 }
@@ -197,9 +164,6 @@ saveStoredTemplateTypography(normalized.fontId,normalized.fontSize)
 function updateFontSize(nextFontSize:number){
 
 const normalized = normalizeTemplateTypography({ fontId, fontFamily, fontSize: nextFontSize })
-setFontId(normalized.fontId)
-setFontFamily(normalized.fontFamily)
-setFontSize(normalized.fontSize)
 saveStoredTemplateTypography(normalized.fontId,normalized.fontSize)
 
 }

@@ -767,7 +767,7 @@ export default function Home() {
       }
 
       // Save identity draft so step-1 can prefill after the OTP link is clicked.
-      // No authenticated session exists yet, so this is stored globally and later synced to user_kv.
+      // No authenticated session exists yet, so this is stored locally and later synced into the relational profile/settings rows.
       try {
         localStorage.removeItem("setupProfileDraft")
         localStorage.removeItem("setupResumePath")
@@ -813,8 +813,7 @@ export default function Home() {
       // ignore
     }
 
-    // After sign-in, check onboarding completion.
-    // If they haven't completed setup (no businessProfile), send them to Step 1.
+    // After sign-in, check onboarding completion from the relational profile row.
     const navigate = async () => {
       const supabase = createSupabaseBrowserClient()
       const { data: me } = await getSupabaseUser()
@@ -824,27 +823,24 @@ export default function Home() {
         return
       }
 
-      const { data: setupRows } = await supabase
-        .from("user_kv")
-        .select("key,value")
-        .eq("user_id", userId)
-        .in("key", ["businessProfile", "accountSetupBundle"])
+      await Promise.allSettled([
+        supabase.from("profiles").upsert({ user_id: userId, onboarding_completed: false }, { onConflict: "user_id" }),
+        supabase.from("user_settings").upsert({ user_id: userId }, { onConflict: "user_id" }),
+      ])
 
-      const rows = (setupRows ?? []) as Array<{ key: string; value: unknown }>
-      const legacyProfile = rows.find((r) => r.key === "businessProfile")?.value
-      const bundledRaw = rows.find((r) => r.key === "accountSetupBundle")?.value
-      let bundledProfile: unknown = null
-      if (bundledRaw && typeof bundledRaw === "object") {
-        bundledProfile = (bundledRaw as Record<string, unknown>).businessProfile
-      } else if (typeof bundledRaw === "string") {
-        try {
-          const parsed = JSON.parse(bundledRaw) as Record<string, unknown>
-          bundledProfile = parsed.businessProfile
-        } catch {
-          bundledProfile = null
-        }
-      }
-      const hasBusinessProfile = Boolean(legacyProfile || bundledProfile)
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("onboarding_completed,business_name,address,phone,email")
+        .eq("user_id", userId)
+        .maybeSingle()
+
+      const hasBusinessProfile = Boolean(
+        profile?.onboarding_completed ||
+          profile?.business_name ||
+          profile?.address ||
+          profile?.phone ||
+          profile?.email
+      )
 
       if (!hasBusinessProfile) {
         // Prepare Step-1 locally (email locked, business name blank until user edits).

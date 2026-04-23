@@ -14,15 +14,14 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const { data: auditRow } = await supabase
-      .from("user_kv")
-      .select("updated_at")
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("email_change_audit_at")
       .eq("user_id", user.id)
-      .eq("key", "emailChangeAudit")
       .maybeSingle()
 
     const createdAtMs = new Date(user.created_at || 0).getTime()
-    const lastChangedMs = auditRow?.updated_at ? new Date(auditRow.updated_at).getTime() : null
+    const lastChangedMs = profile?.email_change_audit_at ? new Date(profile.email_change_audit_at).getTime() : null
     const baselineMs = Number.isFinite(lastChangedMs as number)
       ? Math.max(createdAtMs, lastChangedMs as number)
       : createdAtMs

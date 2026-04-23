@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import "react-easy-crop/react-easy-crop.css"
 
@@ -120,6 +120,7 @@ export default function SetupProfileLogoPage() {
       ...prev,
       logo: "",
       logoSource: "",
+      logoStoragePath: "",
       logoZoom: 1,
       logoOffsetX: 50,
       logoOffsetY: 50,
@@ -134,22 +135,23 @@ export default function SetupProfileLogoPage() {
   }
 
   async function saveAndContinue() {
-    const previousRemoteLogo = draft.logo.startsWith("http://") || draft.logo.startsWith("https://") ? draft.logo : ""
+    const previousRemoteLogo = draft.logoStoragePath || (draft.logo.startsWith("http://") || draft.logo.startsWith("https://") ? draft.logo : "")
     const croppedLogo = draft.logoSource
       ? await getCroppedLogo(draft.logoSource, croppedAreaPixels)
       : ""
 
     // If user picked a logo, try uploading to Supabase Storage for cross-device access.
-    // We store the final public URL in the business profile (cheap + portable).
     let uploadedUrl = ""
+    let uploadedPath = ""
     if (draft.logoSource) {
       try {
         // Convert the cropped dataURL back to a Blob for upload.
         const res = await fetch(croppedLogo)
         const blob = await res.blob()
         const file = new File([blob], "logo.png", { type: blob.type || "image/png" })
-        const { publicUrl } = await uploadLogoToSupabase(file)
+        const { publicUrl, path } = await uploadLogoToSupabase(file)
         uploadedUrl = publicUrl
+        uploadedPath = path
       } catch (e) {
         // Storage upload can fail if storage bucket policies aren't fully set.
         // Don't block setup; fall back to storing the cropped logo locally for now.
@@ -168,6 +170,7 @@ export default function SetupProfileLogoPage() {
     const nextDraft = {
       ...draft,
       logo: uploadedUrl || croppedLogo,
+      logoStoragePath: uploadedPath || "",
       logoZoom: zoom,
       logoOffsetX: Math.round(crop.x / 4 + 50),
       logoOffsetY: Math.round(crop.y / 4 + 50),
@@ -376,3 +379,7 @@ export default function SetupProfileLogoPage() {
     </SetupWizardFrame>
   )
 }
+
+
+
+

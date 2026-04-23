@@ -11,6 +11,7 @@ export type SetupProfileDraft = {
   upi: string
   terms: string
   logo: string
+  logoStoragePath?: string
   logoShape: "square" | "round"
   logoSource: string
   logoZoom: number
@@ -31,6 +32,7 @@ export const emptySetupProfileDraft: SetupProfileDraft = {
   upi: "",
   terms: "",
   logo: "",
+  logoStoragePath: "",
   logoShape: "square",
   logoSource: "",
   logoZoom: 1,

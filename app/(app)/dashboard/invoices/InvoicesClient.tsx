@@ -7,8 +7,10 @@ import { formatDate } from "@/lib/dateFormat"
 import { formatCurrency } from "@/lib/formatCurrency"
 import { buildInvoiceRangeSummary, sortInvoicesNewestFirst } from "@/lib/invoiceCollections"
 import { CalendarRange, CopyPlus, FilePlus2, PencilLine, Search, Trash2 } from "lucide-react"
-import { readStoredInvoices, writeStoredInvoices, type InvoiceRecord } from "@/lib/invoice"
+import { readStoredInvoices, type InvoiceRecord } from "@/lib/invoice"
 import { canEditInvoices } from "@/lib/plans"
+import { deleteInvoiceViaSupabase } from "@/lib/supabase/invoiceMutations"
+import { useWorkspaceValue } from "@/lib/useWorkspaceValue"
 import SelectMenu from "@/components/ui/SelectMenu"
 import { useAppAlert } from "@/components/providers/AppAlertProvider"
 
@@ -22,7 +24,7 @@ export default function InvoicesClient() {
   const searchParams = useSearchParams()
   const { showAlert } = useAppAlert()
 
-  const [invoices, setInvoices] = useState<InvoiceRecord[]>(() => readInvoices())
+  const invoices = useWorkspaceValue(["invoices"], readInvoices)
   const [selectedYear, setSelectedYear] = useState(() => {
     const queryYear = searchParams.get("year")
     if (queryYear) return Number(queryYear)
@@ -40,10 +42,7 @@ export default function InvoicesClient() {
   })
   const [currentPage, setCurrentPage] = useState(() => Number(searchParams.get("page") || 1))
   const [searchQuery, setSearchQuery] = useState(() => searchParams.get("search") || "")
-  const [refreshing, setRefreshing] = useState(false)
-
   const rowsPerPage = 15
-  const latestInvoiceId = invoices[0]?.id || null
   const deferredSearchQuery = useDeferredValue(searchQuery)
 
   const years = Array.from(new Set(invoices.map((invoice) => Number(invoice.date.split("-")[0]))))
@@ -118,11 +117,23 @@ export default function InvoicesClient() {
   const paginatedInvoices = searched.slice((safePage - 1) * rowsPerPage, safePage * rowsPerPage)
   const rangeSummary = buildInvoiceRangeSummary(paginatedInvoices)
 
-  function deleteLast() {
-    const parsed = sortInvoicesNewestFirst(readStoredInvoices())
-    parsed.shift()
-    writeStoredInvoices(parsed)
-    setInvoices(parsed)
+  async function deleteInvoice(invoiceId: string, invoiceNumber: string) {
+    try {
+      await deleteInvoiceViaSupabase(invoiceId)
+      showAlert({
+        tone: "success",
+        title: "Invoice deleted",
+        actionHint: "Your remaining invoices and numbering stay unchanged.",
+        message: `${invoiceNumber} has been removed safely.`,
+      })
+    } catch (error) {
+      showAlert({
+        tone: "danger",
+        title: "Could not delete invoice",
+        actionHint: "Please try again. If the problem continues, refresh and retry.",
+        message: error instanceof Error ? error.message : "Unable to delete the invoice right now.",
+      })
+    }
   }
 
   useEffect(() => {
@@ -135,56 +146,12 @@ export default function InvoicesClient() {
     })
   }, [invoices, router])
 
-  useEffect(() => {
-    let refreshTimer: number | null = null
-
-    const refreshInvoices = () => {
-      if (refreshTimer != null) {
-        window.clearTimeout(refreshTimer)
-      }
-      setRefreshing(true)
-      refreshTimer = window.setTimeout(() => {
-        startTransition(() => {
-          setInvoices(readInvoices())
-          setRefreshing(false)
-        })
-        refreshTimer = null
-      }, 80)
-    }
-
-    const onCloudSync = () => refreshInvoices()
-    const onKvWrite = (event: Event) => {
-      const detail = (event as CustomEvent<{ key?: string }>).detail
-      if (detail?.key === "invoices") {
-        refreshInvoices()
-      }
-    }
-    const onStorage = (event: StorageEvent) => {
-      if (!event.key) return
-      if (event.key.startsWith("invoices::") || event.key === "invoices") {
-        refreshInvoices()
-      }
-    }
-
-    window.addEventListener("easybill:cloud-sync", onCloudSync as EventListener)
-    window.addEventListener("easybill:kv-write", onKvWrite as EventListener)
-    window.addEventListener("storage", onStorage)
-    return () => {
-      if (refreshTimer != null) {
-        window.clearTimeout(refreshTimer)
-      }
-      window.removeEventListener("easybill:cloud-sync", onCloudSync as EventListener)
-      window.removeEventListener("easybill:kv-write", onKvWrite as EventListener)
-      window.removeEventListener("storage", onStorage)
-    }
-  }, [])
-
   function money(value: number) {
     return formatCurrency(value, currencySymbol, currencyPosition, showDecimals, amountFormat)
   }
 
   function openInvoice(invoiceId: string) {
-    window.location.assign(`/dashboard/invoices/view/${encodeURIComponent(invoiceId)}`)
+    router.push(`/dashboard/invoices/view/${encodeURIComponent(invoiceId)}`)
   }
 
   const returnTo = `/dashboard/invoices?year=${selectedYear}&month=${selectedMonth}&payment=${selectedPaymentState}&page=${safePage}&search=${encodeURIComponent(searchQuery)}`
@@ -313,7 +280,6 @@ export default function InvoicesClient() {
         <div className="mt-5 flex flex-col gap-2 text-sm text-slate-500 sm:mt-6 sm:flex-row sm:items-center sm:justify-between">
           <p>
             Total invoices shown: <span className="font-semibold text-slate-900">{totalShown}</span>
-            {refreshing ? <span className="ml-2 text-xs text-emerald-700">Refreshing...</span> : null}
           </p>
           <p>
             Page <span className="font-semibold text-slate-900">{safePage}</span> of{" "}
@@ -335,8 +301,6 @@ export default function InvoicesClient() {
             </div>
           ) : (
             paginatedInvoices.map((invoice) => {
-              const isLatestInvoice = invoice.id === latestInvoiceId
-
               return (
                 <div
                   key={invoice.id}
@@ -404,17 +368,15 @@ export default function InvoicesClient() {
                       <PencilLine className="h-3.5 w-3.5" />
                     </button>
 
-                    {isLatestInvoice ? (
-                      <button
-                        type="button"
-                        onClick={deleteLast}
-                        className="inline-flex items-center justify-center rounded-full border border-rose-200 bg-rose-50 p-2.5 text-rose-600 transition hover:bg-rose-100"
-                        aria-label="Delete latest invoice"
-                        title="Delete latest invoice"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    ) : null}
+                    <button
+                      type="button"
+                      onClick={() => void deleteInvoice(invoice.id, invoice.invoiceNumber)}
+                      className="inline-flex items-center justify-center rounded-full border border-rose-200 bg-rose-50 p-2.5 text-rose-600 transition hover:bg-rose-100"
+                      aria-label="Delete invoice"
+                      title="Delete invoice"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
                   </div>
                 </div>
               )
@@ -435,8 +397,6 @@ export default function InvoicesClient() {
             </thead>
             <tbody>
                 {paginatedInvoices.map((invoice) => {
-                const isLatestInvoice = invoice.id === latestInvoiceId
-
                 return (
                   <tr
                     key={invoice.id}
@@ -498,16 +458,14 @@ export default function InvoicesClient() {
                           Edit
                         </button>
 
-                        {isLatestInvoice ? (
-                          <button
-                            onClick={deleteLast}
-                            className="inline-flex items-center justify-center rounded-full border border-rose-200 bg-rose-50 p-2.5 text-rose-600 transition hover:bg-rose-100"
-                            aria-label="Delete latest invoice"
-                            title="Delete latest invoice"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        ) : null}
+                        <button
+                          onClick={() => void deleteInvoice(invoice.id, invoice.invoiceNumber)}
+                          className="inline-flex items-center justify-center rounded-full border border-rose-200 bg-rose-50 p-2.5 text-rose-600 transition hover:bg-rose-100"
+                          aria-label="Delete invoice"
+                          title="Delete invoice"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
                       </div>
                     </td>
                   </tr>

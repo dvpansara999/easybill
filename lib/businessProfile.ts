@@ -10,6 +10,7 @@ export type BusinessProfileRecord = {
   upi: string
   terms: string
   logo: string
+  logoStoragePath?: string
   logoShape: "square" | "round"
 }
 
@@ -25,6 +26,7 @@ export const EMPTY_BUSINESS_PROFILE: BusinessProfileRecord = {
   upi: "",
   terms: "",
   logo: "",
+  logoStoragePath: "",
   logoShape: "square",
 }
 
@@ -43,6 +45,7 @@ export function normalizeBusinessProfile(value: unknown): BusinessProfileRecord 
     upi: parsed.upi || "",
     terms: typeof parsed.terms === "string" ? parsed.terms : "",
     logo: parsed.logo || "",
+    logoStoragePath: typeof parsed.logoStoragePath === "string" ? parsed.logoStoragePath : "",
     logoShape: parsed.logoShape === "round" ? "round" : "square",
   }
 }

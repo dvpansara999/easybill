@@ -8,7 +8,7 @@ import { getSupabaseUser } from "@/lib/supabase/browser"
 import { getActiveAuthRecord } from "@/lib/auth"
 import { enforceFreeRestrictions, getActivePlanId, type PlanId } from "@/lib/plans"
 import { getAuthMode } from "@/lib/runtimeMode"
-import { isActiveUserKvHydrated } from "@/lib/userStore"
+import { hasActiveUserWarmCache, isActiveUserKvHydrated } from "@/lib/userStore"
 import { Menu } from "lucide-react"
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
 
@@ -48,7 +48,7 @@ export default function DashboardLayout({
         setPlanId(getActivePlanId())
       }
 
-      if (mode !== "supabase" || isActiveUserKvHydrated()) {
+      if (mode !== "supabase" || isActiveUserKvHydrated() || hasActiveUserWarmCache()) {
         applyPlanAndRestrictions()
       } else {
         // Wait for initial cloud KV pull to avoid overwriting remote values.
