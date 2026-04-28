@@ -27,10 +27,10 @@ export default function LandingInvoicePreview() {
         </span>
       </div>
       <div className="bg-white/25 px-1 pb-1.5 pt-1.5 md:px-2 md:pb-3 md:pt-2.5">
-        <div className="grid grid-cols-1 gap-3 md:gap-5 lg:grid-cols-2 lg:gap-4">
+        <div className="grid grid-cols-2 gap-2 md:gap-5 lg:gap-4">
           {LANDING_TEMPLATE_SHOWCASE.map(({ id, categoryLabel }) => (
             <div key={id} className="flex min-w-0 flex-col">
-              <p className="mb-1.5 text-center text-[9px] font-semibold uppercase tracking-[0.2em] text-slate-500/95 md:mb-2 md:text-[10px]">
+              <p className="mb-1 text-center text-[8px] font-semibold uppercase tracking-[0.18em] text-slate-500/95 md:mb-2 md:text-[10px]">
                 {categoryLabel}
               </p>
               <A4LargePreview

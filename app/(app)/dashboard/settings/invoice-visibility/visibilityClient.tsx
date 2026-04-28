@@ -49,7 +49,7 @@ function ToggleCard({
       className={`group rounded-[22px] border p-4 text-left transition ${
         checked
           ? "border-emerald-200 bg-emerald-50/60"
-          : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
+          : "app-subtle-panel hover:border-slate-300 hover:bg-white"
       }`}
     >
       <div className="flex items-start justify-between gap-4">
@@ -97,9 +97,9 @@ export default function InvoiceVisibilityClient() {
   return (
     <div className="space-y-6 pb-24 lg:space-y-8 lg:pb-0">
       <section>
-        <p className="text-xs uppercase tracking-[0.34em] text-emerald-700">Settings</p>
-        <h1 className="font-display mt-3 text-3xl text-slate-950 sm:text-4xl">Invoice visibility</h1>
-        <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-500">
+        <p className="app-kicker">Settings</p>
+        <h1 className="app-page-title mt-3 text-3xl sm:text-4xl">Invoice visibility</h1>
+        <p className="app-page-copy mt-3 max-w-2xl text-sm">
           Choose what information appears on your invoices. This applies everywhere: templates, invoice view, print, and PDF
           downloads.
         </p>
@@ -114,7 +114,7 @@ export default function InvoiceVisibilityClient() {
           <button
             type="button"
             onClick={resetAllOn}
-            className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 sm:px-5"
+            className="app-secondary-button rounded-2xl px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-white sm:px-5"
           >
             Reset all ON
           </button>
@@ -158,7 +158,7 @@ export default function InvoiceVisibilityClient() {
         <button
           type="button"
           onClick={() => router.push("/dashboard/settings")}
-          className="w-full rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 sm:w-auto"
+          className="app-secondary-button w-full rounded-2xl px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-white sm:w-auto"
         >
           Back to Settings
         </button>
@@ -168,7 +168,7 @@ export default function InvoiceVisibilityClient() {
             type="button"
             onClick={apply}
             disabled={!hasChanges}
-            className="w-full rounded-2xl bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 sm:w-auto"
+            className="app-primary-button w-full rounded-2xl px-6 py-3 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:bg-slate-300 sm:w-auto"
           >
             Apply
           </button>
@@ -177,4 +177,3 @@ export default function InvoiceVisibilityClient() {
     </div>
   )
 }
-

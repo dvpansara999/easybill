@@ -41,8 +41,7 @@ export default function ReportBugFeedbackPage() {
     })()
   }, [])
 
-  const inputStyle =
-    "w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+  const inputStyle = "app-input w-full rounded-2xl px-4 py-3 text-sm outline-none transition"
 
   function buildPayload() {
     const now = new Date().toISOString()
@@ -136,28 +135,28 @@ export default function ReportBugFeedbackPage() {
         <button
           type="button"
           onClick={() => router.push("/dashboard/settings")}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50 sm:w-fit sm:justify-start sm:rounded-full sm:py-2"
+          className="app-secondary-button inline-flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-white sm:w-fit sm:justify-start sm:rounded-full sm:py-2"
         >
           <ArrowLeft className="h-4 w-4" />
           Back to Settings
         </button>
         <div>
-          <p className="text-xs uppercase tracking-[0.34em] text-emerald-700">Settings</p>
-          <h1 className="font-display mt-3 text-3xl text-slate-950 sm:text-4xl">Report bug and feedback</h1>
-          <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-500">
-            Share issues and ideas with full context so fixes and improvements can be shipped faster.
+          <p className="app-kicker">Settings</p>
+          <h1 className="app-page-title mt-3">Report bug and feedback</h1>
+          <p className="app-page-copy mt-3 max-w-2xl text-sm sm:text-base">
+            Share the issue, expected behavior, and steps you followed so we can reproduce it quickly and fix it with confidence.
           </p>
         </div>
       </section>
 
       <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-        <div className="soft-card rounded-[24px] p-4 sm:rounded-[28px] sm:p-6">
+        <div className="app-hero-panel p-4 sm:p-6">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <h2 className="section-title text-2xl">Report details</h2>
               <p className="mt-1 text-sm text-slate-500">This report includes account and environment context automatically.</p>
             </div>
-            <div className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700">
+            <div className="app-secondary-button rounded-full px-4 py-2 text-xs font-semibold text-slate-700">
               Account: <span className="font-mono">{accountUserId || "-"}</span>
             </div>
           </div>
@@ -215,7 +214,7 @@ export default function ReportBugFeedbackPage() {
           </div>
 
           {reportError ? (
-            <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+            <div className="mt-4 rounded-2xl border border-[rgba(186,52,86,0.18)] bg-[rgba(186,52,86,0.08)] px-4 py-3 text-sm text-[rgb(123,31,52)]">
               <div className="flex items-start gap-3">
                 <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" />
                 <div>
@@ -226,7 +225,7 @@ export default function ReportBugFeedbackPage() {
             </div>
           ) : null}
           {reportMessage ? (
-            <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+            <div className="mt-4 rounded-2xl border border-[rgba(18,111,84,0.18)] bg-[rgba(18,111,84,0.08)] px-4 py-3 text-sm text-[var(--accent-strong)]">
               <div className="flex items-start gap-3">
                 <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
                 <div>
@@ -246,7 +245,7 @@ export default function ReportBugFeedbackPage() {
                 type="button"
                 onClick={() => void copyReport()}
                 disabled={copyingReport || sendingReport}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                className="app-secondary-button inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <ClipboardList className="h-4 w-4" />
                 {copyingReport ? "Copying..." : "Copy full report"}
@@ -255,7 +254,7 @@ export default function ReportBugFeedbackPage() {
                 type="button"
                 onClick={() => void sendReport()}
                 disabled={sendingReport || copyingReport}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+                className="app-primary-button inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <Send className="h-4 w-4" />
                 {sendingReport ? "Preparing..." : "Send report"}
@@ -264,7 +263,7 @@ export default function ReportBugFeedbackPage() {
           </div>
         </div>
 
-        <div className="soft-card rounded-[24px] p-4 sm:rounded-[28px] sm:p-6">
+        <div className="app-subtle-panel p-4 sm:p-6">
           <h2 className="section-title text-2xl">Helpful checklist</h2>
           <p className="mt-2 text-sm leading-7 text-slate-500">
             A strong report helps us reproduce the issue fast and protect stable systems like invoice downloads.
@@ -276,7 +275,7 @@ export default function ReportBugFeedbackPage() {
               "Explain what you expected to happen instead.",
               "Include device or browser details if the issue is mobile-only.",
             ].map((item) => (
-              <div key={item} className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
+              <div key={item} className="app-subtle-panel rounded-2xl px-4 py-3 text-sm text-slate-700">
                 {item}
               </div>
             ))}

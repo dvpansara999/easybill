@@ -348,11 +348,9 @@ function schedulePush(key: string, value: string) {
       const actualUserId = data.user?.id
       if (!actualUserId) return
 
-      // If our cached/active userId drifted, fix cache under the real auth user id.
       if (actualUserId !== capturedUserId) {
-        cloudCache.delete(cacheId(capturedUserId, key))
-        cloudCache.set(cacheId(actualUserId, key), value)
-        hydratedUsers.add(actualUserId)
+        console.warn("Skipping KV push after auth drift", { key, capturedUserId, actualUserId })
+        return
       }
 
       try {
@@ -387,8 +385,12 @@ function scheduleDelete(key: string) {
       const actualUserId = data.user?.id
       if (!actualUserId) return
 
+      if (actualUserId !== capturedUserId) {
+        console.warn("Skipping KV delete after auth drift", { key, capturedUserId, actualUserId })
+        return
+      }
+
       cloudCache.delete(cacheId(capturedUserId, key))
-      cloudCache.delete(cacheId(actualUserId, key))
 
       try {
         if (!isCloudKvKey(key)) return
@@ -410,6 +412,10 @@ export async function flushCloudKeyNow(key: string) {
   const { data } = await getSupabaseUser()
   const actualUserId = data.user?.id
   if (!actualUserId) return
+  if (actualUserId !== activeUserId) {
+    console.warn("Skipping KV flush after auth drift", { key, activeUserId, actualUserId })
+    return
+  }
 
   const value = cloudCache.get(cacheId(actualUserId, key)) ?? cloudCache.get(cacheId(activeUserId, key))
   if (value == null) return

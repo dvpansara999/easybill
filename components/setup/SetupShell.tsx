@@ -33,7 +33,7 @@ export default function SetupShell({
       />
 
       <div className="relative z-[2] mx-auto grid w-full max-w-[1580px] gap-8 xl:grid-cols-[0.92fr_1.08fr]">
-        <section className="space-y-6 rounded-[34px] bg-slate-950 p-8 text-white shadow-[0_24px_60px_rgba(15,23,42,0.22)]">
+        <section className="app-hero-panel space-y-6 rounded-[34px] p-8 text-white shadow-[0_24px_60px_rgba(15,23,42,0.22)]">
           <button
             onClick={onBack}
             className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-slate-200 transition hover:bg-white/10 hover:text-white"
@@ -43,17 +43,17 @@ export default function SetupShell({
           </button>
 
           <div>
-            <p className="text-xs uppercase tracking-[0.34em] text-emerald-300/80">{step}</p>
+            <p className="text-xs uppercase tracking-[0.34em] text-emerald-200/80">{step}</p>
             <h1 className="font-display mt-4 max-w-2xl text-5xl leading-[1.04] text-white">{title}</h1>
-            <p className="mt-4 max-w-xl text-base leading-7 text-slate-300">{description}</p>
+            <p className="mt-4 max-w-xl text-base leading-7 text-white/76">{description}</p>
           </div>
 
           <div className="grid gap-3">
             {bullets.map((item) => (
-              <div key={item} className="rounded-[22px] border border-white/10 bg-white/5 p-4">
+              <div key={item} className="rounded-[22px] border border-white/10 bg-white/8 p-4 backdrop-blur-xl">
                 <div className="flex items-start gap-3">
                   <CheckCircle2 className="mt-0.5 h-5 w-5 text-emerald-300" />
-                  <p className="text-sm leading-6 text-slate-200">{item}</p>
+                  <p className="text-sm leading-6 text-white/76">{item}</p>
                 </div>
               </div>
             ))}

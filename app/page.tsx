@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { memo, useEffect, useMemo, useRef, useState } from "react"
 import { Inter } from "next/font/google"
@@ -46,12 +46,12 @@ const inter = Inter({
 const landingAuthInputClass = cn(
   "w-full min-h-[50px] rounded-2xl border border-white/45 bg-white/55 px-4 py-3.5 text-[16px] leading-snug text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.55)] outline-none transition-[border-color,box-shadow,background-color] duration-200 ease-[cubic-bezier(0.4,0,0.2,1)] placeholder:text-slate-500 focus:border-indigo-400 focus:ring-[3px] focus:ring-indigo-200/90 backdrop-blur-md",
   "md:min-h-0 md:border-slate-200 md:bg-white md:px-4 md:py-3 md:text-sm md:shadow-sm md:backdrop-blur-none md:focus:ring-4 md:focus:ring-indigo-100",
-  "lg:border-white/22 lg:bg-white/24 lg:backdrop-blur-md"
+  "lg:border-[#d9cbbb] lg:bg-[#fffdf8] lg:text-[#1f1915] lg:shadow-[inset_0_1px_0_rgba(255,255,255,0.92),0_8px_24px_rgba(117,84,47,0.05)] lg:placeholder:text-[#8d7d6b] lg:focus:border-[#8f6b42] lg:focus:ring-[#eadac3] lg:backdrop-blur-none"
 )
 
 const landingAuthInputDisabledClass = cn(
   landingAuthInputClass,
-  "disabled:cursor-not-allowed disabled:border-white/30 disabled:bg-white/35 disabled:opacity-75 md:disabled:bg-slate-100 md:disabled:opacity-100 lg:disabled:bg-white/15"
+  "disabled:cursor-not-allowed disabled:border-white/30 disabled:bg-white/35 disabled:opacity-75 md:disabled:bg-slate-100 md:disabled:opacity-100 lg:disabled:border-[#e6ddd2] lg:disabled:bg-[#f6f0e8] lg:disabled:text-[#8d7d6b]"
 )
 
 const LANDING_FEATURE_TONES = ["emerald", "indigo", "sky", "rose"] as const
@@ -648,7 +648,6 @@ export default function Home() {
   }, [mode])
 
   const authStories = useMemo(() => (mode === "create" ? AUTH_CREATE_STORIES : AUTH_SIGNIN_STORIES), [mode])
-  const primaryAuthStory = authStories[0]
 
   const emailIsValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
   const passwordIsValid =
@@ -1052,146 +1051,157 @@ export default function Home() {
 
   return (
     <main
-      className={`${inter.variable} eb-safe-bottom-page relative min-h-screen overflow-x-hidden bg-[linear-gradient(155deg,#eef2fb_0%,#e4eaf7_28%,#eef1fb_55%,#e2e8f8_100%)] px-3.5 pt-3 [font-family:var(--font-auth-inter),ui-sans-serif,system-ui,sans-serif] sm:px-4 sm:py-8 lg:px-8 lg:py-10 lg:pb-10`}
+      className={`${inter.variable} eb-safe-bottom-page relative min-h-screen overflow-x-hidden bg-[linear-gradient(155deg,#f8f3ea_0%,#f1e9dd_28%,#f7f2ea_56%,#efe6db_100%)] px-3.5 pt-3 [font-family:var(--font-auth-inter),ui-sans-serif,system-ui,sans-serif] sm:px-4 sm:py-8 lg:px-8 lg:py-10 lg:pb-10`}
     >
       <div className="auth-desktop-depth pointer-events-none absolute inset-0 z-0" aria-hidden />
 
       <div
-        className="pointer-events-none absolute inset-0 z-[1] opacity-[0.32]"
+        className="pointer-events-none absolute inset-0 z-[1] opacity-[0.18]"
         style={{
-          backgroundImage: "radial-gradient(rgba(15, 23, 42, 0.045) 1px, transparent 1px)",
-          backgroundSize: "22px 22px",
+          backgroundImage: "radial-gradient(rgba(87, 63, 38, 0.055) 1px, transparent 1px)",
+          backgroundSize: "26px 26px",
         }}
         aria-hidden
       />
 
-      <div className="relative z-[2] mx-auto w-full max-w-6xl px-0 sm:px-1">
+      <div className="relative z-[2] mx-auto w-full max-w-[1440px] px-0 sm:px-1 lg:px-4">
         <div className="h-1 sm:h-4" />
 
         <div className="mt-3 flex flex-col gap-10 sm:mt-6 sm:gap-12 lg:mt-8 lg:gap-14">
-          <LandingStack
-            onLoginClick={() => {
-              switchMode("signin")
-              scrollAuthIntoView()
-            }}
-            onSignUpClick={() => {
-              switchMode("create")
-              scrollAuthIntoView()
-            }}
-          />
+          <div className="hidden">
+            <LandingStack
+              onLoginClick={() => {
+                switchMode("signin")
+                scrollAuthIntoView()
+              }}
+              onSignUpClick={() => {
+                switchMode("create")
+                scrollAuthIntoView()
+              }}
+            />
+          </div>
 
           <section ref={authPanelRef} id="account" className="scroll-mt-4 md:scroll-mt-10">
-            <div className="mx-auto w-full max-w-[1120px]">
-              <div className="grid gap-5 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] lg:items-start lg:gap-6">
-                <div className="hidden lg:block lg:pr-2">
-                  <div
-                    className={cn(
-                      "auth-glass-desktop overflow-hidden text-left",
-                      "rounded-[2.65rem] border border-white/28 !bg-white/[0.16] p-8 shadow-[0_32px_90px_rgba(15,23,42,0.1)] backdrop-blur-2xl"
-                    )}
-                  >
-                    <div className="pointer-events-none absolute inset-0 rounded-[2.65rem] bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.48),transparent_34%),radial-gradient(circle_at_bottom_left,rgba(52,211,153,0.18),transparent_28%),radial-gradient(circle_at_28%_30%,rgba(99,102,241,0.14),transparent_24%)]" />
-                    <div className="relative">
-                      <div className="inline-flex items-center gap-2 rounded-full border border-white/35 bg-white/22 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.28em] text-emerald-900 backdrop-blur-xl">
-                        <Stars className="h-4 w-4" />
-                        {mode === "create" ? "Start billing with less setup friction" : "Come back to work without losing momentum"}
-                      </div>
+            <div className="mx-auto w-full max-w-[1380px]">
+              <div className="grid gap-5 lg:min-h-[760px] lg:grid-cols-[320px_410px_minmax(0,1fr)] lg:overflow-hidden lg:rounded-[2.9rem] lg:border lg:border-[#d9cfc2] lg:bg-[#f6efe4] lg:shadow-[0_40px_110px_rgba(73,45,21,0.12)]">
+                <div className="relative hidden lg:flex lg:min-h-[760px] lg:flex-col lg:justify-between lg:overflow-hidden lg:bg-[linear-gradient(180deg,#211c18_0%,#171310_100%)] lg:px-8 lg:py-9">
+                  <div className="pointer-events-none absolute -left-8 top-24 h-56 w-56 rounded-full bg-[#9f7b54]/18 blur-3xl" />
+                  <div className="pointer-events-none absolute -right-16 bottom-10 h-64 w-64 rounded-full bg-white/6 blur-3xl" />
+                  <div className="relative">
+                    <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-[1.2rem] border border-white/10 bg-white/6 text-[#f7f1e9] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+                      <EasyBillLogoMark size={28} />
+                    </div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.34em] text-white/45">
+                      Easy Bill
+                    </p>
+                    <h2 className="mt-6 max-w-[8ch] text-[4.15rem] font-semibold leading-[0.88] tracking-[-0.085em] text-[#f7f1e9]">
+                      Make your first invoice feel expensive.
+                    </h2>
+                    <p className="mt-5 max-w-[19rem] text-[15px] leading-7 text-white/62">
+                      Elegant templates, faster setup, and a quieter workspace that makes your business look established immediately.
+                    </p>
+                  </div>
 
-                      <div className={cn("mt-6 rounded-[2rem] border border-white/26 bg-gradient-to-br p-7 shadow-[inset_0_1px_0_rgba(255,255,255,0.32)]", primaryAuthStory?.toneClasses)}>
-                        <div className="flex items-start justify-between gap-5">
-                          <div>
-                            <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-slate-500">
-                              {primaryAuthStory?.eyebrow}
-                            </p>
-                            <h2 className="mt-4 max-w-[13ch] text-balance text-[3rem] font-semibold leading-[0.96] tracking-[-0.06em] text-slate-950">
-                              {primaryAuthStory?.title || panelCopy.title}
-                            </h2>
-                            <p className="mt-5 max-w-xl text-base leading-8 text-slate-600">
-                              {primaryAuthStory?.description || panelCopy.description}
-                            </p>
-                          </div>
-                          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[1.4rem] bg-slate-950 text-white shadow-[0_18px_40px_rgba(15,23,42,0.18)]">
-                            {(() => {
-                              const ActiveIcon = primaryAuthStory?.icon || Stars
-                              return <ActiveIcon className="h-6 w-6" />
-                            })()}
-                          </div>
-                        </div>
-
-                        <div className="mt-8 flex items-center justify-between gap-4 rounded-[24px] border border-white/35 bg-white/40 px-5 py-4 backdrop-blur-md">
-                          <div>
-                            <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Current focus</p>
-                            <p className="mt-1 text-sm font-semibold text-slate-900">{primaryAuthStory?.chip}</p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Why it matters</p>
-                            <p className="mt-1 text-sm font-semibold text-slate-900">{primaryAuthStory?.stat}</p>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="mt-5 grid gap-4">
-                        <div className="rounded-[1.8rem] border border-white/24 bg-white/18 p-5 backdrop-blur-xl">
-                          <div className="flex items-center justify-between gap-4">
-                            <div>
-                              <p className="text-[11px] font-semibold uppercase tracking-[0.26em] text-slate-500">From account to first invoice</p>
-                              <p className="mt-2 text-[1.55rem] font-semibold leading-[1.05] tracking-[-0.05em] text-slate-950">
-                                Create your account and move straight into polished, client-ready invoicing.
-                              </p>
-                            </div>
-                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1.2rem] bg-white/80 text-slate-900 shadow-[0_14px_28px_rgba(15,23,42,0.08)]">
-                              <BadgeCheck className="h-5 w-5" />
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="grid gap-4 xl:grid-cols-2">
-                          {authStories.slice(1).map(({ eyebrow, title, description, chip, icon: Icon }) => (
-                            <div
-                              key={title}
-                              className="rounded-[1.8rem] border border-white/24 bg-white/16 p-5 backdrop-blur-xl"
-                            >
-                              <div className="flex h-11 w-11 items-center justify-center rounded-[1.15rem] bg-white/80 text-slate-900 shadow-[0_12px_26px_rgba(15,23,42,0.08)]">
-                                <Icon className="h-5 w-5" />
-                              </div>
-                              <p className="mt-4 text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">{eyebrow}</p>
-                              <h3 className="mt-2 text-[1.2rem] font-semibold leading-[1.06] tracking-[-0.04em] text-slate-950">{title}</h3>
-                              <p className="mt-3 text-sm leading-7 text-slate-600">{description}</p>
-                              <div className="mt-4 inline-flex rounded-full border border-white/35 bg-white/30 px-3.5 py-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-700">
-                                {chip}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
+                  <div className="relative space-y-4">
+                    <div className="border-t border-white/10 pt-5">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-white/30">Why it works</p>
+                      <p className="mt-3 max-w-[17rem] text-[1.28rem] font-semibold leading-[1.14] tracking-[-0.04em] text-[#f1e5d5]">
+                        You handle the business. The interface handles the impression.
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-white/42">
+                      <span>Clean templates</span>
+                      <span className="text-white/18">/</span>
+                      <span>Fast setup</span>
+                      <span className="text-white/18">/</span>
+                      <span>Quiet workflow</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="auth-glass-desktop-inset rounded-[1.5rem] border border-white/30 bg-white/22 p-4 sm:p-5 lg:hidden">
-                  <div className="flex items-start gap-3">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[1rem] bg-slate-950 text-white shadow-[0_14px_28px_rgba(15,23,42,0.14)]">
-                      {(() => {
-                        const MobileStoryIcon = primaryAuthStory?.icon || Stars
-                        return <MobileStoryIcon className="h-5 w-5" />
-                      })()}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.26em] text-slate-500">
-                        {primaryAuthStory?.eyebrow || panelCopy.eyebrow}
-                      </p>
-                      <h2 className="mt-2 text-[1.55rem] font-semibold leading-[1.02] tracking-[-0.05em] text-slate-950">
-                        {primaryAuthStory?.title || panelCopy.title}
-                      </h2>
-                      <p className="mt-3 text-sm leading-6 text-slate-600">
-                        {primaryAuthStory?.description || panelCopy.description}
-                      </p>
-                      <div className="mt-4 flex flex-wrap gap-2">
-                        <div className="rounded-full border border-white/35 bg-white/34 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-700">
-                          {primaryAuthStory?.chip}
+                <div className="relative lg:col-start-3">
+                  <div className="overflow-hidden rounded-[2rem] border border-[#2d241d] bg-[linear-gradient(180deg,#231c17_0%,#15110f_100%)] p-5 text-white shadow-[0_22px_60px_rgba(36,26,19,0.22)] lg:hidden">
+                    <div className="pointer-events-none absolute inset-x-10 top-0 h-28 rounded-full bg-white/8 blur-3xl" />
+                    <div className="relative">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex h-11 w-11 items-center justify-center rounded-[1rem] border border-white/10 bg-white/6 text-[#f7f1e9] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+                          <EasyBillLogoMark size={24} />
                         </div>
-                        <div className="rounded-full border border-white/35 bg-white/34 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-700">
-                          {primaryAuthStory?.stat}
+                        <div className="rounded-full border border-white/10 bg-white/6 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.26em] text-white/68">
+                          Premium billing
+                        </div>
+                      </div>
+
+                      <div className="mt-6">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.32em] text-white/40">
+                          Easy Bill
+                        </p>
+                        <h2 className="mt-3 max-w-[11ch] text-[2.35rem] font-semibold leading-[0.94] tracking-[-0.07em] text-[#f7f1e9]">
+                          Make billing feel beautifully established.
+                        </h2>
+                        <p className="mt-3 max-w-[19rem] text-sm leading-6 text-white/62">
+                          Elegant templates, quieter workflow, and a better first impression from the first invoice.
+                        </p>
+                      </div>
+
+                      <div className="mt-6 rotate-[1.5deg] rounded-[1.8rem] border border-[#eadfd3] bg-[rgba(255,249,242,0.98)] p-3.5 shadow-[0_28px_60px_rgba(36,26,19,0.18)]">
+                        <div className="mb-3 flex items-start justify-between gap-3 px-1">
+                          <div>
+                            <p className="text-[10px] font-semibold uppercase tracking-[0.26em] text-[#9a866f]">Signature preview</p>
+                            <p className="mt-1 text-sm font-semibold leading-5 text-[#2b2119]">A client-ready invoice from the first minute.</p>
+                          </div>
+                          <span className="rounded-full border border-[#e6d9cb] bg-white px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.22em] text-[#8a735a]">
+                            Premium workspace
+                          </span>
+                        </div>
+                        <div className="overflow-hidden rounded-[1.35rem] border border-[#eadfd3] bg-white shadow-[inset_0_1px_0_rgba(255,255,255,0.95)]">
+                          <div className="max-h-[280px] overflow-hidden sm:max-h-none">
+                            <LandingInvoicePreview />
+                          </div>
+                        </div>
+                        <div className="mt-3 flex items-center justify-between px-1 text-[9px] font-semibold uppercase tracking-[0.24em] text-[#947e67]">
+                          <span>Designed for trust</span>
+                          <span>Ready in minutes</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="hidden lg:block lg:relative lg:overflow-hidden lg:bg-[linear-gradient(135deg,#efe5d7_0%,#f8f2ea_52%,#efe6da_100%)]">
+                    <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.72),transparent_24%),radial-gradient(circle_at_20%_80%,rgba(191,156,116,0.18),transparent_24%)]" />
+                    <div className="relative flex h-full min-h-[760px] items-center justify-center overflow-hidden px-10 py-12 xl:px-14">
+                      <div className="absolute left-10 top-10 max-w-[16rem]">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.32em] text-[#8f7b66]">Product preview</p>
+                        <p className="mt-3 text-[1.1rem] font-semibold leading-6 tracking-[-0.03em] text-[#4c3a2c]">
+                          Everything a client sees should feel considered.
+                        </p>
+                      </div>
+                      <div className="absolute bottom-10 right-10 max-w-[14rem] text-right">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.32em] text-[#8f7b66]">Quietly persuasive</p>
+                        <p className="mt-3 text-sm leading-6 text-[#675546]">
+                          Less noise, more trust, and a layout that feels ready before you touch anything.
+                        </p>
+                      </div>
+                      <div className="relative w-full max-w-[790px] rotate-[1.5deg]">
+                        <div className="absolute -left-8 top-16 h-40 w-40 rounded-full bg-[#d7b58a]/35 blur-3xl" />
+                        <div className="absolute -right-8 bottom-10 h-40 w-40 rounded-full bg-white/70 blur-3xl" />
+                        <div className="rounded-[3rem] border border-white/80 bg-white/74 p-6 shadow-[0_34px_110px_rgba(73,45,21,0.14)] backdrop-blur-2xl">
+                          <div className="mb-5 flex items-center justify-between">
+                            <div>
+                              <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-[#9a866f]">Signature preview</p>
+                              <p className="mt-2 text-lg font-semibold tracking-[-0.04em] text-[#271d16]">A client-ready invoice from the first minute.</p>
+                            </div>
+                            <div className="rounded-full border border-[#e6d9cb] bg-white/90 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.22em] text-[#8a735a]">
+                              Premium workspace
+                            </div>
+                          </div>
+                          <div className="overflow-hidden rounded-[2.2rem] border border-[#eadfd3] bg-white p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.95)]">
+                            <LandingInvoicePreview />
+                          </div>
+                          <div className="mt-4 flex items-center justify-between px-1 text-[10px] font-semibold uppercase tracking-[0.26em] text-[#947e67]">
+                            <span>Designed for trust</span>
+                            <span>Ready in minutes</span>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -1200,48 +1210,41 @@ export default function Home() {
 
                 <div
                   className={cn(
-                    "auth-glass-desktop mx-auto w-full max-w-[620px] overflow-hidden text-left lg:mx-0 lg:max-w-none",
-                    "rounded-[1.5rem] border border-white/45 !bg-white/[0.52] shadow-[0_24px_64px_rgba(15,23,42,0.12)] ring-1 ring-white/25 backdrop-blur-2xl",
+                    "auth-glass-desktop mx-auto w-full max-w-[620px] overflow-hidden text-left lg:col-start-2 lg:row-start-1 lg:mx-0 lg:max-w-none lg:rounded-none lg:border-0 lg:!bg-transparent lg:shadow-none lg:ring-0 lg:backdrop-blur-none",
+                    "rounded-[1.7rem] border border-white/60 !bg-[rgba(255,251,245,0.9)] shadow-[0_24px_64px_rgba(73,45,21,0.12)] ring-1 ring-white/40 backdrop-blur-2xl",
                     "md:rounded-[34px] md:border-slate-200/90 md:!bg-white/80 md:shadow-[0_30px_90px_rgba(15,23,42,0.10)] md:ring-0 md:backdrop-blur-md",
-                    "lg:rounded-[2.5rem] lg:border-white/28 lg:!bg-white/[0.18] lg:shadow-[0_32px_90px_rgba(15,23,42,0.1)] lg:backdrop-blur-2xl"
+                    "lg:min-h-[760px] lg:border-r lg:border-[#d9cfc2] lg:!bg-[#fbf7f0]"
                   )}
                 >
                   <div
                     className={cn(
-                      "border-b px-4 py-4 md:px-7 md:py-6 lg:px-8 lg:py-7",
-                      "border-white/25 bg-white/30 backdrop-blur-xl",
+                      "border-b px-4 py-4 md:px-7 md:py-6 lg:px-8 lg:pb-7 lg:pt-10",
+                      "border-[#eaded0] bg-[rgba(255,255,255,0.54)] backdrop-blur-xl",
                       "md:border-slate-200 md:bg-white/60 md:backdrop-blur-none",
-                      "lg:border-white/22 lg:bg-white/12 lg:backdrop-blur-xl"
+                      "lg:border-[#d9cfc2] lg:bg-transparent lg:backdrop-blur-none"
                     )}
                   >
                     <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between lg:flex-col lg:items-start lg:justify-start lg:gap-5">
                       <div className="min-w-0">
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-indigo-700 md:text-xs md:tracking-[0.32em]">
-                          {panelCopy.eyebrow}
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#8a735a] md:text-xs md:tracking-[0.32em]">
+                          {mode === "create" ? "Secure setup" : "Secure access"}
                         </p>
-                        <h3 className="mt-2 text-2xl font-semibold tracking-[-0.04em] text-slate-950 md:text-[2rem] lg:text-[2.3rem] lg:leading-[1.02]">
-                          {mode === "create" ? "Open your workspace" : "Return to your workspace"}
+                        <h3 className="mt-2 max-w-[12ch] text-[1.85rem] font-semibold tracking-[-0.05em] text-[#271d16] md:text-[2rem] lg:max-w-[11ch] lg:text-[2.55rem] lg:leading-[0.94]">
+                          {mode === "create" ? "Start in under a minute." : "Step back into your workspace."}
                         </h3>
-                        <p className="mt-2 text-xs leading-5 text-slate-600 md:text-sm md:leading-6 lg:max-w-xl">
+                        <p className="mt-2 max-w-[19rem] text-xs leading-5 text-[#6e5b49] md:text-sm md:leading-6 lg:max-w-[22rem]">
                           {mode === "create"
-                            ? "Start with Google or email, verify once, and move directly into business setup."
-                            : "Sign in to pick up invoices, customers, templates, settings, and exports exactly where you left them."}
+                            ? "Use Google or email, verify once, and move directly into setup."
+                            : "Everything is exactly where you left it, ready for the next invoice."}
                         </p>
-                        <div className="mt-4 hidden items-center gap-2 lg:flex">
-                          <div className="rounded-full border border-white/30 bg-white/24 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-600">
-                            Google or email
-                          </div>
-                          <div className="rounded-full border border-white/30 bg-white/24 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-600">
-                            Resume anytime
-                          </div>
-                        </div>
                       </div>
 
                       <div
                         className={cn(
-                          "grid w-full shrink-0 grid-cols-2 gap-1 rounded-2xl border p-1 text-[15px] font-semibold leading-none md:w-auto md:max-w-none md:gap-2 md:rounded-full md:p-1 md:text-sm lg:w-full lg:max-w-[340px]",
-                          "border-white/40 bg-white/35 backdrop-blur-md lg:auth-glass-desktop-inset",
-                          "md:border-slate-200 md:bg-white"
+                          "grid w-full shrink-0 grid-cols-2 gap-1 rounded-2xl border p-1 text-[15px] font-semibold leading-none md:w-auto md:max-w-none md:gap-2 md:rounded-full md:p-1 md:text-sm lg:w-full lg:max-w-[300px]",
+                          "border-[#e5d8ca] bg-white/78 backdrop-blur-md lg:auth-glass-desktop-inset",
+                          "md:border-slate-200 md:bg-white",
+                          "lg:border-[#ddcfbf] lg:bg-white/76 lg:shadow-[inset_0_1px_0_rgba(255,255,255,0.95)] lg:backdrop-blur-none"
                         )}
                       >
                         <button
@@ -1250,11 +1253,11 @@ export default function Home() {
                           className={cn(
                             "touch-manipulation rounded-xl px-3 py-3.5 text-center transition-opacity duration-200 ease-[cubic-bezier(0.4,0,0.2,1)] md:rounded-full md:px-5 md:py-2.5 lg:text-[15px]",
                             mode === "signin"
-                              ? "bg-slate-950 text-white shadow-[0_6px_20px_rgba(15,23,42,0.2)]"
-                              : "text-slate-600 active:bg-white/50 md:hover:text-slate-950 md:hover:opacity-90"
+                              ? "bg-[#241a13] text-white shadow-[0_10px_24px_rgba(36,26,19,0.22)]"
+                              : "text-slate-600 active:bg-white/50 md:hover:text-slate-950 md:hover:opacity-90 lg:text-[#7a6653]"
                           )}
                         >
-                          Sign In
+                          Sign in
                         </button>
                         <button
                           type="button"
@@ -1262,11 +1265,11 @@ export default function Home() {
                           className={cn(
                             "touch-manipulation rounded-xl px-3 py-3.5 text-center transition-opacity duration-200 ease-[cubic-bezier(0.4,0,0.2,1)] md:rounded-full md:px-5 md:py-2.5 lg:text-[15px]",
                             mode === "create"
-                              ? "bg-slate-950 text-white shadow-[0_6px_20px_rgba(15,23,42,0.2)]"
-                              : "text-slate-600 active:bg-white/50 md:hover:text-slate-950 md:hover:opacity-90"
+                              ? "bg-[#241a13] text-white shadow-[0_10px_24px_rgba(36,26,19,0.22)]"
+                              : "text-slate-600 active:bg-white/50 md:hover:text-slate-950 md:hover:opacity-90 lg:text-[#7a6653]"
                           )}
                         >
-                          Create account
+                          Create
                         </button>
                       </div>
                     </div>
@@ -1283,7 +1286,7 @@ export default function Home() {
                         "inline-flex w-full min-h-[52px] touch-manipulation items-center justify-center rounded-2xl border px-4 py-3.5 text-[15px] font-semibold transition-[opacity,background-color,border-color] duration-200 ease-[cubic-bezier(0.4,0,0.2,1)] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-indigo-200/90 disabled:cursor-not-allowed disabled:opacity-60 md:min-h-[48px] md:py-3 md:text-sm",
                         "border-white/45 bg-white/55 text-slate-900 shadow-[0_4px_20px_rgba(15,23,42,0.06)] backdrop-blur-md active:bg-white/70",
                         "md:border-slate-200 md:bg-white md:shadow-none md:backdrop-blur-none md:hover:bg-slate-50 md:hover:opacity-95",
-                        "lg:min-h-[52px] lg:border-white/28 lg:bg-white/22 lg:px-5 lg:py-3.5 lg:text-base lg:backdrop-blur-md lg:hover:bg-white/30 lg:hover:opacity-90"
+                        "lg:min-h-[52px] lg:border-[#decebd] lg:bg-white lg:px-5 lg:py-3.5 lg:text-base lg:text-[#2a211a] lg:shadow-[0_10px_30px_rgba(87,63,38,0.06)] lg:hover:bg-[#fffaf4] lg:hover:opacity-100"
                       )}
                     >
                       <svg
@@ -1505,7 +1508,7 @@ export default function Home() {
                     "mt-2 rounded-2xl border p-4 max-md:shadow-[0_12px_36px_rgba(15,23,42,0.08)] md:mt-1 md:rounded-[22px]",
                     "border-white/40 bg-white/45 backdrop-blur-xl",
                     "md:border-slate-200 md:bg-white md:backdrop-blur-none",
-                    "lg:border-white/26 lg:bg-white/18 lg:backdrop-blur-2xl lg:shadow-[0_2px_18px_rgba(15,23,42,0.04)]"
+                    "lg:border-[#e1d3c5] lg:bg-[#fffaf4] lg:backdrop-blur-none lg:shadow-[0_10px_28px_rgba(87,63,38,0.05)]"
                   )}
                 >
                   <p className="text-[15px] font-semibold text-slate-900 md:text-sm">Forgot password</p>
@@ -1529,7 +1532,7 @@ export default function Home() {
                       type="button"
                       onClick={sendForgotOtp}
                       disabled={forgotBusy || !forgotEmail.trim()}
-                      className="inline-flex min-h-[52px] w-full touch-manipulation items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3.5 text-[15px] font-semibold text-white shadow-[0_18px_44px_rgba(15,23,42,0.18)] transition-[opacity,background-color] duration-200 ease-[cubic-bezier(0.4,0,0.2,1)] hover:bg-slate-800 hover:opacity-[0.96] disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-indigo-200/90 md:min-h-0 md:py-3 md:text-sm md:focus-visible:ring-4 md:focus-visible:ring-indigo-100 lg:min-h-[52px] lg:px-6 lg:py-3.5 lg:text-base lg:shadow-[0_2px_16px_rgba(15,23,42,0.11)]"
+                      className="inline-flex min-h-[52px] w-full touch-manipulation items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3.5 text-[15px] font-semibold text-white shadow-[0_18px_44px_rgba(15,23,42,0.18)] transition-[opacity,background-color] duration-200 ease-[cubic-bezier(0.4,0,0.2,1)] hover:bg-slate-800 hover:opacity-[0.96] disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-indigo-200/90 md:min-h-0 md:py-3 md:text-sm md:focus-visible:ring-4 md:focus-visible:ring-indigo-100 lg:min-h-[52px] lg:bg-[#241a13] lg:px-6 lg:py-3.5 lg:text-base lg:shadow-[0_14px_34px_rgba(36,26,19,0.18)] lg:hover:bg-[#35261b]"
                     >
                       {forgotBusy ? "Processing..." : "Get OTP"}
                     </button>
@@ -1553,7 +1556,7 @@ export default function Home() {
                       type="button"
                       onClick={verifyForgotOtp}
                       disabled={!forgotOtpSent || forgotOtpVerified || forgotBusy || forgotOtpCode.trim().length < 6}
-                      className="inline-flex min-h-[52px] w-full touch-manipulation items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3.5 text-[15px] font-semibold text-white shadow-[0_18px_44px_rgba(15,23,42,0.18)] transition-[opacity,background-color] duration-200 ease-[cubic-bezier(0.4,0,0.2,1)] hover:bg-slate-800 hover:opacity-[0.96] disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-indigo-200/90 md:min-h-0 md:py-3 md:text-sm md:focus-visible:ring-4 md:focus-visible:ring-indigo-100 lg:min-h-[52px] lg:px-6 lg:py-3.5 lg:text-base lg:shadow-[0_2px_16px_rgba(15,23,42,0.11)]"
+                      className="inline-flex min-h-[52px] w-full touch-manipulation items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3.5 text-[15px] font-semibold text-white shadow-[0_18px_44px_rgba(15,23,42,0.18)] transition-[opacity,background-color] duration-200 ease-[cubic-bezier(0.4,0,0.2,1)] hover:bg-slate-800 hover:opacity-[0.96] disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-indigo-200/90 md:min-h-0 md:py-3 md:text-sm md:focus-visible:ring-4 md:focus-visible:ring-indigo-100 lg:min-h-[52px] lg:bg-[#241a13] lg:px-6 lg:py-3.5 lg:text-base lg:shadow-[0_14px_34px_rgba(36,26,19,0.18)] lg:hover:bg-[#35261b]"
                     >
                       {forgotBusy ? "Processing..." : forgotOtpVerified ? "OTP Verified" : "Verify OTP"}
                     </button>
@@ -1609,7 +1612,7 @@ export default function Home() {
                       type="button"
                       onClick={updateForgotPassword}
                       disabled={!forgotOtpVerified || forgotBusy}
-                      className="inline-flex min-h-[52px] w-full touch-manipulation items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3.5 text-[15px] font-semibold text-white shadow-[0_18px_44px_rgba(15,23,42,0.18)] transition-[opacity,background-color] duration-200 ease-[cubic-bezier(0.4,0,0.2,1)] hover:bg-slate-800 hover:opacity-[0.96] disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-indigo-200/90 md:min-h-0 md:py-3 md:text-sm md:focus-visible:ring-4 md:focus-visible:ring-indigo-100 lg:min-h-[52px] lg:px-6 lg:py-3.5 lg:text-base lg:shadow-[0_2px_16px_rgba(15,23,42,0.11)]"
+                      className="inline-flex min-h-[52px] w-full touch-manipulation items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3.5 text-[15px] font-semibold text-white shadow-[0_18px_44px_rgba(15,23,42,0.18)] transition-[opacity,background-color] duration-200 ease-[cubic-bezier(0.4,0,0.2,1)] hover:bg-slate-800 hover:opacity-[0.96] disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-indigo-200/90 md:min-h-0 md:py-3 md:text-sm md:focus-visible:ring-4 md:focus-visible:ring-indigo-100 lg:min-h-[52px] lg:bg-[#241a13] lg:px-6 lg:py-3.5 lg:text-base lg:shadow-[0_14px_34px_rgba(36,26,19,0.18)] lg:hover:bg-[#35261b]"
                     >
                       {forgotBusy ? "Updating..." : "Update password"}
                     </button>
@@ -1675,7 +1678,7 @@ export default function Home() {
                   "border-t px-4 py-4 md:px-7 md:py-6",
                   "border-white/25 bg-white/35 backdrop-blur-xl",
                   "md:border-slate-200 md:bg-slate-50/70 md:backdrop-blur-none",
-                  "lg:border-white/25 lg:bg-white/10 lg:backdrop-blur-xl"
+                    "lg:border-[#d9cfc2] lg:bg-[#f8f1e8] lg:backdrop-blur-none"
                 )}
               >
                 <div className="grid gap-3 max-md:gap-3.5">
@@ -1686,8 +1689,8 @@ export default function Home() {
                     className={cn(
                       "inline-flex w-full touch-manipulation items-center justify-center gap-2 rounded-2xl px-4 py-3.5 text-[15px] font-semibold transition-[opacity,background-color,box-shadow] duration-200 ease-[cubic-bezier(0.4,0,0.2,1)] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-indigo-200/90 md:min-h-[48px] md:py-3 md:text-sm md:focus-visible:ring-4 md:focus-visible:ring-indigo-100 lg:min-h-[52px] lg:px-6 lg:py-3.5 lg:text-base",
                       primaryBusy || (mode === "create" && !createFormValid)
-                        ? "min-h-[52px] bg-slate-200/90 text-slate-500 md:min-h-[48px]"
-                        : "min-h-[52px] bg-slate-950 text-white shadow-[0_18px_44px_rgba(15,23,42,0.2)] hover:bg-slate-800 hover:opacity-[0.96] active:scale-[0.99] md:min-h-[48px] lg:shadow-[0_2px_16px_rgba(15,23,42,0.11)]"
+                        ? "min-h-[52px] bg-slate-200/90 text-slate-500 md:min-h-[48px] lg:bg-[#d9d0c7] lg:text-[#7c6d60]"
+                        : "min-h-[52px] bg-slate-950 text-white shadow-[0_18px_44px_rgba(15,23,42,0.2)] hover:bg-slate-800 hover:opacity-[0.96] active:scale-[0.99] md:min-h-[48px] lg:bg-[#241a13] lg:shadow-[0_16px_34px_rgba(36,26,19,0.18)] lg:hover:bg-[#35261b]"
                     )}
                   >
                     {primaryBusy ? (mode === "create" ? "Creating account..." : "Signing in...") : panelCopy.primary}
@@ -1699,7 +1702,7 @@ export default function Home() {
                       "rounded-2xl border px-4 py-3.5 text-sm leading-relaxed text-slate-600 transition-opacity duration-200 ease-[cubic-bezier(0.4,0,0.2,1)] max-md:active:opacity-90 md:rounded-[22px] md:py-3",
                       "border-white/40 bg-white/50 backdrop-blur-md",
                       "md:border-slate-200 md:bg-white md:backdrop-blur-none md:hover:opacity-90",
-                      "lg:border-white/25 lg:bg-white/20 lg:backdrop-blur-md lg:shadow-[0_2px_14px_rgba(15,23,42,0.035)]"
+                      "lg:border-[#e2d6ca] lg:bg-[#fffaf4] lg:backdrop-blur-none lg:shadow-[0_10px_24px_rgba(87,63,38,0.04)]"
                     )}
                   >
                     {panelCopy.secondary}{" "}
@@ -1717,7 +1720,7 @@ export default function Home() {
                       "rounded-2xl border p-4 transition-opacity duration-200 ease-[cubic-bezier(0.4,0,0.2,1)] max-md:active:opacity-95 md:rounded-[22px] md:hover:opacity-90",
                       "border-white/40 bg-white/45 backdrop-blur-md",
                       "md:border-slate-200 md:bg-white md:backdrop-blur-none",
-                      "lg:border-white/25 lg:bg-white/18 lg:backdrop-blur-2xl lg:shadow-[0_2px_18px_rgba(15,23,42,0.04)]"
+                      "lg:border-[#e2d6ca] lg:bg-[#fffaf4] lg:backdrop-blur-none lg:shadow-[0_10px_24px_rgba(87,63,38,0.04)]"
                     )}
                   >
                     <div className="flex items-start gap-3">
@@ -1737,7 +1740,7 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className="mt-5 hidden gap-4 lg:grid lg:grid-cols-3">
+              <div className="hidden">
                 {authStories.map(({ eyebrow, title, description, chip, icon: Icon }, index) => (
                   <div
                     key={title}
@@ -1773,3 +1776,4 @@ export default function Home() {
     </main>
   )
 }
+

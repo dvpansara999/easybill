@@ -146,7 +146,7 @@ export default function CustomerDetails() {
   return (
     <div className="space-y-6 pb-24 lg:space-y-8 lg:pb-0">
       <section className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-        <div className="rounded-[30px] bg-slate-950 p-6 text-white shadow-[0_24px_60px_rgba(15,23,42,0.22)] sm:p-8">
+        <div className="app-dark-card rounded-[30px] p-6 text-white shadow-[0_24px_60px_rgba(15,23,42,0.22)] sm:p-8">
           <button
             onClick={() => router.push(returnTo)}
             className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-slate-200 transition hover:bg-white/10 hover:text-white sm:w-auto sm:rounded-full sm:justify-start sm:px-4 sm:py-2"
@@ -220,7 +220,7 @@ export default function CustomerDetails() {
 
             <button
               onClick={createInvoice}
-              className="inline-flex items-center justify-center gap-2 rounded-[24px] bg-slate-950 px-5 py-4 text-sm font-semibold text-white transition hover:bg-slate-800"
+              className="app-primary-button inline-flex items-center justify-center gap-2 rounded-[24px] px-5 py-4 text-sm font-semibold"
             >
               <FilePlus2 className="h-4 w-4" />
               Create Invoice
@@ -250,7 +250,7 @@ export default function CustomerDetails() {
 
             <button
               onClick={createInvoice}
-              className="inline-flex items-center justify-center gap-2 rounded-[24px] bg-slate-950 px-5 py-4 text-sm font-semibold text-white transition hover:bg-slate-800"
+              className="app-primary-button inline-flex items-center justify-center gap-2 rounded-[24px] px-5 py-4 text-sm font-semibold"
             >
               <FilePlus2 className="h-4 w-4" />
               Create Invoice
@@ -269,7 +269,7 @@ export default function CustomerDetails() {
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <label className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+            <label className="app-subtle-panel rounded-2xl px-4 py-3">
               <span className="mb-2 block text-xs uppercase tracking-[0.28em] text-slate-400">Month</span>
               <div className="mt-1">
                 <SelectMenu
@@ -281,7 +281,7 @@ export default function CustomerDetails() {
               </div>
             </label>
 
-            <label className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+            <label className="app-subtle-panel rounded-2xl px-4 py-3">
               <span className="mb-2 block text-xs uppercase tracking-[0.28em] text-slate-400">Year</span>
               <div className="mt-1">
                 <SelectMenu
@@ -297,13 +297,13 @@ export default function CustomerDetails() {
 
         <div className="mt-6 space-y-3 lg:hidden">
           {filteredInvoices.length === 0 ? (
-            <div className="rounded-[24px] border border-slate-200/70 bg-white p-6 text-center text-sm text-slate-500">
+            <div className="app-mobile-card rounded-[24px] p-6 text-center text-sm text-slate-500">
               <p>No invoices match these filters yet.</p>
               <p className="mt-2">Create a new invoice for this customer to keep the history moving.</p>
               <button
                 type="button"
                 onClick={createInvoice}
-                className="mt-4 inline-flex rounded-full border border-slate-200 px-4 py-2 font-semibold text-slate-700 transition hover:bg-slate-50"
+                className="app-secondary-button mt-4 inline-flex rounded-full px-4 py-2 font-semibold"
               >
                 Create invoice
               </button>
@@ -318,7 +318,7 @@ export default function CustomerDetails() {
                     `/dashboard/invoices/view/${encodeURIComponent(invoice.id)}?returnTo=${encodeURIComponent(customerViewReturnTo)}`
                   )
                 }
-                className="w-full rounded-[22px] border border-slate-200/70 bg-white p-4 text-left transition hover:bg-slate-50/70 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-100"
+                className="app-mobile-card w-full rounded-[22px] p-4 text-left transition hover:bg-white/85 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[rgba(29,107,95,0.12)]"
               >
                 <div className="grid grid-cols-2 gap-4">
                   <div className="min-w-0">
@@ -335,9 +335,9 @@ export default function CustomerDetails() {
           )}
         </div>
 
-        <div className="mt-6 hidden overflow-hidden rounded-[24px] border border-slate-200/70 lg:block">
+        <div className="app-table-shell mt-6 hidden rounded-[24px] lg:block">
           <table className="w-full text-sm">
-            <thead className="bg-slate-50/80">
+            <thead className="app-table-head">
               <tr className="border-b border-slate-200 text-left text-slate-500">
                 <th className="px-4 py-3">Invoice</th>
                 <th className="px-4 py-3">Date</th>
@@ -355,7 +355,7 @@ export default function CustomerDetails() {
                       <button
                         type="button"
                         onClick={createInvoice}
-                        className="mt-4 inline-flex rounded-full border border-slate-200 px-4 py-2 font-semibold text-slate-700 transition hover:bg-slate-50"
+                        className="app-secondary-button mt-4 inline-flex rounded-full px-4 py-2 font-semibold"
                       >
                         Create invoice
                       </button>
@@ -372,7 +372,7 @@ export default function CustomerDetails() {
                       `/dashboard/invoices/view/${encodeURIComponent(invoice.id)}?returnTo=${encodeURIComponent(customerViewReturnTo)}`
                     )
                   }
-                  className="cursor-pointer border-b border-slate-100 transition hover:bg-slate-50/70"
+                  className="cursor-pointer border-b border-slate-100 transition hover:bg-white/70"
                 >
                   <td className="break-words px-4 py-4 font-medium text-slate-900">{invoice.invoiceNumber}</td>
                   <td className="px-4 py-4 text-slate-600">{formatDate(invoice.date, dateFormat)}</td>

@@ -17,25 +17,26 @@ function isPrintPdfBypassPath() {
 }
 
 export default function KvHydrationGate({ children }: { children: ReactNode }) {
-  const [ready, setReady] = useState(() => {
-    if (typeof window === "undefined") return false
-    if (isPrintPdfBypassPath()) return true
-    if (getAuthMode() !== "supabase") return true
-    return Boolean(getActiveUserId() && (isActiveUserKvHydrated() || hasActiveUserWarmCache()))
-  })
+  const [ready, setReady] = useState(false)
 
   useEffect(() => {
     if (ready) return
 
+    if (typeof window === "undefined") {
+      return
+    }
+
     // Important for PDF generation:
     // Avoid delaying routes that do not need a hydrated KV cache.
     if (isPrintPdfBypassPath()) {
-      return
+      const timer = window.setTimeout(() => setReady(true), 0)
+      return () => window.clearTimeout(timer)
     }
 
     const mode = getAuthMode()
     if (mode !== "supabase") {
-      return
+      const timer = window.setTimeout(() => setReady(true), 0)
+      return () => window.clearTimeout(timer)
     }
 
     let authInitSeen = false
@@ -68,12 +69,12 @@ export default function KvHydrationGate({ children }: { children: ReactNode }) {
       checkReady()
     }
 
-    const onCloudSync = () => {
-      checkReady()
-    }
-
     if (checkReady()) {
       return
+    }
+
+    const onCloudSync = () => {
+      checkReady()
     }
 
     window.addEventListener("easybill:auth-sync-initialized", onAuthInit as EventListener)

@@ -137,7 +137,7 @@ export default function SelectMenu<T extends string>({
           className={`w-full appearance-none truncate whitespace-nowrap rounded-2xl border px-4 py-3 pr-10 text-sm shadow-sm outline-none transition-[border-color,box-shadow,background-color,color] duration-200 ease-[cubic-bezier(0.4,0,0.2,1)] ${
             disabled
               ? "cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400"
-              : "border-slate-200 bg-white text-slate-900 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+              : "app-select-shell border-[rgba(83,93,105,0.11)] text-slate-900 focus:border-[rgba(29,107,95,0.38)] focus:ring-4 focus:ring-[rgba(29,107,95,0.12)]"
           }`}
         >
           {options.map((opt) => (
@@ -163,7 +163,7 @@ export default function SelectMenu<T extends string>({
         className={`flex w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left text-sm shadow-sm transition ${
           disabled
             ? "cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400"
-            : "border-slate-200 bg-white text-slate-900 hover:border-slate-300 focus:border-emerald-400 focus:outline-none focus:ring-4 focus:ring-emerald-100"
+            : "app-select-shell border-[rgba(83,93,105,0.11)] text-slate-900 hover:border-[rgba(83,93,105,0.2)] focus:border-[rgba(29,107,95,0.38)] focus:outline-none focus:ring-4 focus:ring-[rgba(29,107,95,0.12)]"
         }`}
         aria-haspopup="listbox"
         aria-expanded={open}
@@ -179,7 +179,7 @@ export default function SelectMenu<T extends string>({
             <div
               data-select-menu-portal="true"
               role="listbox"
-              className="fixed z-[140] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_18px_48px_rgba(15,23,42,0.14)]"
+              className="fixed z-[140] overflow-hidden rounded-2xl border border-[rgba(83,93,105,0.11)] bg-[rgba(255,255,255,0.88)] shadow-[0_20px_52px_rgba(31,41,55,0.12)] backdrop-blur-xl"
               style={{
                 top: menuStyle.top,
                 left: menuStyle.left,
@@ -201,7 +201,9 @@ export default function SelectMenu<T extends string>({
                         buttonRef.current?.focus()
                       }}
                       className={`flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left text-sm transition-[background-color,color] duration-200 ease-[cubic-bezier(0.4,0,0.2,1)] ${
-                        isSelected ? "bg-emerald-50 text-slate-900" : "text-slate-700 hover:bg-slate-50"
+                        isSelected
+                          ? "bg-[rgba(29,107,95,0.08)] text-slate-900"
+                          : "text-slate-700 hover:bg-white/80"
                       }`}
                     >
                       <span className="min-w-0 flex-1 truncate whitespace-nowrap">{opt.label}</span>

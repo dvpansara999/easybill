@@ -1,18 +1,23 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f4f7fb;
-  --background-strong: #ecf1f7;
-  --surface: rgba(255, 255, 255, 0.82);
-  --surface-strong: #ffffff;
-  --surface-border: rgba(15, 23, 42, 0.08);
-  /* Softer default elevation (avoid hard shadows) */
-  --surface-shadow: 0 14px 40px rgba(15, 23, 42, 0.055);
-  --text-primary: #112033;
-  --text-secondary: #5d6b82;
-  --accent: #0f766e;
-  --accent-strong: #0b5d57;
-  --accent-soft: rgba(15, 118, 110, 0.12);
+  /* Theme trial D: refined porcelain + mist blue. Revert by restoring this block from git if needed. */
+  --background: #f6f2eb;
+  --background-strong: #ebe4d8;
+  --surface: rgba(255, 255, 255, 0.8);
+  --surface-strong: rgba(255, 255, 255, 0.94);
+  --surface-muted: rgba(255, 255, 255, 0.68);
+  --surface-border: rgba(101, 113, 129, 0.1);
+  --surface-border-strong: rgba(101, 113, 129, 0.14);
+  --surface-shadow: 0 28px 78px rgba(70, 76, 88, 0.075);
+  --text-primary: #263340;
+  --text-secondary: #71808d;
+  --text-tertiary: #9aa6b1;
+  --accent: #88a9b9;
+  --accent-strong: #6f8e9f;
+  --accent-soft: rgba(136, 169, 185, 0.12);
+  --ink-panel: #96a8b6;
+  --ink-panel-soft: rgba(150, 168, 182, 0.9);
   --warning-soft: rgba(245, 158, 11, 0.14);
   --danger-soft: rgba(239, 68, 68, 0.12);
 
@@ -29,9 +34,10 @@ html {
   min-height: 100%;
   overflow-x: hidden;
   background:
-    radial-gradient(circle at top left, rgba(15, 118, 110, 0.12), transparent 26%),
-    radial-gradient(circle at top right, rgba(59, 130, 246, 0.1), transparent 22%),
-    linear-gradient(180deg, #f8fbfd 0%, var(--background) 100%);
+    radial-gradient(circle at top left, rgba(136, 169, 185, 0.11), transparent 24%),
+    radial-gradient(circle at 85% 10%, rgba(226, 234, 240, 0.36), transparent 22%),
+    radial-gradient(circle at 50% 100%, rgba(233, 222, 209, 0.42), transparent 28%),
+    linear-gradient(180deg, #fbf8f3 0%, var(--background) 100%);
 }
 
 body {
@@ -55,14 +61,22 @@ h3,
 /* Same indigo-sky canvas as marketing (all breakpoints; layout unchanged) */
 .app-shell {
   min-height: 100vh;
-  background: linear-gradient(155deg, #eef2fb 0%, #e4eaf7 28%, #eef1fb 55%, #e2e8f8 100%);
+  background:
+    radial-gradient(circle at 12% 18%, rgba(219, 229, 236, 0.5), transparent 22%),
+    radial-gradient(circle at 85% 12%, rgba(255, 255, 255, 0.62), transparent 20%),
+    radial-gradient(circle at 52% 100%, rgba(238, 228, 216, 0.82), transparent 30%),
+    linear-gradient(155deg, #fbf8f3 0%, #f3ede4 34%, #faf6f0 65%, #eee7dc 100%);
 }
 
 .glass-card {
-  background: var(--surface);
-  border: 1px solid var(--surface-border);
-  box-shadow: var(--surface-shadow);
-  backdrop-filter: blur(18px);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(255, 255, 255, 0.64)),
+    rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.78),
+    var(--surface-shadow);
+  backdrop-filter: blur(28px) saturate(1.05);
   transition:
     box-shadow var(--eb-duration) var(--eb-ease),
     border-color var(--eb-duration) var(--eb-ease),
@@ -70,9 +84,13 @@ h3,
 }
 
 .soft-card {
-  background: var(--surface-strong);
-  border: 1px solid rgba(148, 163, 184, 0.14);
-  box-shadow: var(--eb-shadow-soft);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(255, 255, 255, 0.6)),
+    var(--surface-strong);
+  border: 1px solid var(--surface-border);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    0 20px 58px rgba(70, 76, 88, 0.065);
   transition:
     transform var(--eb-duration) var(--eb-ease),
     box-shadow var(--eb-duration) var(--eb-ease),
@@ -82,13 +100,15 @@ h3,
 
 /* Frosted panels inside the app shell (matches sign-in glass family; all viewports) */
 .app-shell .soft-card {
-  background: rgba(255, 255, 255, 0.72);
-  border: 1px solid rgba(255, 255, 255, 0.44);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.84), rgba(255, 255, 255, 0.64)),
+    rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.62);
   box-shadow:
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.2),
-    var(--eb-shadow-soft);
-  backdrop-filter: blur(40px) saturate(1.12);
-  -webkit-backdrop-filter: blur(40px) saturate(1.12);
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.46),
+    0 22px 64px rgba(70, 76, 88, 0.062);
+  backdrop-filter: blur(30px) saturate(1.04);
+  -webkit-backdrop-filter: blur(30px) saturate(1.04);
 }
 
 .section-title {
@@ -141,10 +161,10 @@ h3,
 /* Rich color blobs behind glass (marketing + app shell; all viewports) */
 .auth-desktop-depth {
   background:
-    radial-gradient(ellipse 85% 60% at 12% 18%, rgba(99, 102, 241, 0.16), transparent 52%),
-    radial-gradient(ellipse 70% 55% at 88% 8%, rgba(56, 189, 248, 0.14), transparent 48%),
-    radial-gradient(ellipse 75% 50% at 55% 92%, rgba(165, 180, 252, 0.12), transparent 46%),
-    radial-gradient(ellipse 50% 40% at 70% 45%, rgba(14, 165, 233, 0.08), transparent 40%);
+    radial-gradient(ellipse 85% 60% at 12% 18%, rgba(218, 229, 236, 0.52), transparent 52%),
+    radial-gradient(ellipse 70% 55% at 88% 8%, rgba(255, 255, 255, 0.48), transparent 48%),
+    radial-gradient(ellipse 75% 50% at 55% 92%, rgba(239, 228, 214, 0.36), transparent 46%),
+    radial-gradient(ellipse 50% 40% at 70% 45%, rgba(181, 201, 212, 0.12), transparent 40%);
 }
 
 /*
@@ -189,15 +209,15 @@ h3,
 /* main: sign-in home; .app-shell: dashboard + setup - glass utilities (all viewports) */
 main .auth-glass-desktop,
 .app-shell .auth-glass-desktop {
-  background: rgba(255, 255, 255, 0.11);
-  border: 1px solid rgba(255, 255, 255, 0.48);
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.54);
   box-shadow:
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.3),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.34),
     inset 0 0 0 1px rgba(255, 255, 255, 0.04),
-    0 24px 56px rgba(15, 23, 42, 0.075),
-    0 10px 24px rgba(15, 23, 42, 0.045);
-  backdrop-filter: blur(52px) saturate(1.18);
-  -webkit-backdrop-filter: blur(52px) saturate(1.18);
+    0 24px 56px rgba(70, 76, 88, 0.07),
+    0 10px 24px rgba(70, 76, 88, 0.04);
+  backdrop-filter: blur(56px) saturate(1.08);
+  -webkit-backdrop-filter: blur(56px) saturate(1.08);
   transition:
     box-shadow var(--eb-duration) var(--eb-ease),
     border-color var(--eb-duration) var(--eb-ease),
@@ -237,9 +257,11 @@ main .auth-glass-tile,
 
 /* Card lift: fine pointer only (avoids sticky hover on touch) */
 @media (hover: hover) and (pointer: fine) {
-  .app-shell .soft-card:hover {
+.app-shell .soft-card:hover {
     transform: translateY(-4px);
-    box-shadow: var(--eb-shadow-soft-hover);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.74),
+      0 24px 72px rgba(31, 41, 55, 0.09);
   }
 
   main .auth-glass-tile:hover {
@@ -327,5 +349,195 @@ main select:focus-visible {
   .eb-skeleton-pulse {
     animation: none !important;
   }
+}
+
+.app-kicker {
+  color: var(--accent);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+}
+
+.app-page-title {
+  color: var(--text-primary);
+  font-family: var(--font-display), serif;
+  font-size: clamp(2rem, 3vw, 3.3rem);
+  line-height: 0.98;
+  letter-spacing: -0.055em;
+}
+
+.app-page-copy {
+  color: var(--text-secondary);
+  font-size: 0.97rem;
+  line-height: 1.8;
+}
+
+.app-hero-panel {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  background:
+    radial-gradient(circle at top right, rgba(255, 255, 255, 0.3), transparent 28%),
+    linear-gradient(135deg, rgba(119, 134, 149, 0.96), rgba(146, 165, 181, 0.92) 52%, rgba(194, 171, 150, 0.56));
+  box-shadow: 0 28px 70px rgba(86, 94, 106, 0.16);
+}
+
+.app-hero-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 18% 18%, rgba(255, 255, 255, 0.18), transparent 20%),
+    radial-gradient(circle at 84% 14%, rgba(217, 245, 234, 0.2), transparent 18%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 45%);
+}
+
+.app-hero-panel .app-kicker,
+.app-hero-panel .text-[11px] {
+  color: rgba(220, 248, 239, 0.92);
+}
+
+.app-hero-panel h1,
+.app-hero-panel h2,
+.app-hero-panel h3 {
+  color: rgba(255, 255, 255, 0.98);
+  text-shadow: 0 1px 0 rgba(66, 74, 86, 0.18);
+}
+
+.app-hero-panel p {
+  color: rgba(244, 247, 250, 0.9);
+}
+
+.app-subtle-panel {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.84), rgba(255, 255, 255, 0.64)),
+    rgba(255, 255, 255, 0.68);
+  border: 1px solid rgba(83, 93, 105, 0.1);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    0 16px 45px rgba(31, 41, 55, 0.055);
+}
+
+.app-stat-card {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(255, 255, 255, 0.66)),
+    rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(83, 93, 105, 0.1);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.78),
+    0 18px 52px rgba(31, 41, 55, 0.06);
+}
+
+.app-dark-card {
+  background:
+    radial-gradient(circle at top right, rgba(255, 255, 255, 0.12), transparent 22%),
+    linear-gradient(135deg, rgba(149, 164, 177, 0.96), rgba(171, 188, 202, 0.92));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 24px 70px rgba(86, 94, 106, 0.14);
+  color: white;
+}
+
+.app-hero-panel .app-dark-card,
+.app-hero-panel .rounded-\[24px\] {
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.app-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  border-radius: 999px;
+  border: 1px solid rgba(83, 93, 105, 0.1);
+  background: rgba(255, 255, 255, 0.72);
+  padding: 0.5rem 0.9rem;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+
+.app-primary-button {
+  border: 1px solid rgba(113, 137, 154, 0.08);
+  background:
+    linear-gradient(180deg, rgba(126, 149, 165, 0.98), rgba(110, 132, 148, 1));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 20px 50px rgba(113, 137, 154, 0.16);
+  color: white;
+  transition:
+    transform var(--eb-duration) var(--eb-ease),
+    box-shadow var(--eb-duration) var(--eb-ease),
+    opacity var(--eb-duration) var(--eb-ease);
+}
+
+.app-primary-button:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    0 24px 58px rgba(113, 137, 154, 0.2);
+}
+
+.app-secondary-button {
+  border: 1px solid rgba(83, 93, 105, 0.11);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(255, 255, 255, 0.64)),
+    rgba(255, 255, 255, 0.74);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    0 12px 36px rgba(31, 41, 55, 0.055);
+  color: var(--text-primary);
+}
+
+.app-input,
+.app-textarea,
+.app-select-shell {
+  border: 1px solid rgba(83, 93, 105, 0.11);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.72)),
+    rgba(255, 255, 255, 0.82);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+}
+
+.app-input:focus,
+.app-input:focus-visible,
+.app-textarea:focus,
+.app-textarea:focus-visible {
+  border-color: rgba(29, 107, 95, 0.38);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.72),
+    0 0 0 4px rgba(29, 107, 95, 0.12);
+}
+
+.app-table-shell {
+  overflow: hidden;
+  border: 1px solid rgba(83, 93, 105, 0.1);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.84), rgba(255, 255, 255, 0.68)),
+    rgba(255, 255, 255, 0.74);
+}
+
+.app-table-head {
+  background: rgba(244, 241, 235, 0.86);
+}
+
+.app-mobile-card {
+  border: 1px solid rgba(83, 93, 105, 0.1);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(255, 255, 255, 0.72)),
+    rgba(255, 255, 255, 0.78);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.78),
+    0 14px 36px rgba(31, 41, 55, 0.05);
+}
+
+.app-sticky-bar {
+  border-top: 1px solid rgba(83, 93, 105, 0.1);
+  background:
+    linear-gradient(180deg, rgba(250, 248, 243, 0.96), rgba(248, 245, 239, 0.94)),
+    rgba(255, 255, 255, 0.88);
+  box-shadow: 0 -18px 48px rgba(31, 41, 55, 0.08);
+  backdrop-filter: blur(18px);
 }
 

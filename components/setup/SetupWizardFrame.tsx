@@ -28,7 +28,7 @@ export default function SetupWizardFrame({
   const progressPct = Math.max(0, Math.min(100, Math.round((step / totalSteps) * 100)))
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[linear-gradient(to_bottom,_#fafaf9,_#f1f5f9)] px-4 py-8 lg:px-6">
+    <main className="app-shell relative min-h-screen overflow-hidden px-4 py-8 lg:px-6">
       <div className="absolute inset-0 bg-[linear-gradient(to_right,_rgba(15,23,42,0.06)_1px,_transparent_1px),linear-gradient(to_bottom,_rgba(15,23,42,0.06)_1px,_transparent_1px)] bg-[size:72px_72px] [mask-image:radial-gradient(ellipse_at_center,black_40%,transparent_70%)]" />
       <div className="absolute left-[-10%] top-[18%] h-80 w-80 rounded-full bg-amber-200/45 blur-3xl" />
       <div className="absolute right-[-12%] top-[6%] h-72 w-72 rounded-full bg-cyan-200/35 blur-3xl" />
@@ -39,7 +39,7 @@ export default function SetupWizardFrame({
             {onBack ? (
               <button
                 onClick={onBack}
-                className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-4 py-2 text-sm font-medium text-slate-700 shadow-sm backdrop-blur transition hover:bg-white hover:text-slate-950 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-100"
+                className="app-secondary-button inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium text-slate-700 shadow-sm backdrop-blur transition hover:text-slate-950 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[rgba(29,107,95,0.12)]"
               >
                 <ArrowLeft className="h-4 w-4" />
                 Back
@@ -83,7 +83,7 @@ export default function SetupWizardFrame({
           </div>
 
           {bullets.length > 0 ? (
-            <div className="rounded-[28px] border border-slate-200 bg-white/70 p-4 shadow-sm backdrop-blur sm:p-5">
+            <div className="app-subtle-panel rounded-[28px] p-4 shadow-sm backdrop-blur sm:p-5">
               <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">Quick checklist</p>
               <div className="mt-4 space-y-3 text-sm text-slate-700">
                 {bullets.map((item) => (
@@ -109,7 +109,7 @@ export default function SetupWizardFrame({
 
               {/* Mobile: collapse preview/aside so the step content stays primary */}
               <div className="order-2 lg:hidden">
-                <details className="rounded-[28px] border border-slate-200 bg-white/70 p-4 shadow-sm backdrop-blur">
+                <details className="app-subtle-panel rounded-[28px] p-4 shadow-sm backdrop-blur">
                   <summary className="cursor-pointer list-none text-sm font-semibold text-slate-900">
                     Preview & guidance
                   </summary>
@@ -125,4 +125,3 @@ export default function SetupWizardFrame({
     </main>
   )
 }
-

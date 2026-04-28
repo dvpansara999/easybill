@@ -216,6 +216,7 @@ const activateLabel =
     : getActivePlanId() === "free"
       ? "Upgrade to use this template"
       : "Use This Template"
+const activeTemplateName = templates.find((template) => template.id === activeTemplate)?.name || "Default"
 
 return(
 
@@ -227,25 +228,28 @@ return(
 </div>
 ) : null}
 
-<section className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(380px,0.85fr)] xl:items-stretch xl:gap-6">
-<div className="soft-card relative min-w-0 overflow-hidden rounded-[22px] p-5 sm:p-6 xl:rounded-[28px] xl:p-8">
-  <div
-    className="pointer-events-none absolute inset-0 rounded-[22px] bg-gradient-to-br from-emerald-50/45 via-white/40 to-slate-50/35 xl:rounded-[28px]"
-    aria-hidden
-  />
-  <div className="relative">
-    <p className="text-[10px] font-semibold tracking-[0.24em] text-emerald-700 xl:text-xs">Invoice design</p>
-    <h1 className="font-display mt-2 max-w-none text-3xl leading-[1.12] text-slate-950 sm:text-4xl xl:mt-3 xl:text-[2.75rem] xl:leading-[1.06]">
-      Templates
-    </h1>
-    <p className="mt-3 max-w-2xl text-sm font-medium leading-7 text-slate-800 sm:text-base xl:mt-4">
-      Choose the invoice experience that your customers will remember.
-    </p>
-    <p className="mt-2 max-w-2xl text-xs leading-6 text-slate-600 sm:text-sm sm:leading-7 xl:text-slate-500">
-      Browse styles, preview them instantly, and tune typography - all inside easyBILL.
-    </p>
+<section className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+<div>
+  <p className="app-kicker">Templates</p>
+  <h1 className="app-page-title mt-2 text-2xl sm:text-3xl xl:mt-3 xl:text-4xl">Invoice templates.</h1>
+  <p className="app-page-copy mt-2 max-w-2xl text-xs sm:mt-3 sm:text-sm">
+    Pick the template and typography used for new invoices.
+  </p>
+</div>
+
+<div className="grid grid-cols-2 gap-3 xl:min-w-[420px]">
+  <div className="app-stat-card rounded-[20px] px-4 py-3">
+    <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-400">Active</p>
+    <p className="mt-2 truncate text-lg font-semibold text-slate-950">{activeTemplateName}</p>
+  </div>
+  <div className="app-stat-card rounded-[20px] px-4 py-3">
+    <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-400">Available</p>
+    <p className="mt-2 text-lg font-semibold text-slate-950">{templates.length}</p>
   </div>
 </div>
+</section>
+
+<section className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(360px,0.55fr)] xl:items-start xl:gap-5">
 
 {/* Mobile: collapsible typography */}
 <details className="group soft-card overflow-visible rounded-[22px] border border-slate-200/80 xl:hidden">
@@ -279,21 +283,21 @@ return(
 <button
   type="button"
   onClick={()=>router.push("/dashboard/templates/modern")}
-  className="shrink-0 snap-start rounded-2xl border border-slate-200 bg-white px-5 py-3.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-100 md:shrink md:py-4"
+  className="app-secondary-button shrink-0 snap-start rounded-2xl px-5 py-3.5 text-sm font-semibold text-slate-700 shadow-sm transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[rgba(29,107,95,0.12)] md:shrink md:py-4"
 >
   Modern
 </button>
 <button
   type="button"
   onClick={()=>router.push("/dashboard/templates/minimal")}
-  className="shrink-0 snap-start rounded-2xl border border-slate-200 bg-white px-5 py-3.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-100 md:shrink md:py-4"
+  className="app-secondary-button shrink-0 snap-start rounded-2xl px-5 py-3.5 text-sm font-semibold text-slate-700 shadow-sm transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[rgba(29,107,95,0.12)] md:shrink md:py-4"
 >
   Minimal
 </button>
 <button
   type="button"
   onClick={()=>router.push("/dashboard/templates/classic")}
-  className="shrink-0 snap-start rounded-2xl border border-slate-200 bg-white px-5 py-3.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-100 md:shrink md:py-4"
+  className="app-secondary-button shrink-0 snap-start rounded-2xl px-5 py-3.5 text-sm font-semibold text-slate-700 shadow-sm transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[rgba(29,107,95,0.12)] md:shrink md:py-4"
 >
   Classic
 </button>
@@ -326,8 +330,8 @@ onKeyDown={(e) => {
 }}
 className={`min-w-[128px] max-w-[128px] cursor-pointer snap-start rounded-[18px] border p-2.5 transition xl:min-w-[118px] xl:max-w-[118px] xl:rounded-[20px] ${
 previewTemplate===t.id
-? "border-slate-950 bg-slate-950/5 shadow-lg ring-2 ring-slate-950/10"
-: "border-slate-200 bg-white hover:border-slate-300"
+? "border-[rgba(29,107,95,0.16)] bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(242,248,246,0.94))] shadow-[0_18px_40px_rgba(15,23,42,0.08)] ring-2 ring-[rgba(29,107,95,0.1)]"
+: "border-[rgba(83,93,105,0.11)] bg-[rgba(255,255,255,0.82)] hover:border-[rgba(29,107,95,0.22)] hover:bg-white/92"
 }`}
 >
 <SmallPreview template={t.id} fontFamily={fontFamily} fontSize={fontSize}/>
@@ -371,8 +375,8 @@ onKeyDown={(e) => {
 }}
 className={`min-w-[128px] max-w-[128px] cursor-pointer snap-start rounded-[18px] border p-2.5 transition xl:min-w-[118px] xl:max-w-[118px] xl:rounded-[20px] ${
 previewTemplate===t.id
-? "border-slate-950 bg-slate-950/5 shadow-lg ring-2 ring-slate-950/10"
-: "border-slate-200 bg-white hover:border-slate-300"
+? "border-[rgba(29,107,95,0.16)] bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(242,248,246,0.94))] shadow-[0_18px_40px_rgba(15,23,42,0.08)] ring-2 ring-[rgba(29,107,95,0.1)]"
+: "border-[rgba(83,93,105,0.11)] bg-[rgba(255,255,255,0.82)] hover:border-[rgba(29,107,95,0.22)] hover:bg-white/92"
 }`}
 >
 <SmallPreview template={t.id} fontFamily={fontFamily} fontSize={fontSize}/>
@@ -416,7 +420,7 @@ previewTemplate===t.id
 Currently Active
 </button>
 ) : (
-<button disabled={applyingTemplate} onClick={() => void activateTemplate()} className="w-full rounded-2xl bg-slate-950 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400">
+<button disabled={applyingTemplate} onClick={() => void activateTemplate()} className="app-primary-button w-full rounded-2xl py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:bg-slate-400">
 {applyingTemplate ? "Applying..." : activateLabel}
 </button>
 )}
@@ -425,7 +429,7 @@ Currently Active
 </section>
 
 {/* Mobile sticky CTA */}
-<div className="eb-safe-bottom-pad fixed inset-x-0 bottom-0 z-40 border-t border-slate-200/80 bg-white/95 px-4 pt-3 shadow-[0_-12px_40px_rgba(15,23,42,0.08)] backdrop-blur-md xl:hidden">
+<div className="app-sticky-bar eb-safe-bottom-pad fixed inset-x-0 bottom-0 z-40 px-4 pt-3 xl:hidden">
 <p className="mb-2 text-center text-[10px] leading-4 text-slate-500">
   A4-sized preview above - capped at 2 pages when content is long
 </p>
@@ -438,7 +442,7 @@ Currently Active
   type="button"
   disabled={applyingTemplate}
   onClick={() => void activateTemplate()}
-  className="w-full rounded-2xl bg-slate-950 py-3.5 text-sm font-semibold text-white transition hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-100 disabled:cursor-not-allowed disabled:bg-slate-400"
+  className="app-primary-button w-full rounded-2xl py-3.5 text-sm font-semibold focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[rgba(29,107,95,0.12)] disabled:cursor-not-allowed disabled:bg-slate-400"
 >
 {applyingTemplate ? "Applying..." : activateLabel}
 </button>
@@ -459,7 +463,7 @@ if(!engine) return null
 
 return(
 
-<div className="overflow-hidden rounded-[16px] border border-slate-200 bg-white aspect-[1/1.414]">
+<div className="aspect-[1/1.414] overflow-hidden rounded-[16px] border border-[rgba(83,93,105,0.11)] bg-[rgba(255,255,255,0.94)]">
 <div className="origin-top-left scale-[0.14] w-[715%]">
 {createElement(engine, {
   ...(previewTemplateProps as TemplateComponentProps),

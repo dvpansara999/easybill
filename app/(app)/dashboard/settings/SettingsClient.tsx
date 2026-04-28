@@ -176,7 +176,7 @@ export default function SettingsClient() {
   }, [])
 
   const selectStyle =
-    "w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+    "app-input w-full rounded-2xl px-4 py-3 text-sm outline-none transition"
 
   const invoicePreview = useMemo(() => {
     return generateInvoiceNumber(
@@ -588,9 +588,9 @@ export default function SettingsClient() {
       )}
 
       <section>
-        <p className="text-xs uppercase tracking-[0.34em] text-emerald-700">Settings</p>
-        <h1 className="font-display mt-3 text-3xl text-slate-950 sm:text-4xl">Fine-tune how easyBILL formats your invoices.</h1>
-        <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-500">
+        <p className="app-kicker">Settings</p>
+        <h1 className="app-page-title mt-3 text-3xl sm:text-4xl">Fine-tune how easyBILL formats your invoices.</h1>
+        <p className="app-page-copy mt-3 max-w-2xl text-sm">
           Control formatting, currency display, and numbering preferences - without changing your invoice workflow.
         </p>
       </section>
@@ -602,13 +602,13 @@ export default function SettingsClient() {
             <p className="mt-1 text-sm text-slate-500">Update your login email and password. Your account ID never changes.</p>
           </div>
 
-          <div className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700">
+          <div className="app-secondary-button rounded-full px-4 py-2 text-xs font-semibold text-slate-700">
             ID: <span className="font-mono">{accountUserId || "-"}</span>
           </div>
         </div>
 
         <div className="mt-6 grid gap-4 md:grid-cols-[1.35fr_0.65fr] md:items-start">
-          <div className="rounded-[24px] border border-slate-200 bg-slate-50/70 p-5">
+          <div className="app-subtle-panel rounded-[24px] p-5">
             <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">Login</p>
             <p className="mt-2 text-sm text-slate-700">
               Current login email: <span className="font-semibold text-slate-950">{accountEmail || "-"}</span>
@@ -642,10 +642,10 @@ export default function SettingsClient() {
               }}
               className={`rounded-[24px] border px-5 py-4 text-left text-sm font-semibold transition ${
                 showEmailEditor
-                  ? "border-slate-300 bg-white shadow-[0_18px_44px_rgba(15,23,42,0.06)]"
+                  ? "app-subtle-panel shadow-[0_18px_44px_rgba(15,23,42,0.06)]"
                   : emailPolicyLoading || !emailPolicy?.canChange
-                    ? "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-500"
-                    : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
+                    ? "cursor-not-allowed bg-slate-100 text-slate-500"
+                    : "app-subtle-panel hover:border-slate-300 hover:bg-white"
               }`}
             >
               <p className="text-slate-950">Change email</p>
@@ -680,8 +680,8 @@ export default function SettingsClient() {
               }}
               className={`rounded-[24px] border px-5 py-4 text-left text-sm font-semibold transition ${
                 showPasswordEditor
-                  ? "border-slate-300 bg-white shadow-[0_18px_44px_rgba(15,23,42,0.06)]"
-                  : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
+                  ? "app-subtle-panel shadow-[0_18px_44px_rgba(15,23,42,0.06)]"
+                  : "app-subtle-panel hover:border-slate-300 hover:bg-white"
               }`}
             >
               <p className="text-slate-950">Change password</p>
@@ -752,7 +752,7 @@ export default function SettingsClient() {
               <button
                 onClick={updateEmailOnly}
                 disabled={emailChangeBusy}
-                className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                className="app-primary-button rounded-2xl px-5 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {emailChangeBusy
                   ? "Processing..."
@@ -776,7 +776,7 @@ export default function SettingsClient() {
                   className={`rounded-2xl px-5 py-3 text-sm font-semibold transition ${
                     passwordOtpBusy || !accountEmail.trim()
                       ? "cursor-not-allowed bg-slate-200 text-slate-500"
-                      : "bg-slate-950 text-white hover:bg-slate-800"
+                      : "app-primary-button text-white"
                   }`}
                 >
                   {passwordOtpBusy ? "Sending OTP..." : "Send OTP to current email"}
@@ -802,7 +802,7 @@ export default function SettingsClient() {
                   className={`mt-3 rounded-2xl px-4 py-2 text-sm font-semibold transition ${
                     !passwordOtpSent || passwordOtpVerified || passwordOtpBusy || passwordOtpCode.trim().length < 6
                       ? "cursor-not-allowed bg-slate-200 text-slate-500"
-                      : "bg-slate-950 text-white hover:bg-slate-800"
+                      : "app-primary-button text-white"
                   }`}
                 >
                   {passwordOtpVerified ? "OTP Verified" : passwordOtpBusy ? "Verifying..." : "Verify OTP"}
@@ -865,7 +865,7 @@ export default function SettingsClient() {
                 disabled={!passwordOtpVerified || updatePasswordBusy}
                 className={`rounded-2xl px-5 py-3 text-sm font-semibold transition ${
                   passwordOtpVerified && !updatePasswordBusy
-                    ? "bg-slate-950 text-white hover:bg-slate-800"
+                    ? "app-primary-button text-white"
                     : "cursor-not-allowed bg-slate-200 text-slate-500"
                 }`}
               >
@@ -887,7 +887,7 @@ export default function SettingsClient() {
           <button
             type="button"
             onClick={() => requestGuardedNavigation(() => router.push("/dashboard/settings/invoice-visibility"))}
-            className="w-full rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 sm:w-auto"
+            className="app-primary-button w-full rounded-2xl px-5 py-3 text-sm font-semibold text-white sm:w-auto"
           >
             Manage invoice visibility
           </button>
@@ -1050,7 +1050,7 @@ export default function SettingsClient() {
           ) : null}
         </div>
 
-        <div className="mt-6 rounded-[24px] border border-slate-200 bg-slate-50/80 p-5">
+        <div className="app-subtle-panel mt-6 rounded-[24px] p-5">
           <p className="text-xs uppercase tracking-[0.28em] text-slate-400">Preview</p>
           <p className="mt-3 text-3xl font-semibold text-slate-950">{invoicePreview}</p>
           <p className="mt-2 text-sm text-slate-500">
@@ -1060,7 +1060,7 @@ export default function SettingsClient() {
             {invoicePreviewSeries.map((value) => (
               <span
                 key={value}
-                className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700"
+                className="app-secondary-button rounded-full px-3 py-1.5 text-xs font-semibold text-slate-700"
               >
                 {value}
               </span>
@@ -1093,13 +1093,13 @@ export default function SettingsClient() {
               downloadAppBackupJson()
               window.setTimeout(() => setBackupBusy(null), 500)
             }}
-            className="rounded-[24px] border border-slate-200 bg-white px-5 py-4 text-left transition hover:bg-slate-50"
+            className="app-subtle-panel rounded-[24px] px-5 py-4 text-left transition hover:bg-white"
           >
             <p className="text-sm font-semibold text-slate-900">{backupBusy === "export" ? "Preparing export..." : "Export JSON backup"}</p>
             <p className="mt-2 text-sm leading-6 text-slate-500">Download a full backup of invoices, products, customers, business profile, and workspace settings.</p>
           </button>
 
-          <div className="rounded-[24px] border border-slate-200 bg-white px-5 py-4">
+          <div className="app-subtle-panel rounded-[24px] px-5 py-4">
             <p className="text-sm font-semibold text-slate-900">{backupBusy === "import" ? "Importing backup..." : "Import JSON backup"}</p>
             <p className="mt-2 text-sm leading-6 text-slate-500">Restore a previously exported easyBILL backup file into this workspace.</p>
             <input
@@ -1134,14 +1134,14 @@ export default function SettingsClient() {
           <button
             type="button"
             onClick={() => requestGuardedNavigation(() => router.push("/dashboard/settings/report"))}
-            className="w-full rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 sm:w-auto"
+            className="app-primary-button w-full rounded-2xl px-5 py-3 text-sm font-semibold text-white transition sm:w-auto"
           >
             Report bug and feedback
           </button>
         </div>
       </div>
 
-      <div className="flex flex-col gap-4 rounded-[24px] border border-slate-200 bg-white px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="app-subtle-panel flex flex-col gap-4 rounded-[24px] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-sm font-semibold text-slate-900">{hasPendingChanges ? "Unsaved changes" : "All changes saved"}</p>
           <p className="text-sm text-slate-500">
@@ -1160,7 +1160,7 @@ export default function SettingsClient() {
           disabled={!hasPendingChanges || savingSettings}
           className={`rounded-2xl px-5 py-3 text-sm font-semibold transition ${
             hasPendingChanges && !savingSettings
-              ? "bg-slate-950 text-white hover:bg-slate-800"
+              ? "app-primary-button text-white"
               : "bg-slate-200 text-slate-500"
           }`}
         >

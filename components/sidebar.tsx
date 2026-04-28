@@ -45,8 +45,8 @@ export default function Sidebar({
 
   const wrapClass =
     variant === "drawer"
-      ? "glass-card flex w-full max-w-sm flex-col overflow-hidden rounded-[28px] max-h-[85vh]"
-      : "glass-card auth-glass-desktop sticky top-0 m-4 flex min-h-[calc(100vh-2rem)] w-72 flex-col overflow-hidden rounded-[28px]"
+      ? "glass-card flex w-full max-w-sm flex-col overflow-hidden rounded-[30px] max-h-[85vh]"
+      : "glass-card sticky top-0 m-4 flex min-h-[calc(100vh-2rem)] w-[18.5rem] flex-col overflow-hidden rounded-[32px]"
 
   const navClass =
     variant === "drawer"
@@ -56,7 +56,7 @@ export default function Sidebar({
   return (
     <aside className={wrapClass}>
 
-      <div className="border-b border-white/60 bg-slate-950 px-6 py-6 text-white">
+      <div className="border-b border-white/10 bg-[linear-gradient(160deg,rgba(146,162,176,0.97),rgba(172,189,202,0.9),rgba(208,188,170,0.68))] px-6 py-6 text-white">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center">
@@ -69,7 +69,7 @@ export default function Sidebar({
           </div>
         </div>
 
-        <div className="mt-5 flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-3">
+        <div className="mt-5 flex items-center gap-3 rounded-[1.35rem] border border-white/10 bg-white/8 p-3 backdrop-blur-xl">
           {business?.logo ? (
             <div className="relative h-11 w-11 overflow-hidden rounded-2xl ring-1 ring-white/15">
               <Image
@@ -111,7 +111,7 @@ export default function Sidebar({
                     })
                   })
                 }}
-                className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm text-slate-600 transition hover:bg-white/85 hover:text-slate-950 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-100"
+                className="flex w-full items-center gap-3 rounded-[1.15rem] px-4 py-3 text-left text-sm text-slate-600 transition hover:bg-white/70 hover:text-slate-950 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[rgba(29,107,95,0.12)]"
               >
                 <Icon className="h-4 w-4 text-slate-400" />
                 {item.name}
@@ -134,10 +134,10 @@ export default function Sidebar({
                   onNavigate?.()
                 })
               }}
-              className={`flex items-center gap-3 rounded-2xl px-4 py-3 text-sm transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-100 ${
+              className={`flex items-center gap-3 rounded-[1.15rem] px-4 py-3 text-sm transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[rgba(29,107,95,0.12)] ${
                 active
-                  ? "bg-slate-950 text-white shadow-lg shadow-slate-950/10"
-                  : "text-slate-600 hover:bg-white/85 hover:text-slate-950"
+                  ? "bg-[linear-gradient(135deg,rgba(136,153,169,0.98),rgba(162,181,196,0.94))] text-white shadow-[0_18px_42px_rgba(86,94,106,0.14)]"
+                  : "text-slate-600 hover:bg-white/70 hover:text-slate-950"
               }`}
             >
               <Icon className={`h-4 w-4 ${active ? "text-emerald-300" : "text-slate-400"}`} />

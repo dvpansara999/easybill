@@ -449,141 +449,149 @@ export default function CreateInvoiceClient() {
         onBack={() => router.push("/dashboard/invoices")}
       />
 
-      <section className="grid grid-cols-2 gap-3 xl:grid-cols-4 xl:gap-4">
-        <div className="soft-card rounded-[24px] px-4 py-3 sm:px-5 sm:py-4">
+      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4 xl:gap-4">
+        <div className="app-stat-card rounded-[24px] px-4 py-3 sm:px-5 sm:py-4">
           <p className="text-xs uppercase tracking-[0.28em] text-slate-400">Invoice Number</p>
           <p className="mt-1.5 text-lg font-semibold text-slate-950 sm:mt-2 sm:text-2xl">{invoiceNumber}</p>
           {duplicateCycleWarning ? (
             <p className="mt-2 text-xs leading-5 text-amber-700">{duplicateCycleWarning}</p>
           ) : null}
         </div>
-        <div className="soft-card rounded-[24px] px-4 py-3 sm:px-5 sm:py-4">
+        <div className="app-stat-card hidden rounded-[24px] px-4 py-3 sm:block sm:px-5 sm:py-4">
           <p className="text-xs uppercase tracking-[0.28em] text-slate-400">Subtotal</p>
           <p className="mt-1.5 text-lg font-semibold text-slate-950 sm:mt-2 sm:text-2xl">{money(subtotal)}</p>
         </div>
-        <div className="soft-card rounded-[24px] px-4 py-3 sm:px-5 sm:py-4">
+        <div className="app-stat-card hidden rounded-[24px] px-4 py-3 sm:block sm:px-5 sm:py-4">
           <p className="text-xs uppercase tracking-[0.28em] text-slate-400">Taxes</p>
           <p className="mt-1.5 text-lg font-semibold text-slate-950 sm:mt-2 sm:text-2xl">{money(cgstTotal + sgstTotal + igstTotal)}</p>
         </div>
-        <div className="rounded-[24px] bg-slate-950 px-4 py-3 text-white sm:px-5 sm:py-4">
+        <div className="app-dark-card hidden rounded-[24px] px-4 py-3 text-white sm:block sm:px-5 sm:py-4">
           <p className="text-xs uppercase tracking-[0.28em] text-slate-400">Grand Total</p>
           <p className="mt-1.5 text-lg font-semibold sm:mt-2 sm:text-2xl">{money(grandTotal)}</p>
         </div>
       </section>
 
-      <section className="soft-card rounded-[24px] p-4 sm:p-6 xl:rounded-[28px]">
-        <div className="mb-6 flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
-            <UserRound className="h-5 w-5" />
-          </div>
-          <div>
-            <h2 className="section-title text-xl sm:text-2xl">Client Details</h2>
-            <p className="text-xs text-slate-500 sm:text-sm">Search existing clients quickly or add fresh billing details.</p>
-          </div>
-        </div>
-
-        <div className="grid min-w-0 gap-3 sm:gap-4 lg:grid-cols-2 xl:grid-cols-[1.15fr_0.8fr_1.25fr_1fr_220px] [&>*]:min-w-0">
-          <div className="relative min-w-0">
-            <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Client Name *</label>
-            <input
-              placeholder="Client Name"
-              className="h-[54px] w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm leading-5 outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
-              value={clientName}
-              onChange={(e) => searchClientName(e.target.value)}
-            />
-            {clientField === "name" && clientSuggestions.length > 0 ? (
-              <div ref={dropdownRef} className="absolute z-50 mt-2 w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
-                {clientSuggestions.map((customer, index) => (
-                  <div key={`${customer.phone || customer.gst || customer.name}-${index}`} onClick={() => selectClient(customer)} className="cursor-pointer px-4 py-3 text-sm text-slate-700 transition hover:bg-slate-50">
-                    {customer.name} ({customer.phone || `GSTIN: ${customer.gst || "Not added yet"}`})
-                  </div>
-                ))}
-              </div>
-            ) : null}
-          </div>
-
-          <div className="relative min-w-0">
-            <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Client Phone</label>
-            <input
-              placeholder="Client Phone"
-              className="h-[54px] w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm leading-5 outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
-              value={clientPhone}
-              onChange={(e) => searchClientPhone(e.target.value)}
-            />
-            {clientField === "phone" && clientSuggestions.length > 0 ? (
-              <div ref={dropdownRef} className="absolute z-50 mt-2 w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
-                {clientSuggestions.map((customer, index) => (
-                  <div key={`${customer.phone || customer.gst || customer.name}-${index}`} onClick={() => selectClient(customer)} className="cursor-pointer px-4 py-3 text-sm text-slate-700 transition hover:bg-slate-50">
-                    {customer.name} ({customer.phone || `GSTIN: ${customer.gst || "Not added yet"}`})
-                  </div>
-                ))}
-              </div>
-            ) : null}
-          </div>
-
-          <div className="min-w-0">
-            <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Client Email</label>
-            <input placeholder="Client Email" className="h-[54px] w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm leading-5 outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100" value={clientEmail} onChange={(e) => setClientEmail(e.target.value)} />
-          </div>
-          <div className="min-w-0">
-            <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Client GSTIN</label>
-            <input placeholder="Client GSTIN" className="h-[54px] w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm leading-5 outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100" value={clientGST} onChange={(e) => setClientGST(e.target.value)} />
-          </div>
-          <div className="min-w-0">
-            <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Invoice Date *</label>
-            <input
-              type="date"
-              className="eb-date-input box-border h-[54px] w-full max-w-full min-w-0 rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm leading-5 outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-            />
-          </div>
-        </div>
-
-        <div className="mt-4 grid gap-3 sm:gap-4 xl:grid-cols-2">
-          <div>
-            <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Client Address</label>
-            <div className="rounded-[24px] border border-slate-200 bg-white p-4">
-              <textarea placeholder="Client Address" className="min-h-[148px] w-full resize-none bg-transparent px-0 py-0 text-sm outline-none transition placeholder:text-slate-400 focus:border-transparent focus:ring-0" value={clientAddress} onChange={(e) => setClientAddress(e.target.value)} />
+      <section className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.9fr)] xl:gap-5">
+        <div className="soft-card rounded-[24px] p-4 sm:p-6 xl:rounded-[28px]">
+          <div className="mb-6 flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
+              <UserRound className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="section-title text-xl sm:text-2xl">Client Details</h2>
+              <p className="text-xs text-slate-500 sm:text-sm">Pick an existing client or enter fresh billing details.</p>
             </div>
           </div>
 
-          <div>
-            <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Custom Details</label>
-            <div className="rounded-[24px] border border-slate-200 bg-white p-4">
-              <div className="mb-3 flex flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-center">
-                <p className="text-sm text-slate-500">Optional details like project name or work type.</p>
-                <button onClick={addCustomDetail} className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50 hover:text-slate-950 sm:w-auto sm:rounded-full sm:py-2">
-                  <CirclePlus className="h-4 w-4" />
-                  Add Detail
-                </button>
-              </div>
-
-              <div className="space-y-3">
-                {customDetails.map((detail, index) => (
-                  <div key={index} className="grid gap-3 md:grid-cols-[0.35fr_1fr_auto]">
-                    <input
-                      placeholder="Label"
-                      className="h-[54px] rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm leading-5 outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
-                      value={detail.label}
-                      onChange={(e) => setCustomDetails((prev) => prev.map((row, current) => (current === index ? { ...row, label: e.target.value } : row)))}
-                    />
-                    <input
-                      placeholder="Value"
-                      className="h-[54px] rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm leading-5 outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
-                      value={detail.value}
-                      onChange={(e) => setCustomDetails((prev) => prev.map((row, current) => (current === index ? { ...row, value: e.target.value } : row)))}
-                    />
-                    <button onClick={() => removeCustomDetail(index)} className="inline-flex items-center justify-center rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-rose-600 transition hover:bg-rose-100">
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                ))}
-              </div>
+          <div className="grid min-w-0 gap-3 sm:gap-4 md:grid-cols-2 [&>*]:min-w-0">
+            <div className="relative min-w-0 md:col-span-2">
+              <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Client Name *</label>
+              <input
+                placeholder="Client Name"
+                className="app-input h-[54px] w-full rounded-2xl px-4 py-3.5 text-sm leading-5 outline-none transition"
+                value={clientName}
+                onChange={(e) => searchClientName(e.target.value)}
+              />
+              {clientField === "name" && clientSuggestions.length > 0 ? (
+                <div ref={dropdownRef} className="absolute z-50 mt-2 w-full overflow-hidden rounded-2xl border border-[rgba(83,93,105,0.11)] bg-[rgba(255,255,255,0.92)] shadow-[0_20px_52px_rgba(31,41,55,0.12)] backdrop-blur-xl">
+                  {clientSuggestions.map((customer, index) => (
+                    <div key={`${customer.phone || customer.gst || customer.name}-${index}`} onClick={() => selectClient(customer)} className="cursor-pointer px-4 py-3 text-sm text-slate-700 transition hover:bg-white/80">
+                      {customer.name} ({customer.phone || `GSTIN: ${customer.gst || "Not added yet"}`})
+                    </div>
+                  ))}
+                </div>
+              ) : null}
             </div>
+
+            <div className="relative min-w-0">
+              <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Client Phone</label>
+              <input
+                placeholder="Client Phone"
+                className="app-input h-[54px] w-full rounded-2xl px-4 py-3.5 text-sm leading-5 outline-none transition"
+                value={clientPhone}
+                onChange={(e) => searchClientPhone(e.target.value)}
+              />
+              {clientField === "phone" && clientSuggestions.length > 0 ? (
+                <div ref={dropdownRef} className="absolute z-50 mt-2 w-full overflow-hidden rounded-2xl border border-[rgba(83,93,105,0.11)] bg-[rgba(255,255,255,0.92)] shadow-[0_20px_52px_rgba(31,41,55,0.12)] backdrop-blur-xl">
+                  {clientSuggestions.map((customer, index) => (
+                    <div key={`${customer.phone || customer.gst || customer.name}-${index}`} onClick={() => selectClient(customer)} className="cursor-pointer px-4 py-3 text-sm text-slate-700 transition hover:bg-white/80">
+                      {customer.name} ({customer.phone || `GSTIN: ${customer.gst || "Not added yet"}`})
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+
+            <div className="min-w-0">
+              <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Client Email</label>
+              <input placeholder="Client Email" className="app-input h-[54px] w-full rounded-2xl px-4 py-3.5 text-sm leading-5 outline-none transition" value={clientEmail} onChange={(e) => setClientEmail(e.target.value)} />
+            </div>
+
+            <div className="min-w-0">
+              <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Client GSTIN</label>
+              <input placeholder="Client GSTIN" className="app-input h-[54px] w-full rounded-2xl px-4 py-3.5 text-sm leading-5 outline-none transition" value={clientGST} onChange={(e) => setClientGST(e.target.value)} />
+            </div>
+
+            <div className="min-w-0">
+              <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Invoice Date *</label>
+              <input
+                type="date"
+                className="app-input eb-date-input box-border h-[54px] w-full max-w-full min-w-0 rounded-2xl px-4 py-3.5 text-sm leading-5 outline-none transition"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+              />
+            </div>
+
           </div>
         </div>
 
+        <div className="space-y-4">
+          <div className="soft-card rounded-[24px] p-4 sm:p-6 xl:rounded-[28px]">
+            <p className="app-kicker">Client Address</p>
+            <h2 className="section-title mt-2 text-xl sm:text-2xl">Billing location.</h2>
+            <div className="mt-5 app-subtle-panel rounded-[24px] p-4">
+              <textarea placeholder="Client Address" className="app-textarea min-h-[156px] w-full resize-none rounded-2xl border-0 bg-transparent px-0 py-0 text-sm outline-none transition placeholder:text-slate-400 focus:border-transparent focus:ring-0" value={clientAddress} onChange={(e) => setClientAddress(e.target.value)} />
+            </div>
+          </div>
+
+          <div className="soft-card rounded-[24px] p-4 sm:p-6 xl:rounded-[28px]">
+            <div className="mb-4 flex flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-center">
+              <div>
+                <p className="app-kicker">Extra Fields</p>
+                <h2 className="section-title mt-2 text-xl sm:text-2xl">Optional details.</h2>
+              </div>
+              <button onClick={addCustomDetail} className="app-secondary-button inline-flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-medium sm:w-auto sm:rounded-full sm:py-2">
+                <CirclePlus className="h-4 w-4" />
+                Add Detail
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {customDetails.length === 0 ? (
+                <div className="app-subtle-panel rounded-[22px] px-4 py-4 text-sm text-slate-500">Add project, reference, or work-type details only if this invoice needs them.</div>
+              ) : null}
+              {customDetails.map((detail, index) => (
+                <div key={index} className="grid min-w-0 gap-3 md:grid-cols-[minmax(0,0.42fr)_minmax(0,1fr)_44px]">
+                  <input
+                    placeholder="Label"
+                    className="app-input h-[54px] min-w-0 rounded-2xl px-4 py-3.5 text-sm leading-5 outline-none transition"
+                    value={detail.label}
+                    onChange={(e) => setCustomDetails((prev) => prev.map((row, current) => (current === index ? { ...row, label: e.target.value } : row)))}
+                  />
+                  <input
+                    placeholder="Value"
+                    className="app-input h-[54px] min-w-0 rounded-2xl px-4 py-3.5 text-sm leading-5 outline-none transition"
+                    value={detail.value}
+                    onChange={(e) => setCustomDetails((prev) => prev.map((row, current) => (current === index ? { ...row, value: e.target.value } : row)))}
+                  />
+                  <button onClick={() => removeCustomDetail(index)} className="inline-flex h-[54px] w-full items-center justify-center rounded-2xl border border-rose-200 bg-rose-50 text-rose-600 transition hover:bg-rose-100">
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       </section>
 
       <section className="soft-card rounded-[24px] p-4 sm:p-6 xl:rounded-[28px]">
@@ -599,7 +607,7 @@ export default function CreateInvoiceClient() {
 
         <div className="space-y-4">
           {items.map((item, index) => (
-            <div key={index} className="rounded-[24px] border border-slate-200 bg-white p-3 sm:rounded-[26px] sm:p-4">
+            <div key={index} className="app-subtle-panel rounded-[24px] p-3 sm:rounded-[26px] sm:p-4">
               <div className="mb-3 flex items-center justify-between">
                 <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Item {index + 1}</p>
                 <button onClick={() => removeProduct(index)} className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-rose-200 bg-rose-50 text-rose-600 transition hover:bg-rose-100" aria-label={`Remove item ${index + 1}`}>
@@ -610,11 +618,11 @@ export default function CreateInvoiceClient() {
               <div className="grid grid-cols-2 gap-2.5 sm:gap-3 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-[1.7fr_0.95fr_0.62fr_0.7fr_0.9fr_0.68fr_0.68fr_0.68fr_1fr_auto]">
                 <div className="relative col-span-2">
                   <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Product *</label>
-                  <input value={item.product} onChange={(e) => searchProduct(index, e.target.value)} placeholder="Product" className="h-[54px] w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm leading-5 outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100" />
+                  <input value={item.product} onChange={(e) => searchProduct(index, e.target.value)} placeholder="Product" className="app-input h-[54px] w-full rounded-2xl px-4 py-3.5 text-sm leading-5 outline-none transition" />
                   {activeRow === index && suggestions.length > 0 ? (
-                    <div ref={dropdownRef} className="absolute z-50 mt-2 w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
+                    <div ref={dropdownRef} className="absolute z-50 mt-2 w-full overflow-hidden rounded-2xl border border-[rgba(83,93,105,0.11)] bg-[rgba(255,255,255,0.92)] shadow-[0_20px_52px_rgba(31,41,55,0.12)] backdrop-blur-xl">
                       {suggestions.map((product, suggestionIndex) => (
-                        <div key={`${product.hsn}-${suggestionIndex}`} onClick={() => selectSuggestion(product)} className="cursor-pointer px-4 py-3 text-sm text-slate-700 transition hover:bg-slate-50">
+                        <div key={`${product.hsn}-${suggestionIndex}`} onClick={() => selectSuggestion(product)} className="cursor-pointer px-4 py-3 text-sm text-slate-700 transition hover:bg-white/80">
                           {product.name} ({product.hsn})
                         </div>
                       ))}
@@ -624,7 +632,7 @@ export default function CreateInvoiceClient() {
 
                 <div className="col-span-2 sm:col-span-1">
                   <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">HSN</label>
-                  <input value={item.hsn} onChange={(e) => searchHSN(index, e.target.value)} placeholder="HSN" className="h-[54px] w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm leading-5 outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100" />
+                  <input value={item.hsn} onChange={(e) => searchHSN(index, e.target.value)} placeholder="HSN" className="app-input h-[54px] w-full rounded-2xl px-4 py-3.5 text-sm leading-5 outline-none transition" />
                 </div>
 
                 {(["qty", "unit", "price", "cgst", "sgst", "igst"] as const).map((field) => (
@@ -645,21 +653,21 @@ export default function CreateInvoiceClient() {
                         handleItemChange(index, field, next)
                       }}
                       placeholder={field === "unit" ? "Unit" : field.toUpperCase()}
-                      className="h-[54px] w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm leading-5 outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+                      className="app-input h-[54px] w-full rounded-2xl px-4 py-3.5 text-sm leading-5 outline-none transition"
                     />
                   </div>
                 ))}
 
                 <div className="col-span-2 sm:col-span-1">
                   <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Total</label>
-                  <div className="flex items-center rounded-2xl bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-900">{money(Number(item.total || 0))}</div>
+                  <div className="app-subtle-panel flex items-center rounded-2xl px-4 py-3 text-sm font-semibold text-slate-900">{money(Number(item.total || 0))}</div>
                 </div>
               </div>
             </div>
           ))}
         </div>
 
-        <button onClick={addProduct} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-600 transition hover:bg-slate-50 hover:text-slate-950 sm:w-auto">
+        <button onClick={addProduct} className="app-secondary-button mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-medium sm:w-auto">
           <Plus className="h-4 w-4" />
           Add Product
         </button>
@@ -668,26 +676,29 @@ export default function CreateInvoiceClient() {
       <section className="soft-card rounded-[24px] p-4 sm:p-6 xl:rounded-[28px]">
         <h2 className="section-title text-xl sm:text-2xl">Invoice Summary</h2>
         <div className="mt-5 grid gap-4 lg:grid-cols-2">
-          <div className="space-y-3 rounded-[24px] border border-slate-200 bg-white p-5 text-sm text-slate-600">
+          <div className="app-subtle-panel space-y-3 rounded-[24px] p-5 text-sm text-slate-600">
             <div className="flex justify-between"><span>Subtotal</span><span className="font-semibold text-slate-900">{money(subtotal)}</span></div>
             <div className="flex justify-between"><span>CGST Total</span><span className="font-semibold text-slate-900">{money(cgstTotal)}</span></div>
             <div className="flex justify-between"><span>SGST Total</span><span className="font-semibold text-slate-900">{money(sgstTotal)}</span></div>
             <div className="flex justify-between"><span>IGST Total</span><span className="font-semibold text-slate-900">{money(igstTotal)}</span></div>
           </div>
-          <div className="rounded-[24px] bg-slate-950 p-6 text-white">
+          <div className="app-dark-card rounded-[24px] p-6 text-white">
             <p className="text-xs uppercase tracking-[0.28em] text-slate-400">Grand Total</p>
             <p className="mt-3 text-3xl font-semibold sm:text-4xl">{money(grandTotal)}</p>
           </div>
         </div>
 
-        <button onClick={saveInvoice} disabled={savingInvoice} className="mt-5 hidden items-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400 xl:inline-flex">
+      </section>
+
+      <section className="hidden xl:block">
+        <button onClick={saveInvoice} disabled={savingInvoice} className="app-primary-button inline-flex w-full items-center justify-center gap-2 rounded-[24px] px-6 py-4 text-sm font-semibold disabled:cursor-not-allowed disabled:bg-slate-400">
           <Save className="h-4 w-4" />
           {savingInvoice ? "Saving..." : "Save Invoice"}
         </button>
       </section>
 
-      <div className="eb-safe-bottom-pad fixed inset-x-0 bottom-0 z-40 border-t border-slate-200/80 bg-white/95 px-4 pt-3 shadow-[0_-12px_40px_rgba(15,23,42,0.08)] backdrop-blur-md xl:hidden">
-        <button onClick={saveInvoice} disabled={savingInvoice} className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400">
+      <div className="app-sticky-bar eb-safe-bottom-pad fixed inset-x-0 bottom-0 z-40 px-4 pt-3 xl:hidden">
+        <button onClick={saveInvoice} disabled={savingInvoice} className="app-primary-button inline-flex w-full items-center justify-center gap-2 rounded-2xl px-5 py-3.5 text-sm font-semibold disabled:cursor-not-allowed disabled:bg-slate-400">
           <Save className="h-4 w-4" />
           {savingInvoice ? "Saving..." : "Save Invoice"}
         </button>

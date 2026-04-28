@@ -269,11 +269,11 @@ function BusinessProfileForm({
 
       <section className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
         <div>
-          <p className="text-xs uppercase tracking-[0.34em] text-emerald-700">Business Profile</p>
-          <h1 className="font-display mt-3 text-3xl text-slate-950 sm:text-4xl lg:text-4xl">
+          <p className="app-kicker">Business Profile</p>
+          <h1 className="app-page-title mt-3 text-3xl sm:text-4xl lg:text-4xl">
             Shape the identity that appears across your invoices.
           </h1>
-          <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-500">
+          <p className="app-page-copy mt-3 max-w-2xl text-sm">
             easyBILL will use the information below only for generating your invoices.
           </p>
           <p className="mt-2 text-xs leading-6 text-slate-500">
@@ -300,12 +300,12 @@ function BusinessProfileForm({
                   <button
                     type="button"
                     onClick={deleteLogo}
-                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 sm:w-auto"
+                    className="app-secondary-button w-full rounded-2xl px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-white sm:w-auto"
                   >
                     Remove
                   </button>
                 )}
-                <label className="w-full cursor-pointer rounded-2xl bg-slate-950 px-4 py-2 text-center text-sm font-semibold text-white transition hover:bg-slate-800 sm:w-auto">
+                <label className="app-primary-button w-full cursor-pointer rounded-2xl px-4 py-2 text-center text-sm font-semibold sm:w-auto">
                   {profile.logo ? "Replace Logo" : "Upload Logo"}
                   <input type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
                 </label>
@@ -313,7 +313,7 @@ function BusinessProfileForm({
             </div>
 
             {logoSource ? (
-              <div className="rounded-[28px] border border-slate-200 bg-slate-50 p-4">
+              <div className="app-subtle-panel p-4">
                 <div className="relative h-[220px] overflow-hidden rounded-[22px] bg-white sm:h-[300px]">
                   <Cropper
                     image={logoSource}
@@ -344,9 +344,9 @@ function BusinessProfileForm({
                 </div>
               </div>
             ) : profile.logo ? (
-              <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-slate-50 p-5">
+              <div className="app-subtle-panel overflow-hidden p-5">
                 <div
-                  className={`mx-auto flex h-40 w-full max-w-[320px] items-center justify-center overflow-hidden border border-slate-200 bg-white sm:h-48 ${
+                  className={`mx-auto flex h-40 w-full max-w-[320px] items-center justify-center overflow-hidden border border-[rgba(83,93,105,0.11)] bg-white/78 sm:h-48 ${
                     profile.logoShape === "round" ? "rounded-full" : "rounded-[22px]"
                   }`}
                 >
@@ -356,7 +356,7 @@ function BusinessProfileForm({
                 </div>
               </div>
             ) : (
-              <label className="flex min-h-[220px] cursor-pointer flex-col items-center justify-center rounded-[28px] border border-dashed border-slate-300 bg-slate-50 text-center sm:min-h-[260px]">
+              <label className="app-subtle-panel flex min-h-[220px] cursor-pointer flex-col items-center justify-center rounded-[28px] border border-dashed border-slate-300 text-center sm:min-h-[260px]">
                 <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
                   <Upload className="h-6 w-6" />
                 </div>
@@ -382,8 +382,8 @@ function BusinessProfileForm({
                     onClick={() => setProfile((prev) => ({ ...prev, logoShape: shape.value }))}
                     className={`w-full rounded-[24px] border px-4 py-3 text-left text-sm font-semibold transition ${
                       active
-                        ? "border-indigo-300 bg-indigo-50/70 text-indigo-800"
-                        : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                        ? "border-[rgba(29,107,95,0.2)] bg-[rgba(18,111,84,0.08)] text-[var(--accent-strong)]"
+                        : "border-[rgba(83,93,105,0.11)] bg-white/72 text-slate-700 hover:bg-white"
                     }`}
                   >
                     <span className="inline-flex items-center gap-2">
@@ -396,7 +396,7 @@ function BusinessProfileForm({
               })}
             </div>
 
-            <div className="rounded-[22px] border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-600">
+            <div className="app-subtle-panel rounded-[22px] px-4 py-3 text-xs text-slate-600">
               <span className="font-semibold text-slate-900">Logo rule:</span> {getLogoUploadRuleText()}
             </div>
           </div>
@@ -417,19 +417,19 @@ function BusinessProfileForm({
             <div className="grid gap-3 md:grid-cols-2 sm:gap-4">
               <input
                 placeholder="Business Name"
-                className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+                className="app-input rounded-2xl px-4 py-3 text-sm outline-none transition"
                 value={profile.businessName}
                 onChange={(e) => handleChange("businessName", e.target.value)}
               />
               <input
                 placeholder="Phone"
-                className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+                className="app-input rounded-2xl px-4 py-3 text-sm outline-none transition"
                 value={profile.phone}
                 onChange={(e) => handleChange("phone", e.target.value)}
               />
               <input
                 placeholder="GST Number"
-                className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+                className="app-input rounded-2xl px-4 py-3 text-sm outline-none transition"
                 value={profile.gst}
                 onChange={(e) => handleChange("gst", e.target.value)}
               />
@@ -438,7 +438,7 @@ function BusinessProfileForm({
             <div className="mt-4">
               <input
                 placeholder="Email"
-                className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+                className="app-input w-full rounded-2xl px-4 py-3 text-sm text-slate-900 outline-none transition"
                 value={profile.email}
                 onChange={(e) => handleChange("email", e.target.value)}
               />
@@ -446,7 +446,7 @@ function BusinessProfileForm({
 
             <textarea
               placeholder="Business Address"
-              className="mt-4 min-h-[120px] w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+              className="app-textarea mt-4 min-h-[120px] w-full rounded-2xl px-4 py-3 text-sm outline-none transition"
               value={profile.address}
               onChange={(e) => handleChange("address", e.target.value)}
             />
@@ -468,25 +468,25 @@ function BusinessProfileForm({
             <div className="grid gap-3 md:grid-cols-2 sm:gap-4">
               <input
                 placeholder="Bank Name"
-                className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+                className="app-input rounded-2xl px-4 py-3 text-sm outline-none transition"
                 value={profile.bankName}
                 onChange={(e) => handleChange("bankName", e.target.value)}
               />
               <input
                 placeholder="Account Number"
-                className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+                className="app-input rounded-2xl px-4 py-3 text-sm outline-none transition"
                 value={profile.accountNumber}
                 onChange={(e) => handleChange("accountNumber", e.target.value)}
               />
               <input
                 placeholder="IFSC Code"
-                className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+                className="app-input rounded-2xl px-4 py-3 text-sm outline-none transition"
                 value={profile.ifsc}
                 onChange={(e) => handleChange("ifsc", e.target.value)}
               />
               <input
                 placeholder="UPI ID"
-                className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+                className="app-input rounded-2xl px-4 py-3 text-sm outline-none transition"
                 value={profile.upi}
                 onChange={(e) => handleChange("upi", e.target.value)}
               />
@@ -501,12 +501,13 @@ function BusinessProfileForm({
               <div>
                 <h2 className="section-title text-2xl">Invoice Terms</h2>
                 <p className="text-sm text-slate-500">Keep payment rules and disclaimers ready for invoice use.</p>
+                <p className="mt-1 text-[11px] font-medium text-slate-500">Short note recommended. Long terms supported.</p>
               </div>
             </div>
 
             <textarea
               rows={5}
-              className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+              className="app-textarea w-full rounded-2xl px-4 py-3 text-sm outline-none transition"
               value={profile.terms}
               onChange={(e) => handleChange("terms", e.target.value)}
             />
@@ -518,20 +519,20 @@ function BusinessProfileForm({
         type="button"
         onClick={() => void saveProfile()}
         disabled={savingProfile}
-        className={`hidden lg:inline-flex items-center rounded-2xl px-6 py-3 text-sm font-semibold text-white transition ${
-          savingProfile ? "cursor-not-allowed bg-slate-400" : "bg-slate-950 hover:bg-slate-800"
+        className={`app-primary-button hidden lg:inline-flex items-center rounded-2xl px-6 py-3 text-sm font-semibold text-white transition ${
+          savingProfile ? "cursor-not-allowed bg-slate-400" : ""
         }`}
       >
         {savingProfile ? "Saving..." : setupMode ? "Save And Continue" : "Save Business Profile"}
       </button>
 
-      <div className="eb-safe-bottom-pad fixed inset-x-0 bottom-0 z-40 bg-white/95 px-4 pt-3 shadow-[0_-12px_40px_rgba(15,23,42,0.08)] backdrop-blur-md lg:hidden">
+      <div className="app-sticky-bar eb-safe-bottom-pad fixed inset-x-0 bottom-0 z-40 px-4 pt-3 lg:hidden">
         <button
           type="button"
           onClick={() => void saveProfile()}
           disabled={savingProfile}
-          className={`inline-flex w-full items-center justify-center gap-2 rounded-2xl px-6 py-3 text-sm font-semibold text-white transition ${
-            savingProfile ? "cursor-not-allowed bg-slate-400" : "bg-slate-950 hover:bg-slate-800"
+          className={`app-primary-button inline-flex w-full items-center justify-center gap-2 rounded-2xl px-6 py-3 text-sm font-semibold text-white transition ${
+            savingProfile ? "cursor-not-allowed bg-slate-400" : ""
           }`}
         >
           {savingProfile ? "Saving..." : setupMode ? "Save And Continue" : "Save Business Profile"}

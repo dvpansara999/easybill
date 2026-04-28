@@ -2,9 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
+import EasyBillLogoMark from "@/components/brand/EasyBillLogoMark"
 import { getSetupProfileDraft, saveSetupProfileDraft } from "@/lib/setupProfileDraft"
 import { setActiveOrGlobalItem } from "@/lib/userStore"
-import { CheckCircle2, MailCheck } from "lucide-react"
 
 export default function SetupProfileBasicsClient() {
   const router = useRouter()
@@ -42,6 +42,7 @@ export default function SetupProfileBasicsClient() {
       : ""
 
   const canContinue = !businessNameError && !emailError && !confirmEmailError
+  const fieldClass = "app-input w-full rounded-2xl px-4 py-3 text-sm text-slate-900 outline-none transition"
 
   function showError(message: string, value: string) {
     return (attemptedNext || value.trim().length > 0) && message
@@ -64,171 +65,78 @@ export default function SetupProfileBasicsClient() {
   }
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[linear-gradient(to_bottom,_#fafaf9,_#f1f5f9)] px-4 py-8 lg:px-6">
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,_rgba(15,23,42,0.06)_1px,_transparent_1px),linear-gradient(to_bottom,_rgba(15,23,42,0.06)_1px,_transparent_1px)] bg-[size:72px_72px] [mask-image:radial-gradient(ellipse_at_center,black_40%,transparent_70%)]" />
-      <div className="absolute left-[-10%] top-[18%] h-80 w-80 rounded-full bg-amber-200/45 blur-3xl" />
-      <div className="absolute right-[-12%] top-[6%] h-72 w-72 rounded-full bg-cyan-200/35 blur-3xl" />
+    <main className="app-shell relative min-h-screen overflow-hidden px-4 py-8 lg:px-6">
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(15,23,42,0.03)_1px,transparent_1px),linear-gradient(to_bottom,rgba(15,23,42,0.03)_1px,transparent_1px)] bg-[size:88px_88px] [mask-image:radial-gradient(ellipse_at_center,black_42%,transparent_78%)]" />
+      <div className="absolute left-[-12%] top-[14%] h-72 w-72 rounded-full bg-[rgba(208,174,138,0.14)] blur-3xl" />
+      <div className="absolute right-[-12%] top-[4%] h-64 w-64 rounded-full bg-[rgba(165,196,193,0.12)] blur-3xl" />
 
-      <div className="relative mx-auto w-full max-w-[1120px]">
+      <div className="relative mx-auto w-full max-w-[1080px]">
         <div className="flex items-center justify-between gap-4">
           <div className="inline-flex items-center gap-3">
-            <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-950 text-sm font-bold text-white shadow-sm">
-              eB
+            <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-950 text-white shadow-sm">
+              <EasyBillLogoMark size={22} />
             </span>
             <div>
               <p className="text-xs font-semibold tracking-[0.2em] text-slate-500">easyBILL setup</p>
-              <p className="text-sm font-semibold text-slate-950">Step 1 — Identity</p>
+              <p className="text-sm font-semibold text-slate-950">Step 1 - Business identity</p>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="hidden sm:block text-xs font-semibold text-slate-600">
+            <div className="hidden text-xs font-semibold text-slate-600 sm:block">
               1<span className="text-slate-400">/</span>6
             </div>
-            <div className="h-2 w-48 overflow-hidden rounded-full bg-slate-200">
-              <div className="h-full w-1/6 rounded-full bg-gradient-to-r from-amber-500 via-emerald-500 to-cyan-500" />
+            <div className="h-2 w-48 overflow-hidden rounded-full bg-[rgba(83,93,105,0.14)]">
+              <div className="h-full w-1/6 rounded-full bg-gradient-to-r from-[var(--accent-soft)] via-[var(--accent-strong)] to-[rgba(165,196,193,0.95)]" />
             </div>
           </div>
         </div>
 
-        <header className="mt-10 grid gap-6 lg:grid-cols-[1.1fr_0.9fr] lg:items-end">
-          <div>
-            <h1 className="font-display text-3xl leading-[1.02] text-slate-950 sm:text-4xl lg:text-5xl">
-              What should appear on your invoice header?
-            </h1>
-            <p className="mt-4 max-w-2xl text-base leading-7 text-slate-600">
-              Add the business name and email you want printed on invoices. We’ll validate and confirm the email before saving.
-            </p>
-          </div>
+        <div className="mt-8 grid gap-5 lg:grid-cols-[290px_minmax(0,1fr)] lg:items-center lg:gap-7">
+          <aside className="space-y-5 lg:flex lg:h-full lg:items-center">
+            <div className="app-dark-card overflow-hidden rounded-[28px] p-4 sm:p-5">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-white/48">Business identity</p>
 
-          <div className="rounded-[28px] border border-slate-200 bg-white/70 p-5 shadow-sm backdrop-blur">
-            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">What happens next</p>
-            <div className="mt-4 space-y-3 text-sm text-slate-700">
-              {[
-                "Contact details (phone, GST, address)",
-                "Payment details (bank/UPI)",
-                "Terms, logo, and invoice defaults",
-              ].map((item) => (
-                <div key={item} className="flex items-start gap-3">
-                  <CheckCircle2 className="mt-0.5 h-5 w-5 text-emerald-600" />
-                  <span>{item}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </header>
+              <div className="mt-4 rounded-[22px] border border-white/10 bg-white/5 p-3.5 sm:p-4">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-white/45">Preview</p>
 
-        <div className="mt-8 grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
-          <>
-            <aside className="order-2 space-y-6 lg:order-1 lg:sticky lg:top-8 lg:self-start hidden lg:block">
-              <div className="rounded-[34px] border border-slate-200 bg-gradient-to-br from-slate-950 to-slate-900 p-5 sm:p-7 text-white shadow-[0_30px_90px_rgba(15,23,42,0.22)]">
-                <p className="text-xs font-semibold uppercase tracking-[0.32em] text-white/60">Preview</p>
-                <p className="mt-3 text-sm text-white/70">A quick mock of your invoice header.</p>
-
-                <div className="mt-6 rounded-[28px] border border-white/10 bg-white/5 p-4 sm:p-6">
-                  <p className="text-[11px] uppercase tracking-[0.28em] text-white/55">Business name</p>
-                  <p className="mt-2 line-clamp-2 text-3xl font-semibold leading-tight text-white">
+                <div className="mt-3 rounded-[18px] border border-white/10 bg-black/10 p-3.5">
+                  <p className="text-[11px] uppercase tracking-[0.28em] text-white/42">Business name</p>
+                  <p className="mt-2 line-clamp-2 text-[1.35rem] font-semibold leading-tight text-white">
                     {businessName.trim() ? businessName : "Your Business Name"}
                   </p>
 
-                  <div className="mt-5 flex items-center justify-between gap-4 text-xs text-white/60">
-                    <span>Invoice No</span>
-                    <span className="font-semibold text-white/80">INV-0001</span>
-                  </div>
+                  <div className="mt-3 h-px bg-white/10" />
 
-                  <div className="mt-4 h-px bg-white/10" />
-
-                  <p className="mt-4 text-[11px] uppercase tracking-[0.28em] text-white/55">Email</p>
-                  <p className="mt-2 break-all text-sm font-semibold text-white">
+                  <p className="mt-3 text-[11px] uppercase tracking-[0.28em] text-white/42">Email</p>
+                  <p className="mt-2 break-all text-[13px] font-semibold leading-6 text-white/88">
                     {email.trim() ? email : "you@business.com"}
                   </p>
                 </div>
               </div>
-
-              <div className="rounded-[34px] border border-emerald-200 bg-emerald-50/80 p-5 sm:p-7 shadow-sm backdrop-blur">
-                <div className="flex items-start gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-[0_10px_26px_rgba(5,150,105,0.28)]">
-                    <MailCheck className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-emerald-900">Email can be updated later</p>
-                    <p className="mt-1 text-sm leading-6 text-emerald-800/80">
-                      You can edit this business email later from Business Profile. Keep both fields matching to continue.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </aside>
-
-            {/* Mobile: collapse the preview */}
-            <div className="order-2 lg:hidden">
-              <details className="rounded-[28px] border border-slate-200 bg-white/70 p-4 shadow-sm backdrop-blur">
-                <summary className="cursor-pointer list-none text-sm font-semibold text-slate-900">
-                  Preview & guidance
-                </summary>
-                <div className="mt-3 space-y-6">
-                  <div className="rounded-[34px] border border-slate-200 bg-gradient-to-br from-slate-950 to-slate-900 p-5 sm:p-7 text-white shadow-[0_30px_90px_rgba(15,23,42,0.22)]">
-                    <p className="text-xs font-semibold uppercase tracking-[0.32em] text-white/60">Preview</p>
-                    <p className="mt-3 text-sm text-white/70">A quick mock of your invoice header.</p>
-
-                    <div className="mt-6 rounded-[28px] border border-white/10 bg-white/5 p-4 sm:p-6">
-                      <p className="text-[11px] uppercase tracking-[0.28em] text-white/55">Business name</p>
-                      <p className="mt-2 line-clamp-2 text-3xl font-semibold leading-tight text-white">
-                        {businessName.trim() ? businessName : "Your Business Name"}
-                      </p>
-
-                      <div className="mt-5 flex items-center justify-between gap-4 text-xs text-white/60">
-                        <span>Invoice No</span>
-                        <span className="font-semibold text-white/80">INV-0001</span>
-                      </div>
-
-                      <div className="mt-4 h-px bg-white/10" />
-
-                      <p className="mt-4 text-[11px] uppercase tracking-[0.28em] text-white/55">Email</p>
-                      <p className="mt-2 break-all text-sm font-semibold text-white">
-                        {email.trim() ? email : "you@business.com"}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="rounded-[34px] border border-emerald-200 bg-emerald-50/80 p-5 sm:p-7 shadow-sm backdrop-blur">
-                    <div className="flex items-start gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-[0_10px_26px_rgba(5,150,105,0.28)]">
-                        <MailCheck className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-emerald-900">Email can be updated later</p>
-                        <p className="mt-1 text-sm leading-6 text-emerald-800/80">
-                          You can edit this business email later from Business Profile. Keep both fields matching to continue.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </details>
             </div>
-          </>
+          </aside>
 
-          <section className="order-1 overflow-hidden rounded-[34px] border border-slate-200 bg-white shadow-[0_30px_90px_rgba(15,23,42,0.08)] lg:order-2">
-            <div className="border-b border-slate-200 px-4 py-5 sm:px-7 sm:py-6">
-              <p className="text-sm font-semibold text-slate-900">Your details</p>
-              <p className="mt-1 text-sm leading-6 text-slate-500">
-                We’ll validate the email and ensure both fields match before continuing.
+          <section className="overflow-hidden rounded-[30px] border border-[rgba(83,93,105,0.12)] bg-[rgba(255,252,247,0.97)] shadow-[0_24px_60px_rgba(73,45,21,0.08)]">
+            <div className="border-b border-[rgba(83,93,105,0.1)] px-4 py-4 sm:px-7 sm:py-5">
+              <p className="app-kicker text-[11px]">Business identity</p>
+              <p className="mt-2 max-w-2xl text-[15px] leading-7 text-slate-700 sm:text-[1.05rem]">
+                Add the business name and email clients should use.
               </p>
             </div>
 
-            <div className="px-4 py-6 sm:px-7 sm:py-7 space-y-6">
+            <div className="space-y-5 px-4 py-5 sm:px-7 sm:py-6">
               <div>
                 <label className="mb-2 block text-sm font-medium text-slate-900">Business name</label>
                 <input
                   placeholder="e.g. ABC Traders"
                   value={businessName}
                   onChange={(e) => setBusinessName(e.target.value)}
-                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+                  className={fieldClass}
                 />
-                {showError(businessNameError, businessName) && (
+                {showError(businessNameError, businessName) ? (
                   <p className="mt-2 text-sm text-rose-600">{businessNameError}</p>
-                )}
+                ) : null}
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
@@ -238,11 +146,9 @@ export default function SetupProfileBasicsClient() {
                     placeholder="you@business.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+                    className={fieldClass}
                   />
-                  {showError(emailError, email) && (
-                    <p className="mt-2 text-sm text-rose-600">{emailError}</p>
-                  )}
+                  {showError(emailError, email) ? <p className="mt-2 text-sm text-rose-600">{emailError}</p> : null}
                 </div>
 
                 <div>
@@ -251,27 +157,23 @@ export default function SetupProfileBasicsClient() {
                     placeholder="re-enter email"
                     value={confirmEmail}
                     onChange={(e) => setConfirmEmail(e.target.value)}
-                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+                    className={fieldClass}
                   />
-                  {showError(confirmEmailError, confirmEmail) && (
+                  {showError(confirmEmailError, confirmEmail) ? (
                     <p className="mt-2 text-sm text-rose-600">{confirmEmailError}</p>
-                  )}
+                  ) : null}
                 </div>
               </div>
             </div>
 
-            <div className="flex flex-col gap-3 border-t border-slate-200 bg-slate-50/70 px-4 py-5 sm:px-7 sm:py-6 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-sm text-slate-600">
-                You can update other profile details later.
-              </p>
+            <div className="app-sticky-bar flex flex-col gap-3 border-t border-[rgba(83,93,105,0.11)] px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-7 sm:py-5">
+              <p className="text-sm text-slate-600">Next: contact details.</p>
               <button
                 onClick={goNext}
                 disabled={!canContinue}
-                className={`rounded-2xl px-6 py-3 text-sm font-semibold transition ${
-                  canContinue
-                    ? "bg-slate-950 text-white shadow-[0_18px_44px_rgba(15,23,42,0.18)] hover:bg-slate-800"
-                    : "bg-slate-200 text-slate-500"
-                } w-full sm:w-auto focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-100`}
+                className={`w-full rounded-2xl px-6 py-3 text-sm font-semibold transition sm:w-auto ${
+                  canContinue ? "app-primary-button text-white" : "bg-slate-200 text-slate-500"
+                }`}
               >
                 Continue
               </button>

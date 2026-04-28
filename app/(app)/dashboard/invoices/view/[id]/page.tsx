@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { Minus, Plus, Share2, X } from "lucide-react"
+import { Copy, Download, Minus, Plus, Share2, X } from "lucide-react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { useSettings } from "@/context/SettingsContext"
 import { formatAmountInWordsIndian } from "@/lib/amountInWords"
@@ -606,11 +606,11 @@ export default function ViewInvoice() {
   }
 
   return (
-    <div className="p-4">
+    <div className="space-y-5 pb-6 xl:space-y-6 xl:pb-0">
       <InvoicePageHeader
         eyebrow="View Invoice"
         title={invoice.invoiceNumber}
-        description="Review the saved invoice, update payment status, duplicate it for a new billing cycle, or download and share the PDF."
+        description="Review status, timeline, and the final PDF preview."
         backLabel="Back to invoices"
         onBack={() => router.push(returnTo)}
         actions={
@@ -618,51 +618,66 @@ export default function ViewInvoice() {
             <button
               type="button"
               onClick={() => router.push(`/dashboard/invoices/create?duplicateId=${encodeURIComponent(invoice.id)}`)}
-              className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 sm:w-auto"
+              className="app-secondary-button inline-flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-white sm:w-auto"
             >
+              <Copy className="h-4 w-4" />
               Duplicate
             </button>
             <button
               type="button"
               onClick={downloadInvoice}
               disabled={downloadingPdf}
-              className={`w-full rounded-2xl px-4 py-3 text-sm font-semibold text-white transition sm:w-auto ${
-                downloadingPdf ? "cursor-not-allowed bg-slate-400" : "bg-black hover:bg-slate-800"
+              className={`inline-flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold text-white transition sm:w-auto ${
+                downloadingPdf ? "cursor-not-allowed bg-slate-400" : "app-primary-button"
               }`}
             >
+              <Download className="h-4 w-4" />
               {downloadingPdf ? "Preparing PDF..." : "Download PDF"}
             </button>
           </>
         }
       />
 
-      <div className="mb-6 grid gap-4 md:grid-cols-3">
-        <div className="soft-card rounded-[24px] p-4">
-          <p className="text-xs uppercase tracking-[0.28em] text-slate-400">Status</p>
-          <p className="mt-2 text-lg font-semibold capitalize text-slate-950">{invoice.status || "draft"}</p>
-          <label className="mt-3 inline-flex items-center gap-2 text-sm text-slate-600">
+      <section className="grid gap-4 xl:grid-cols-[minmax(240px,0.42fr)_minmax(0,1fr)]">
+        <div className="soft-card rounded-[24px] p-4 sm:p-5 xl:rounded-[28px]">
+          <p className="app-kicker">Status</p>
+          <div className="mt-3 flex items-center justify-between gap-3">
+            <p className="text-2xl font-semibold capitalize text-slate-950">{invoice.status || "draft"}</p>
+            <span
+              className={cn(
+                "rounded-full px-3 py-1 text-xs font-semibold capitalize",
+                invoice.status === "paid"
+                  ? "bg-emerald-50 text-emerald-700"
+                  : invoice.status === "issued"
+                    ? "bg-sky-50 text-sky-700"
+                    : "bg-slate-100 text-slate-600"
+              )}
+            >
+              {invoice.status || "draft"}
+            </span>
+          </div>
+          <label className="app-subtle-panel mt-4 inline-flex w-full items-center justify-between gap-3 rounded-2xl px-4 py-3 text-sm text-slate-700">
+            <span>Payment received</span>
             <input
               type="checkbox"
               checked={invoice.status === "paid"}
               onChange={togglePaid}
-              className="h-4 w-4 rounded border-slate-300"
+              className="h-4 w-4 rounded border-slate-300 accent-[var(--accent-strong)]"
             />
-            Mark payment received
           </label>
         </div>
-        <div className="soft-card rounded-[24px] p-4 md:col-span-2">
+
+        <div className="soft-card rounded-[24px] p-4 sm:p-5 xl:rounded-[28px]">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-xs uppercase tracking-[0.28em] text-slate-400">Timeline</p>
-              <p className="mt-2 text-sm text-slate-500">
-                {timelineExpanded ? "Full invoice history, from creation onward." : "Start with the creation event, then expand when needed."}
-              </p>
+              <p className="app-kicker">Timeline</p>
+              <h2 className="section-title mt-2 text-xl sm:text-2xl">Invoice activity.</h2>
             </div>
             {timelineEntries.length > 1 ? (
               <button
                 type="button"
                 onClick={() => setTimelineExpanded((current) => !current)}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50 hover:text-slate-950"
+                className="app-secondary-button inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-600 transition hover:bg-white hover:text-slate-950"
                 aria-label={timelineExpanded ? "Collapse timeline" : "Expand timeline"}
                 title={timelineExpanded ? "Collapse timeline" : "Expand timeline"}
               >
@@ -684,16 +699,17 @@ export default function ViewInvoice() {
           </div>
           {invoice.notes ? <p className="mt-4 text-sm leading-7 text-slate-600">{invoice.notes}</p> : null}
         </div>
-      </div>
+      </section>
+
       {downloadError ? (
-        <p className="mb-4 text-right text-sm text-rose-600">{downloadError}</p>
+        <div className="rounded-[20px] border border-rose-200 bg-rose-50/80 px-4 py-3 text-sm text-rose-700">{downloadError}</div>
       ) : null}
       {downloadNotice ? (
         <div
-          className={`mb-4 rounded-md border px-3 py-2 text-sm ${
+          className={`rounded-[20px] border px-4 py-3 text-sm ${
             downloadNoticeTone === "success"
-              ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-              : "border-amber-200 bg-amber-50 text-amber-800"
+              ? "border-emerald-200 bg-emerald-50/80 text-emerald-800"
+              : "border-amber-200 bg-amber-50/80 text-amber-800"
           }`}
         >
           {downloadNotice}
@@ -717,7 +733,7 @@ export default function ViewInvoice() {
               setExportSheetOpen(false)
             }}
           />
-          <div className="relative z-10 w-full max-w-sm rounded-[28px] border border-slate-200 bg-white/95 p-5 shadow-[0_24px_60px_rgba(15,23,42,0.18)] backdrop-blur sm:rounded-2xl">
+          <div className="soft-card relative z-10 w-full max-w-sm rounded-[24px] p-5">
             <div className="mb-4 flex items-start justify-between gap-3">
               <h2 id="export-sheet-title" className="text-lg font-semibold text-slate-950">
                 PDF ready
@@ -731,17 +747,17 @@ export default function ViewInvoice() {
                 }}
                 disabled={exportSheetBusy !== null}
                 className={cn(
-                  "rounded-full p-1 text-slate-500 transition",
+                  "app-secondary-button rounded-full p-1 text-slate-500 transition",
                   exportSheetBusy
                     ? "cursor-not-allowed opacity-40"
-                    : "hover:bg-slate-100 hover:text-slate-900"
+                    : "hover:bg-white hover:text-slate-900"
                 )}
                 aria-label="Close"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <p className="mb-4 text-sm text-slate-600">Share with a client or save the file to your device.</p>
+            <p className="mb-4 text-sm text-slate-600">Share with a client or save the file.</p>
             <div className="flex flex-col gap-2">
               <button
                 type="button"
@@ -752,8 +768,8 @@ export default function ViewInvoice() {
                   exportSheetBusy === "share"
                     ? "cursor-not-allowed bg-slate-400"
                     : exportSheetBusy === "download"
-                      ? "cursor-not-allowed bg-slate-950 opacity-50"
-                      : "bg-slate-950 hover:bg-slate-800"
+                      ? "cursor-not-allowed app-primary-button opacity-50"
+                      : "app-primary-button"
                 )}
               >
                 <Share2 className="h-4 w-4 shrink-0" />
@@ -764,12 +780,12 @@ export default function ViewInvoice() {
                 onClick={() => void downloadExportedFromSheet()}
                 disabled={exportSheetBusy !== null}
                 className={cn(
-                  "rounded-xl border px-4 py-3 text-sm font-semibold transition",
+                  "rounded-xl px-4 py-3 text-sm font-semibold transition",
                   exportSheetBusy === "download"
-                    ? "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-500"
+                    ? "cursor-not-allowed app-secondary-button bg-slate-100 text-slate-500"
                     : exportSheetBusy === "share"
-                      ? "cursor-not-allowed border-slate-200 bg-white text-slate-800 opacity-50"
-                      : "border-slate-200 bg-white text-slate-800 hover:bg-slate-50"
+                      ? "cursor-not-allowed app-secondary-button text-slate-800 opacity-50"
+                      : "app-secondary-button text-slate-800 hover:bg-white"
                 )}
               >
                 {exportSheetBusy === "download" ? "Downloading..." : "Download PDF"}

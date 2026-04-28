@@ -39,75 +39,67 @@ function toneStyles(tone: AlertTone) {
     case "success":
       return {
         icon: CheckCircle2,
-        eyebrow: "Saved successfully",
+        eyebrow: "Saved",
         iconWrap:
-          "bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)]",
-        accentBar: "bg-emerald-500",
+          "bg-[rgba(18,111,84,0.08)] text-[var(--accent-strong)] ring-1 ring-[rgba(18,111,84,0.14)]",
+        accentBar: "bg-[linear-gradient(90deg,transparent,rgba(18,111,84,0.42),transparent)]",
         surface:
-          "border-emerald-100/90 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.14),transparent_36%),linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.96))]",
-        hintCard: "border-emerald-200/90 bg-emerald-50/90 text-emerald-950",
-        detailCard: "border-emerald-100/80 bg-white/88 text-slate-700",
-        eyebrowBadge: "border-emerald-200/90 bg-emerald-50 text-emerald-800",
+          "border-[rgba(18,111,84,0.12)] bg-[radial-gradient(circle_at_top_left,rgba(18,111,84,0.07),transparent_34%),linear-gradient(180deg,rgba(255,255,255,0.96),rgba(250,249,246,0.93))]",
+        detailCard: "border-[rgba(83,93,105,0.1)] bg-white/62 text-slate-700 backdrop-blur-xl",
+        eyebrowBadge: "border-[rgba(18,111,84,0.12)] bg-[rgba(18,111,84,0.06)] text-[var(--accent-strong)]",
         bullet: "bg-emerald-400",
-        primary:
-          "w-full min-h-[52px] rounded-2xl bg-emerald-600 px-4 py-3.5 text-[15px] font-semibold text-white shadow-[0_14px_36px_rgba(5,150,105,0.35)] transition-[transform,opacity,background-color,box-shadow] duration-200 ease-[cubic-bezier(0.4,0,0.2,1)] hover:bg-emerald-700 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-emerald-300/80 sm:min-h-12 sm:text-sm",
+        primary: "app-primary-button w-full min-h-[48px] rounded-2xl px-4 py-3 text-sm font-semibold text-white",
         secondary:
-          "w-full min-h-[48px] rounded-2xl border-2 border-emerald-200 bg-white px-4 py-3 text-[15px] font-semibold text-emerald-900 transition-[background-color,border-color,opacity] duration-200 ease-[cubic-bezier(0.4,0,0.2,1)] hover:bg-emerald-50 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-emerald-200/80 sm:text-sm",
+          "app-secondary-button w-full min-h-[46px] rounded-2xl px-4 py-3 text-sm font-semibold text-[var(--accent-strong)]",
       }
     case "warning":
       return {
         icon: AlertTriangle,
-        eyebrow: "Review before continuing",
+        eyebrow: "Review",
         iconWrap:
-          "bg-amber-100 text-amber-800 ring-1 ring-amber-200/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)]",
-        accentBar: "bg-amber-500",
+          "bg-[rgba(180,95,26,0.08)] text-[rgb(136,78,30)] ring-1 ring-[rgba(180,95,26,0.14)]",
+        accentBar: "bg-[linear-gradient(90deg,transparent,rgba(180,95,26,0.42),transparent)]",
         surface:
-          "border-amber-100/90 bg-[radial-gradient(circle_at_top_left,rgba(245,158,11,0.14),transparent_36%),linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.96))]",
-        hintCard: "border-amber-200/90 bg-amber-50/90 text-amber-950",
-        detailCard: "border-amber-100/80 bg-white/88 text-slate-700",
-        eyebrowBadge: "border-amber-200/90 bg-amber-50 text-amber-800",
+          "border-[rgba(180,95,26,0.12)] bg-[radial-gradient(circle_at_top_left,rgba(180,95,26,0.07),transparent_34%),linear-gradient(180deg,rgba(255,255,255,0.96),rgba(250,249,246,0.93))]",
+        detailCard: "border-[rgba(83,93,105,0.1)] bg-white/62 text-slate-700 backdrop-blur-xl",
+        eyebrowBadge: "border-[rgba(180,95,26,0.12)] bg-[rgba(180,95,26,0.06)] text-[rgb(109,66,22)]",
         bullet: "bg-amber-400",
-        primary:
-          "w-full min-h-[52px] rounded-2xl bg-amber-600 px-4 py-3.5 text-[15px] font-semibold text-white shadow-[0_14px_36px_rgba(217,119,6,0.35)] transition-[transform,opacity,background-color,box-shadow] duration-200 ease-[cubic-bezier(0.4,0,0.2,1)] hover:bg-amber-700 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-amber-300/80 sm:min-h-12 sm:text-sm",
+        primary: "app-primary-button w-full min-h-[48px] rounded-2xl px-4 py-3 text-sm font-semibold text-white",
         secondary:
-          "w-full min-h-[48px] rounded-2xl border-2 border-amber-200 bg-white px-4 py-3 text-[15px] font-semibold text-amber-950 transition-[background-color,border-color,opacity] duration-200 ease-[cubic-bezier(0.4,0,0.2,1)] hover:bg-amber-50 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-amber-200/80 sm:text-sm",
+          "app-secondary-button w-full min-h-[46px] rounded-2xl px-4 py-3 text-sm font-semibold text-[rgb(109,66,22)]",
       }
     case "danger":
       return {
         icon: AlertTriangle,
         eyebrow: "Needs attention",
         iconWrap:
-          "bg-rose-100 text-rose-700 ring-1 ring-rose-200/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)]",
-        accentBar: "bg-rose-500",
+          "bg-[rgba(186,52,86,0.08)] text-[rgb(142,38,61)] ring-1 ring-[rgba(186,52,86,0.14)]",
+        accentBar: "bg-[linear-gradient(90deg,transparent,rgba(186,52,86,0.42),transparent)]",
         surface:
-          "border-rose-100/90 bg-[radial-gradient(circle_at_top_left,rgba(244,63,94,0.14),transparent_36%),linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.96))]",
-        hintCard: "border-rose-200/90 bg-rose-50/90 text-rose-950",
-        detailCard: "border-rose-100/80 bg-white/88 text-slate-700",
-        eyebrowBadge: "border-rose-200/90 bg-rose-50 text-rose-800",
+          "border-[rgba(186,52,86,0.12)] bg-[radial-gradient(circle_at_top_left,rgba(186,52,86,0.07),transparent_34%),linear-gradient(180deg,rgba(255,255,255,0.96),rgba(250,249,246,0.93))]",
+        detailCard: "border-[rgba(83,93,105,0.1)] bg-white/62 text-slate-700 backdrop-blur-xl",
+        eyebrowBadge: "border-[rgba(186,52,86,0.12)] bg-[rgba(186,52,86,0.06)] text-[rgb(123,31,52)]",
         bullet: "bg-rose-400",
-        primary:
-          "w-full min-h-[52px] rounded-2xl bg-rose-600 px-4 py-3.5 text-[15px] font-semibold text-white shadow-[0_14px_40px_rgba(225,29,72,0.38)] transition-[transform,opacity,background-color,box-shadow] duration-200 ease-[cubic-bezier(0.4,0,0.2,1)] hover:bg-rose-700 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-rose-300/80 sm:min-h-12 sm:text-sm",
+        primary: "app-primary-button w-full min-h-[48px] rounded-2xl px-4 py-3 text-sm font-semibold text-white",
         secondary:
-          "w-full min-h-[48px] rounded-2xl border-2 border-rose-200 bg-white px-4 py-3 text-[15px] font-semibold text-rose-950 transition-[background-color,border-color,opacity] duration-200 ease-[cubic-bezier(0.4,0,0.2,1)] hover:bg-rose-50 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-rose-200/80 sm:text-sm",
+          "app-secondary-button w-full min-h-[46px] rounded-2xl px-4 py-3 text-sm font-semibold text-[rgb(123,31,52)]",
       }
     case "info":
     default:
       return {
         icon: Info,
-        eyebrow: "Heads up",
+        eyebrow: "Note",
         iconWrap:
-          "bg-indigo-100 text-indigo-700 ring-1 ring-indigo-200/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)]",
-        accentBar: "bg-indigo-500",
+          "bg-[rgba(73,101,125,0.08)] text-[rgb(63,84,106)] ring-1 ring-[rgba(73,101,125,0.14)]",
+        accentBar: "bg-[linear-gradient(90deg,transparent,rgba(73,101,125,0.42),transparent)]",
         surface:
-          "border-indigo-100/90 bg-[radial-gradient(circle_at_top_left,rgba(99,102,241,0.14),transparent_36%),linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.96))]",
-        hintCard: "border-indigo-200/90 bg-indigo-50/90 text-indigo-950",
-        detailCard: "border-indigo-100/80 bg-white/88 text-slate-700",
-        eyebrowBadge: "border-indigo-200/90 bg-indigo-50 text-indigo-800",
-        bullet: "bg-indigo-400",
-        primary:
-          "w-full min-h-[52px] rounded-2xl bg-indigo-600 px-4 py-3.5 text-[15px] font-semibold text-white shadow-[0_14px_36px_rgba(79,70,229,0.35)] transition-[transform,opacity,background-color,box-shadow] duration-200 ease-[cubic-bezier(0.4,0,0.2,1)] hover:bg-indigo-700 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-indigo-300/80 sm:min-h-12 sm:text-sm",
+          "border-[rgba(73,101,125,0.12)] bg-[radial-gradient(circle_at_top_left,rgba(73,101,125,0.07),transparent_34%),linear-gradient(180deg,rgba(255,255,255,0.96),rgba(250,249,246,0.93))]",
+        detailCard: "border-[rgba(83,93,105,0.1)] bg-white/62 text-slate-700 backdrop-blur-xl",
+        eyebrowBadge: "border-[rgba(73,101,125,0.12)] bg-[rgba(73,101,125,0.06)] text-[rgb(63,84,106)]",
+        bullet: "bg-slate-400",
+        primary: "app-primary-button w-full min-h-[48px] rounded-2xl px-4 py-3 text-sm font-semibold text-white",
         secondary:
-          "w-full min-h-[48px] rounded-2xl border-2 border-indigo-200 bg-white px-4 py-3 text-[15px] font-semibold text-indigo-950 transition-[background-color,border-color,opacity] duration-200 ease-[cubic-bezier(0.4,0,0.2,1)] hover:bg-indigo-50 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-indigo-200/80 sm:text-sm",
+          "app-secondary-button w-full min-h-[46px] rounded-2xl px-4 py-3 text-sm font-semibold text-[rgb(63,84,106)]",
       }
   }
 }
@@ -157,57 +149,51 @@ export function AppAlertProvider({ children }: { children: React.ReactNode }) {
       >
         <DialogContent
           showCloseButton={false}
-          overlayClassName="bg-slate-950/45 supports-backdrop-filter:backdrop-blur-xl"
+          overlayClassName="bg-[rgba(37,44,52,0.28)] supports-backdrop-filter:backdrop-blur-lg"
           className={cn(
-            "top-auto bottom-2 max-h-[min(88vh,620px)] max-w-[min(calc(100vw-0.75rem),410px)] -translate-y-0 overflow-hidden rounded-[24px] border p-0 shadow-[0_28px_72px_rgba(15,23,42,0.18),0_8px_22px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:bottom-auto sm:top-1/2 sm:max-h-[min(92vh,700px)] sm:max-w-[500px] sm:-translate-y-1/2 sm:rounded-[30px] sm:shadow-[0_32px_84px_rgba(15,23,42,0.2),0_10px_24px_rgba(15,23,42,0.09)]",
+            "top-auto bottom-2 max-h-[min(82vh,420px)] max-w-[min(calc(100vw-1rem),340px)] -translate-y-0 overflow-hidden rounded-[20px] border p-0 shadow-[0_20px_54px_rgba(58,42,28,0.13),0_8px_20px_rgba(15,23,42,0.05)] backdrop-blur-xl sm:bottom-auto sm:top-1/2 sm:max-h-[min(86vh,460px)] sm:max-w-[380px] sm:-translate-y-1/2 sm:rounded-[24px] sm:shadow-[0_26px_68px_rgba(58,42,28,0.15),0_10px_22px_rgba(15,23,42,0.06)]",
             styles.surface,
             "duration-200 ease-[cubic-bezier(0.4,0,0.2,1)] data-open:zoom-in-95"
           )}
         >
-          <div className={cn("h-1.5 w-full rounded-t-[24px] sm:rounded-t-[30px]", styles.accentBar)} aria-hidden />
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-18 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.72),transparent_76%)] sm:h-24" aria-hidden />
+          <div className={cn("mx-auto mt-1.5 h-px w-4/5", styles.accentBar)} aria-hidden />
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-16 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.62),transparent_76%)] sm:h-20" aria-hidden />
 
           <button
             type="button"
             onClick={() => setOpen(false)}
-            className="absolute top-3 right-3 z-10 flex h-9 w-9 touch-manipulation items-center justify-center rounded-full border border-white/70 bg-white/82 text-slate-500 shadow-[0_8px_20px_rgba(15,23,42,0.08)] transition-all duration-200 ease-[cubic-bezier(0.4,0,0.2,1)] hover:-translate-y-0.5 hover:bg-white hover:text-slate-900 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-indigo-200/90 active:scale-95 sm:h-10 sm:w-10 sm:shadow-[0_10px_28px_rgba(15,23,42,0.08)]"
+            className="absolute top-3 right-3 z-10 flex h-8 w-8 touch-manipulation items-center justify-center rounded-full border border-[rgba(255,255,255,0.72)] bg-white/78 text-slate-500 shadow-[0_8px_20px_rgba(58,42,28,0.07)] transition-all duration-200 ease-[cubic-bezier(0.4,0,0.2,1)] hover:-translate-y-0.5 hover:bg-white hover:text-slate-900 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[rgba(29,107,95,0.16)] active:scale-95 sm:h-9 sm:w-9"
             aria-label="Close"
           >
-            <X className="h-4.5 w-4.5 sm:h-5 sm:w-5" strokeWidth={2} />
+            <X className="h-4 w-4" strokeWidth={2} />
           </button>
 
-          <DialogHeader className="space-y-0 p-4 pb-2 text-left sm:p-6 sm:pb-3">
-            <div className="flex flex-col gap-3.5 sm:flex-row sm:items-start sm:gap-4">
+          <DialogHeader className="space-y-0 p-4 pb-2 text-left sm:p-5 sm:pb-2.5">
+            <div className="flex gap-3 sm:gap-3.5">
               <div
                 className={cn(
-                  "mx-auto flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-[0.95rem] shadow-[0_14px_30px_rgba(15,23,42,0.08)] sm:mx-0 sm:h-[62px] sm:w-[62px] sm:rounded-[1.2rem] sm:shadow-[0_18px_40px_rgba(15,23,42,0.08)]",
+                  "flex h-9 w-9 shrink-0 items-center justify-center rounded-[14px] shadow-[0_10px_22px_rgba(15,23,42,0.055)] sm:h-10 sm:w-10",
                   styles.iconWrap
                 )}
               >
-                <Icon className="h-8 w-8 sm:h-10 sm:w-10" strokeWidth={2} aria-hidden />
+                <Icon className="h-4.5 w-4.5 sm:h-5 sm:w-5" strokeWidth={2} aria-hidden />
               </div>
 
-              <div className="min-w-0 flex-1 text-center sm:pt-0.5 sm:text-left">
-                <div className="mb-2.5 flex justify-center sm:justify-start">
-                  <span className={cn("inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] sm:px-3 sm:text-[11px] sm:tracking-[0.24em]", styles.eyebrowBadge)}>
+              <div className="min-w-0 flex-1 pr-8 text-left sm:pt-0.5">
+                <div className="mb-1.5 flex">
+                  <span className={cn("inline-flex items-center rounded-full border px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.2em] sm:text-[10px]", styles.eyebrowBadge)}>
                     {eyebrow}
                   </span>
                 </div>
 
-                <DialogTitle className="font-display pr-8 text-[1.4rem] font-bold leading-[1.06] tracking-[-0.04em] text-slate-950 sm:pr-8 sm:text-[2rem]">
+                <DialogTitle className="font-display text-[1.08rem] font-semibold leading-[1.12] text-slate-950 sm:text-[1.28rem]">
                   {opts?.title || ""}
                 </DialogTitle>
 
-                {opts?.actionHint ? (
-                  <p className="mt-3 text-pretty text-[14px] font-semibold leading-5.5 text-slate-900 sm:mt-4 sm:text-base sm:leading-6">
-                    {opts.actionHint}
-                  </p>
-                ) : null}
-
                 {(opts?.message || details.length > 0 || opts?.footerNote) ? (
-                  <div className={cn("mt-3 rounded-[20px] border px-3.5 py-3 sm:rounded-[22px] sm:px-5", styles.detailCard)}>
+                  <div className={cn("mt-3 rounded-[16px] border px-3.5 py-2.5 sm:rounded-[18px] sm:px-4 sm:py-3", styles.detailCard)}>
                     {opts?.message ? (
-                      <DialogDescription className="text-pretty text-[13px] leading-5.5 text-slate-600 sm:text-[15px] sm:leading-6">
+                      <DialogDescription className="text-pretty text-[13px] leading-5 text-slate-600 sm:text-sm">
                         {opts?.message || ""}
                       </DialogDescription>
                     ) : null}
@@ -232,7 +218,7 @@ export function AppAlertProvider({ children }: { children: React.ReactNode }) {
             </div>
           </DialogHeader>
 
-          <div className="border-t border-white/70 bg-white/58 px-4 py-3.5 backdrop-blur-md sm:px-6 sm:py-4.5">
+          <div className="border-t border-[rgba(255,255,255,0.68)] bg-white/42 px-4 py-3 backdrop-blur-md sm:px-5 sm:py-3.5">
             <div className={cn("flex flex-col gap-2.5 sm:gap-3", hasSecondary ? "sm:grid sm:grid-cols-2" : "")}>
               {hasSecondary ? (
                 <button

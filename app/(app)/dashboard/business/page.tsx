@@ -5,8 +5,8 @@ export default function BusinessProfilePage() {
   return (
     <Suspense
       fallback={
-        <div className="rounded-[28px] border border-slate-200 bg-white p-6 text-sm text-slate-500">
-          Loading business profile…
+        <div className="app-hero-panel p-6 text-sm text-slate-500">
+          Loading business profile...
         </div>
       }
     >

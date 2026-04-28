@@ -160,18 +160,18 @@ export default function InvoicesClient() {
     <div className="space-y-6 xl:space-y-8">
       <section className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
         <div>
-          <p className="text-xs uppercase tracking-[0.34em] text-emerald-700">Invoices</p>
-          <h1 className="font-display mt-2 text-2xl leading-tight text-slate-950 sm:text-3xl xl:mt-3 xl:text-4xl">
+          <p className="app-kicker">Invoices</p>
+          <h1 className="app-page-title mt-2 text-2xl sm:text-3xl xl:mt-3 xl:text-4xl">
             Invoices, organized and easy to manage.
           </h1>
-          <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-500">
+          <p className="app-page-copy mt-3 max-w-2xl text-sm">
             Filter by year/month, search by invoice number, and keep records tidy in your easyBILL workspace.
           </p>
         </div>
 
         <button
           onClick={() => router.push("/dashboard/invoices/create")}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-slate-800 sm:w-auto"
+          className="app-primary-button inline-flex w-full items-center justify-center gap-2 rounded-2xl px-5 py-3.5 text-sm font-semibold sm:w-auto"
         >
           <FilePlus2 className="h-4 w-4" />
           Create Invoice
@@ -179,9 +179,9 @@ export default function InvoicesClient() {
       </section>
 
       <section className="soft-card rounded-[24px] p-4 sm:p-6 xl:rounded-[28px]">
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,0.68fr)_minmax(280px,0.32fr)] xl:items-end">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4 xl:gap-4">
-            <label className="min-w-0 rounded-2xl border border-slate-200 bg-white px-4 py-3">
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,0.72fr)_minmax(280px,0.28fr)] xl:items-end">
+          <div className="grid grid-cols-2 gap-3 xl:grid-cols-4 xl:gap-4">
+            <label className="app-subtle-panel min-w-0 rounded-2xl px-4 py-3">
               <span className="mb-2 block text-xs uppercase tracking-[0.28em] text-slate-400">Year</span>
               <div className="mt-1">
                 <SelectMenu
@@ -197,7 +197,7 @@ export default function InvoicesClient() {
               </div>
             </label>
 
-            <label className="min-w-0 rounded-2xl border border-slate-200 bg-white px-4 py-3">
+            <label className="app-subtle-panel min-w-0 rounded-2xl px-4 py-3">
               <span className="mb-2 block text-xs uppercase tracking-[0.28em] text-slate-400">Month</span>
               <div className="mt-1">
                 <SelectMenu
@@ -214,7 +214,7 @@ export default function InvoicesClient() {
               </div>
             </label>
 
-            <label className="min-w-0 rounded-2xl border border-slate-200 bg-white px-4 py-3">
+            <label className="app-subtle-panel min-w-0 rounded-2xl px-4 py-3">
               <span className="mb-2 block text-xs uppercase tracking-[0.28em] text-slate-400">Payment</span>
               <div className="mt-1">
                 <SelectMenu
@@ -234,7 +234,7 @@ export default function InvoicesClient() {
               </div>
             </label>
 
-            <label className="min-w-0 rounded-2xl border border-slate-200 bg-white px-4 py-3 sm:col-span-2 xl:col-span-1">
+            <label className="app-subtle-panel min-w-0 rounded-2xl px-4 py-3 xl:col-span-1">
               <span className="mb-2 block text-xs uppercase tracking-[0.28em] text-slate-400">Invoice No</span>
               <div className="flex items-center gap-2">
                 <Search className="h-4 w-4 shrink-0 text-slate-400" />
@@ -254,7 +254,7 @@ export default function InvoicesClient() {
             </label>
           </div>
 
-          <div className="rounded-3xl bg-slate-950 p-5 text-white">
+          <div className="app-dark-card rounded-3xl p-5 text-white">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/10">
                 <CalendarRange className="h-4 w-4" />
@@ -289,12 +289,12 @@ export default function InvoicesClient() {
 
         <div className="mt-6 space-y-3 lg:hidden">
           {paginatedInvoices.length === 0 ? (
-            <div className="rounded-[24px] border border-slate-200/70 bg-white p-6 text-center text-sm text-slate-500">
+            <div className="app-mobile-card rounded-[24px] p-6 text-center text-sm text-slate-500">
               <p>No invoices in this range.</p>
               <button
                 type="button"
                 onClick={() => router.push("/dashboard/invoices/create")}
-                className="mt-4 inline-flex rounded-full border border-slate-200 px-4 py-2 font-semibold text-slate-700 transition hover:bg-slate-50"
+                className="app-secondary-button mt-4 inline-flex rounded-full px-4 py-2 font-semibold"
               >
                 Create your first invoice
               </button>
@@ -312,23 +312,23 @@ export default function InvoicesClient() {
                       openInvoice(invoice.id)
                     }
                   }}
-                  className="cursor-pointer rounded-[24px] border border-slate-200/70 bg-white p-4 transition hover:bg-slate-50/70 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-100"
+                  className="app-mobile-card cursor-pointer rounded-[24px] p-4 transition hover:bg-white/90 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[rgba(29,107,95,0.12)]"
                 >
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold text-slate-900">{invoice.invoiceNumber}</p>
-                        <p className="mt-1 truncate text-sm text-slate-600">{invoice.clientName}</p>
-                        <p className="mt-2 inline-flex rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-600">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-slate-900">{invoice.invoiceNumber}</p>
+                      <p className="mt-1 truncate text-sm text-slate-600">{invoice.clientName}</p>
+                      <p className="mt-2 inline-flex rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-600">
                           {invoice.status || "draft"}
-                        </p>
-                      </div>
+                      </p>
+                    </div>
                     <div className="text-right">
                       <p className="truncate text-sm font-semibold text-slate-950">{money(invoice.grandTotal || 0)}</p>
                       <p className="mt-1 text-xs text-slate-500">{formatDate(invoice.date, dateFormat)}</p>
                     </div>
                   </div>
 
-                  <div className="mt-3 flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
+                  <div className="mt-4 flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
                     <button
                       type="button"
                       onClick={() => router.push(`/dashboard/invoices/create?duplicateId=${encodeURIComponent(invoice.id)}`)}
@@ -384,9 +384,9 @@ export default function InvoicesClient() {
           )}
         </div>
 
-        <div className="mt-6 hidden overflow-hidden rounded-[24px] border border-slate-200/70 lg:block">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-50/80">
+          <div className="app-table-shell mt-6 hidden rounded-[24px] lg:block">
+            <table className="w-full text-sm">
+            <thead className="app-table-head">
               <tr className="border-b border-slate-200 text-left text-slate-500">
                 <th className="px-4 py-3">Invoice No</th>
                 <th className="px-4 py-3">Client</th>
@@ -400,7 +400,7 @@ export default function InvoicesClient() {
                 return (
                   <tr
                     key={invoice.id}
-                    className="cursor-pointer border-b border-slate-100 transition hover:bg-slate-50/70"
+                    className="cursor-pointer border-b border-slate-100/70 transition hover:bg-white/55"
                     onClick={() => openInvoice(invoice.id)}
                   >
                       <td
@@ -482,7 +482,7 @@ export default function InvoicesClient() {
                 key={pageNumber}
                 onClick={() => setCurrentPage(pageNumber)}
                 className={`rounded-full px-4 py-2 text-sm transition ${
-                  pageNumber === safePage ? "bg-slate-950 text-white" : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                  pageNumber === safePage ? "app-primary-button text-white" : "app-secondary-button text-slate-600 hover:text-slate-950"
                 }`}
               >
                 {pageNumber}
