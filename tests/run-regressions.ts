@@ -290,6 +290,17 @@ runCase("backup payload falls back to a clean rupee symbol", () => {
   assert.match(source, /setActiveOrGlobalItem\("currencySymbol", String\(settings\.currencySymbol \|\| "\u20B9"\)\)/)
 })
 
+runCase("bundled Supabase profile writes do not schedule a destructive profile delete", () => {
+  const source = readFileSync(new URL("../../lib/userStore.ts", import.meta.url), "utf8")
+  const branchStart = source.indexOf("if (BUNDLED_KEYS.has(key)) {")
+  const branchReturn = source.indexOf("return", source.indexOf("schedulePush(ACCOUNT_SETUP_BUNDLE_KEY, bundleRaw)", branchStart))
+  const branchEnd = source.indexOf("}", branchReturn)
+  const bundledWriteBranch = source.slice(branchStart, branchEnd)
+
+  assert.ok(bundledWriteBranch.includes("schedulePush(ACCOUNT_SETUP_BUNDLE_KEY, bundleRaw)"))
+  assert.ok(!bundledWriteBranch.includes("scheduleDelete(key)"))
+})
+
 runCase("pdf export cache matching stays scoped to the invoice internal id", () => {
   const rows = [
     {

@@ -1,6 +1,6 @@
 "use client"
 
-import { createElement, useMemo, useState, useEffect, useRef } from "react"
+import { createElement, useMemo, useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { ChevronDown, Sparkles } from "lucide-react"
 import { templates as templateEngines } from "@/components/invoiceTemplates"
@@ -61,12 +61,9 @@ const router = useRouter()
 const { showAlert } = useAppAlert()
 
 const [previewTemplate,setPreviewTemplate] = useState(DEFAULT_TEMPLATE_ID)
-const leftColumnRef = useRef<HTMLDivElement | null>(null)
-const [leftColumnHeight,setLeftColumnHeight] = useState<number>(0)
 const [isXl, setIsXl] = useState(false)
 const [applyingTemplate, setApplyingTemplate] = useState(false)
 const [templateStatus, setTemplateStatus] = useState("")
-const previousActiveTemplateRef = useRef(DEFAULT_TEMPLATE_ID)
 const templateWorkspaceState = useWorkspaceValue(
   ["invoiceTemplate", "templateTypography", "invoiceTemplateFontId", "invoiceTemplateFontSize"],
   readTemplateWorkspaceState
@@ -90,18 +87,6 @@ useEffect(() => {
   return () => mq.removeEventListener("change", apply)
 }, [])
 
-useEffect(()=>{
-  if(!leftColumnRef.current) return
-  const el = leftColumnRef.current
-  const ro = new ResizeObserver((entries)=>{
-    const h = entries[0]?.contentRect?.height || 0
-    setLeftColumnHeight(h)
-  })
-  ro.observe(el)
-  setLeftColumnHeight(el.getBoundingClientRect().height)
-  return ()=>ro.disconnect()
-},[])
-
 useEffect(() => {
   const shouldWriteDefaults =
     getAuthMode() !== "supabase" || isActiveUserKvHydrated() || hasActiveUserWarmCache(["invoiceTemplate"])
@@ -112,9 +97,7 @@ useEffect(() => {
 }, [templateWorkspaceState.hasSavedTemplate])
 
 useEffect(() => {
-  const previousActiveTemplate = previousActiveTemplateRef.current
-  setPreviewTemplate((current) => (current === previousActiveTemplate ? activeTemplate : current))
-  previousActiveTemplateRef.current = activeTemplate
+  setPreviewTemplate(activeTemplate)
 }, [activeTemplate])
 
 async function activateTemplate(){
@@ -188,7 +171,7 @@ const newest = useMemo(()=>{
 },[templates])
 
 const typographyFields = (
-  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
+  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-1">
     <div>
       <label className="mb-2 block text-sm font-medium text-slate-700">Invoice Font</label>
       <SelectMenu
@@ -220,7 +203,7 @@ const activeTemplateName = templates.find((template) => template.id === activeTe
 
 return(
 
-<div className="min-w-0 space-y-5 overflow-x-hidden pb-28 xl:space-y-8 xl:pb-0">
+<div className="min-w-0 space-y-5 overflow-x-hidden pb-28 xl:space-y-7 xl:pb-0">
 
 {templateStatus ? (
 <div className="eb-fade-slide-in rounded-[20px] border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
@@ -228,58 +211,37 @@ return(
 </div>
 ) : null}
 
-<section className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
-<div>
+<section className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+<div className="min-w-0">
   <p className="app-kicker">Templates</p>
   <h1 className="app-page-title mt-2 text-2xl sm:text-3xl xl:mt-3 xl:text-4xl">Invoice templates.</h1>
   <p className="app-page-copy mt-2 max-w-2xl text-xs sm:mt-3 sm:text-sm">
-    Pick the template and typography used for new invoices.
+    Pick the template and font used for new invoices.
   </p>
 </div>
 
-<div className="grid grid-cols-2 gap-3 xl:min-w-[420px]">
-  <div className="app-stat-card rounded-[20px] px-4 py-3">
-    <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-400">Active</p>
-    <p className="mt-2 truncate text-lg font-semibold text-slate-950">{activeTemplateName}</p>
-  </div>
-  <div className="app-stat-card rounded-[20px] px-4 py-3">
-    <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-400">Available</p>
-    <p className="mt-2 text-lg font-semibold text-slate-950">{templates.length}</p>
-  </div>
+<div className="app-stat-card w-full rounded-[22px] px-4 py-3 sm:w-auto sm:min-w-[260px] xl:min-w-[300px]">
+  <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-400">Active template</p>
+  <p className="mt-2 truncate text-lg font-semibold text-slate-950">{activeTemplateName}</p>
 </div>
 </section>
 
-<section className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(360px,0.55fr)] xl:items-start xl:gap-5">
-
-{/* Mobile: collapsible typography */}
+<section className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,420px)] xl:items-start xl:gap-8">
+<div className="min-w-0 space-y-5 xl:space-y-6">
 <details className="group soft-card overflow-visible rounded-[22px] border border-slate-200/80 xl:hidden">
   <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4 text-sm font-semibold text-slate-900 [&::-webkit-details-marker]:hidden">
     <span className="flex items-center gap-3">
       <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
         <Sparkles className="h-5 w-5" />
       </span>
-      Typography &amp; font
+      Font settings
     </span>
     <ChevronDown className="h-4 w-4 shrink-0 text-slate-400 transition group-open:rotate-180" />
   </summary>
   <div className="border-t border-slate-100 px-4 pb-4 pt-2">{typographyFields}</div>
 </details>
 
-{/* Desktop: typography card (unchanged layout) */}
-<div className="soft-card hidden rounded-[28px] p-6 xl:block">
-  <div className="mb-4 flex items-center gap-3">
-    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
-      <Sparkles className="h-5 w-5" />
-    </div>
-    <div>
-      <p className="text-sm font-semibold text-slate-900">Typography</p>
-    </div>
-  </div>
-  {typographyFields}
-</div>
-</section>
-
-<section className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] md:grid md:snap-none md:grid-cols-3 md:gap-4 md:overflow-visible md:pb-0 xl:max-w-2xl [&::-webkit-scrollbar]:hidden">
+<div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] md:grid md:snap-none md:grid-cols-3 md:gap-4 md:overflow-visible md:pb-0 [&::-webkit-scrollbar]:hidden">
 <button
   type="button"
   onClick={()=>router.push("/dashboard/templates/modern")}
@@ -301,10 +263,8 @@ return(
 >
   Classic
 </button>
-</section>
+</div>
 
-<section className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,420px)] xl:items-start xl:gap-8">
-<div ref={leftColumnRef} className="min-w-0 space-y-5 xl:space-y-8">
 <div className="soft-card rounded-[22px] p-4 sm:p-5 xl:rounded-[28px] xl:p-6">
 <h2 className="section-title text-lg sm:text-xl xl:text-2xl">Most Popular Templates</h2>
 <p className="mt-1 text-xs text-slate-500 sm:text-sm">The styles users reach for most often.</p>
@@ -396,10 +356,21 @@ previewTemplate===t.id
 </div>
 </div>
 
-<div
-  className="soft-card flex w-full min-w-0 max-w-full flex-col overflow-hidden rounded-[22px] p-4 sm:p-5 xl:sticky xl:top-8 xl:max-w-[min(420px,100%)] xl:justify-self-end xl:rounded-[28px] xl:p-6"
-  style={isXl && leftColumnHeight ? { maxHeight: leftColumnHeight } : undefined}
->
+<div className="min-w-0 space-y-5 xl:sticky xl:top-8 xl:w-full xl:max-w-[min(420px,100%)] xl:justify-self-end">
+<div className="soft-card hidden rounded-[28px] p-6 xl:block">
+  <div className="mb-4 flex items-center gap-3">
+    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
+      <Sparkles className="h-5 w-5" />
+    </div>
+    <div>
+      <p className="text-sm font-semibold text-slate-900">Font settings</p>
+      <p className="mt-1 text-xs text-slate-500">Choose how text appears on invoice previews.</p>
+    </div>
+  </div>
+  {typographyFields}
+</div>
+
+<div className="soft-card flex w-full min-w-0 max-w-full flex-col overflow-hidden rounded-[22px] p-4 sm:p-5 xl:min-h-[520px] xl:rounded-[28px] xl:p-6">
 <div className="mb-3 xl:mb-4">
 <h2 className="section-title text-lg sm:text-xl xl:text-2xl">Live Preview</h2>
 <p className="mt-1 text-xs text-slate-500 sm:text-sm">See the exact direction before you activate it.</p>
@@ -424,6 +395,7 @@ Currently Active
 {applyingTemplate ? "Applying..." : activateLabel}
 </button>
 )}
+</div>
 </div>
 </div>
 </section>

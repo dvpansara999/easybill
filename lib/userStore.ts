@@ -185,8 +185,6 @@ export function setUserItem(key: string, value: string, userId: string) {
       writeWarmCache(ACCOUNT_SETUP_BUNDLE_KEY, userId, bundleRaw)
       writeWarmCache(key, userId, valueForStorage)
       schedulePush(ACCOUNT_SETUP_BUNDLE_KEY, bundleRaw)
-      // Remove legacy per-key row for cleanliness.
-      scheduleDelete(key)
       if (typeof window !== "undefined") {
         window.dispatchEvent(new CustomEvent("easybill:kv-write", { detail: { key } }))
       }
