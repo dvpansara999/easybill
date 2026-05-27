@@ -117,7 +117,7 @@ test("settings, invoice create/edit/view, and download flow stay stable", async 
 test("mobile share uses the native share flow on the first tap without opening a new tab", async ({ page }) => {
   test.setTimeout(90000)
 
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize({ width: 820, height: 844 })
 
   await page.addInitScript(() => {
     ;(window as Window & { __shareCalls?: unknown[]; __openCalls?: unknown[] }).__shareCalls = []

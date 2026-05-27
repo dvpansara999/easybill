@@ -39,6 +39,7 @@ import NotFoundRecoveryCard from "@/components/shared/NotFoundRecoveryCard"
 /** Must match `A4InvoiceView` inner page width + padding for consistent capture vs on-screen layout. */
 const A4_CAPTURE_WIDTH_PX = 794
 const A4_CAPTURE_PADDING_PX = 38
+const MOBILE_EXPORT_SHEET_MEDIA = "(max-width: 1023px)"
 
 type TemplateKey = keyof typeof templates
 
@@ -64,6 +65,11 @@ function resolveTemplateKey(templateId: string): TemplateKey {
   if (templateId.startsWith("minimal")) return "minimal"
   if (templateId.startsWith("classic")) return "classic"
   return "default"
+}
+
+function shouldUseMobileExportSheet() {
+  if (typeof window === "undefined") return false
+  return window.matchMedia(MOBILE_EXPORT_SHEET_MEDIA).matches
 }
 
 function readInvoiceViewState(invoiceId: string): InvoiceViewState {
@@ -116,8 +122,8 @@ export default function ViewInvoice() {
 
   useEffect(() => {
     if (typeof window === "undefined") return
-    const mq = window.matchMedia("(max-width: 767px)")
-    const apply = () => setIsNarrowViewport(mq.matches)
+    const mq = window.matchMedia(MOBILE_EXPORT_SHEET_MEDIA)
+    const apply = () => setIsNarrowViewport(shouldUseMobileExportSheet())
     apply()
     mq.addEventListener("change", apply)
     return () => mq.removeEventListener("change", apply)
@@ -555,7 +561,7 @@ export default function ViewInvoice() {
       if (exportRes.ok) {
         const data = (await exportRes.json().catch(() => null)) as { url?: string } | null
         if (data?.url && typeof data.url === "string") {
-          if (isNarrowViewport) {
+          if (isNarrowViewport || shouldUseMobileExportSheet()) {
             let preparedFile: File | null = null
             try {
               preparedFile = await prepareExportedPdfFile(data.url, invoice.invoiceNumber)
