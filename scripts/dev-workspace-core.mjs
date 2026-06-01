@@ -62,7 +62,7 @@ function loadEnvFiles() {
 
 export function readEnv() {
   const env = {
-    url: process.env.NEXT_PUBLIC_SUPABASE_URL?.trim(),
+    url: normalizeSupabaseProjectUrl(process.env.NEXT_PUBLIC_SUPABASE_URL),
     anonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim(),
     serviceKey: process.env.SUPABASE_SERVICE_ROLE_KEY?.trim(),
     encryptionKey: process.env.SERVER_DATA_ENCRYPTION_KEY,
@@ -104,6 +104,27 @@ export function readEnv() {
     throw new Error("Primary and secondary dev workspace accounts must be distinct.")
   }
   return env
+}
+
+function normalizeSupabaseProjectUrl(value) {
+  const raw = String(value || "").trim().replace(/\/+$/, "")
+  if (!raw) return ""
+  try {
+    const url = new URL(raw)
+    let pathname = url.pathname.replace(/\/+$/, "")
+    for (const suffix of ["/rest/v1", "/auth/v1", "/storage/v1", "/functions/v1"]) {
+      if (pathname.toLowerCase().endsWith(suffix)) {
+        pathname = pathname.slice(0, -suffix.length) || ""
+        break
+      }
+    }
+    url.pathname = pathname || "/"
+    url.search = ""
+    url.hash = ""
+    return url.toString().replace(/\/$/, "")
+  } catch {
+    return raw
+  }
 }
 
 export function createAdmin(env) {

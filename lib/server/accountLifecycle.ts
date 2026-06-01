@@ -2,6 +2,7 @@ import "server-only"
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js"
 import { createSupabaseAdminClient } from "@/lib/supabase/admin"
+import { normalizeSupabaseProjectUrl } from "@/lib/supabase/url"
 import {
   ACCOUNT_OWNED_STORAGE_BUCKETS,
   PRESERVED_RESET_SETTINGS_FIELDS,
@@ -31,7 +32,7 @@ function requireAdmin() {
 }
 
 function createAnonAuthClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const url = normalizeSupabaseProjectUrl(process.env.NEXT_PUBLIC_SUPABASE_URL)
   const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   if (!url || !anon) throw new Error("Missing Supabase public environment variables.")
   return createClient(url, anon, { auth: { persistSession: false, autoRefreshToken: false } })

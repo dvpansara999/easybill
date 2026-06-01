@@ -1,10 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { createServerClient } from "@supabase/ssr"
+import { normalizeSupabaseProjectUrl } from "@/lib/supabase/url"
 
 export async function proxy(request: NextRequest) {
   const response = NextResponse.next()
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const url = normalizeSupabaseProjectUrl(process.env.NEXT_PUBLIC_SUPABASE_URL)
   const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
   if (!url || !anon) {

@@ -17,6 +17,7 @@ import { activeRecords, ensureRecordIds, markRecordDeleted, mergeActiveWithExist
 import { redactSensitiveData } from "../lib/workspaceSecurity.js";
 import { validateCustomerForPersistence, validateGstin, validateProductForPersistence, } from "../lib/workspaceValidation.js";
 import { createWorkspaceDataAccess } from "../lib/dataAccess.js";
+import { normalizeSupabaseProjectUrl } from "../lib/supabase/url.js";
 let invoiceSeedCounter = 0;
 function makeInvoice(overrides = {}) {
     return {
@@ -700,6 +701,24 @@ runCase("required runtime environment variables are documented and referenced", 
     assert.match(lookupSource, /SERVER_DATA_HASH_KEY/);
     assert.match(purgeInvoices, /CRON_SECRET/);
     assert.match(purgeLogos, /CRON_SECRET/);
+});
+runCase("Supabase clients normalize project urls before auth initialization", () => {
+    assert.equal(normalizeSupabaseProjectUrl("https://example.supabase.co/rest/v1"), "https://example.supabase.co");
+    assert.equal(normalizeSupabaseProjectUrl("https://example.supabase.co/auth/v1"), "https://example.supabase.co");
+    assert.equal(normalizeSupabaseProjectUrl("https://example.supabase.co/storage/v1/"), "https://example.supabase.co");
+    for (const path of [
+        "../../lib/supabase/browser.ts",
+        "../../lib/supabase/server.ts",
+        "../../lib/supabase/admin.ts",
+        "../../proxy.ts",
+        "../../lib/server/accountLifecycle.ts",
+    ]) {
+        const source = readFileSync(new URL(path, import.meta.url), "utf8");
+        assert.match(source, /normalizeSupabaseProjectUrl\(process\.env\.NEXT_PUBLIC_SUPABASE_URL\)/);
+    }
+    const devWorkspace = readFileSync(new URL("../../scripts/dev-workspace-core.mjs", import.meta.url), "utf8");
+    assert.match(devWorkspace, /url: normalizeSupabaseProjectUrl\(process\.env\.NEXT_PUBLIC_SUPABASE_URL\)/);
+    assert.match(devWorkspace, /\/rest\/v1/);
 });
 runCase("incremental cache merge applies remote products and tombstones without full replacement", () => {
     const merged = JSON.parse(mergeProductsCache(JSON.stringify([

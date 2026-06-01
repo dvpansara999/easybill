@@ -2,12 +2,13 @@
 
 import { createBrowserClient } from "@supabase/ssr"
 import type { AuthError, User, UserResponse } from "@supabase/supabase-js"
+import { normalizeSupabaseProjectUrl } from "@/lib/supabase/url"
 
 let browserClient: ReturnType<typeof createBrowserClient> | null = null
 let getUserInFlight: Promise<UserResponse> | null = null
 
 export function createSupabaseBrowserClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const url = normalizeSupabaseProjectUrl(process.env.NEXT_PUBLIC_SUPABASE_URL)
   const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
   if (!url || !anon) {
