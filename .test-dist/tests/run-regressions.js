@@ -671,7 +671,8 @@ runCase("invoice PDF export is resilient to repeated invoice numbers", () => {
     assert.match(runtime, /op: "upsertInvoice"/);
 });
 runCase("required runtime environment variables are documented and referenced", () => {
-    const envExample = readFileSync(new URL("../../.env.example", import.meta.url), "utf8");
+    const migrationDoc = readFileSync(new URL("../../docs/FRESH-SUPABASE-MIGRATION.md", import.meta.url), "utf8");
+    const schema = readFileSync(new URL("../../supabase/schema.sql", import.meta.url), "utf8");
     const browserClient = readFileSync(new URL("../../lib/supabase/browser.ts", import.meta.url), "utf8");
     const serverClient = readFileSync(new URL("../../lib/supabase/server.ts", import.meta.url), "utf8");
     const adminClient = readFileSync(new URL("../../lib/supabase/admin.ts", import.meta.url), "utf8");
@@ -687,7 +688,7 @@ runCase("required runtime environment variables are documented and referenced", 
         "SUPABASE_SERVICE_ROLE_KEY",
         "CRON_SECRET",
     ]) {
-        assert.match(envExample, new RegExp(`^${name}=`, "m"));
+        assert.match(`${migrationDoc}\n${schema}`, new RegExp(name));
     }
     assert.match(browserClient, /NEXT_PUBLIC_SUPABASE_URL/);
     assert.match(browserClient, /NEXT_PUBLIC_SUPABASE_ANON_KEY/);
@@ -1235,5 +1236,53 @@ runCase("workspace repository surfaces Supabase persistence failures", () => {
     assert.match(repository, /if \(error\) throw error/);
     assert.match(repository, /upsertCustomersFromCache/);
     assert.match(repository, /upsertProfileFromCache/);
+});
+runCase("permanent development workspace tooling is scoped and guarded", () => {
+    const pkg = readFileSync(new URL("../../package.json", import.meta.url), "utf8");
+    const core = readFileSync(new URL("../../scripts/dev-workspace-core.mjs", import.meta.url), "utf8");
+    const seed = readFileSync(new URL("../../scripts/seed-dev-workspace.mjs", import.meta.url), "utf8");
+    const reset = readFileSync(new URL("../../scripts/reset-dev-workspace.mjs", import.meta.url), "utf8");
+    const validate = readFileSync(new URL("../../scripts/validate-dev-workspace.mjs", import.meta.url), "utf8");
+    const createAccounts = readFileSync(new URL("../../scripts/create-dev-workspace-accounts.mjs", import.meta.url), "utf8");
+    const docs = readFileSync(new URL("../../docs/PERMANENT-DEVELOPMENT-WORKSPACE.md", import.meta.url), "utf8");
+    const playwright = readFileSync(new URL("../../playwright.config.ts", import.meta.url), "utf8");
+    const e2e = readFileSync(new URL("../../tests/e2e/supabase-dev-workspace.spec.ts", import.meta.url), "utf8");
+    for (const command of [
+        "seed-dev-workspace",
+        "reset-dev-workspace",
+        "validate-dev-workspace",
+        "dev-workspace:create-accounts",
+    ]) {
+        assert.match(pkg, new RegExp(`"${command}"`));
+    }
+    for (const name of [
+        "DEV_WORKSPACE_EMAIL",
+        "DEV_WORKSPACE_PASSWORD",
+        "DEV_WORKSPACE_USER_ID",
+        "DEV_WORKSPACE_SECONDARY_EMAIL",
+        "DEV_WORKSPACE_SECONDARY_PASSWORD",
+        "DEV_WORKSPACE_SECONDARY_USER_ID",
+        "DEV_WORKSPACE_CONFIRM",
+    ]) {
+        assert.match(docs, new RegExp(`${name}=`));
+        assert.match(core, new RegExp(name));
+    }
+    assert.match(core, /CONFIRM_VALUE = "EASYBILL_DEV_WORKSPACE"/);
+    assert.match(core, /assertAccountMatches/);
+    assert.match(core, /clearWorkspaceRows/);
+    assert.match(core, /\.eq\("user_id", userId\)/);
+    assert.doesNotMatch(core, /\.from\("[^"]+"\)\.delete\(\)(?!\.eq|\.in)/);
+    assert.match(core, /deleteUserStorage/);
+    assert.match(core, /createAnon/);
+    assert.match(core, /secondaryCanSeePrimaryProduct/);
+    assert.match(seed, /--include-secondary/);
+    assert.match(reset, /--secondary/);
+    assert.match(validate, /validateWorkspace/);
+    assert.match(createAccounts, /ensureAuthAccount/);
+    assert.match(docs, /Secondary account: read-only-for-normal-testing isolation account/);
+    assert.match(playwright, /PLAYWRIGHT_AUTH_MODE/);
+    assert.match(playwright, /supabase-dev-workspace/);
+    assert.match(e2e, /DEV_WORKSPACE_SECONDARY_EMAIL/);
+    assert.match(e2e, /does not use the primary seeded baseline/);
 });
 console.log("All regression checks passed.");

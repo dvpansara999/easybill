@@ -9,10 +9,15 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit --incremental false",
+    "test": "npm run test:regression",
     "test:regression": "node -e \"const fs=require('fs');fs.rmSync('.test-dist',{recursive:true,force:true});\" && tsc -p tsconfig.tests.json --incremental false && node -e \"const fs=require('fs');const path=require('path');function walk(dir){for(const entry of fs.readdirSync(dir,{withFileTypes:true})){const p=path.join(dir,entry.name);if(entry.isDirectory())walk(p);else if(entry.isFile()&&p.endsWith('.js')){const extless=p.slice(0,-3);if(!fs.existsSync(extless))fs.copyFileSync(p,extless);}}}walk('.test-dist/lib');\" && node .test-dist/tests/run-regressions.js",
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
     "verify": "npm run lint && npm run typecheck && npm run test:regression",
+    "dev-workspace:create-accounts": "node scripts/create-dev-workspace-accounts.mjs",
+    "seed-dev-workspace": "node scripts/seed-dev-workspace.mjs",
+    "reset-dev-workspace": "node scripts/reset-dev-workspace.mjs",
+    "validate-dev-workspace": "node scripts/validate-dev-workspace.mjs",
     "pdf:help": "node -e \"console.log('PDF: POST /api/invoice-pdf (Playwright setContent). See docs/PDF-PIPELINE.md')\""
   },
   "dependencies": {
