@@ -1268,6 +1268,9 @@ runCase("permanent development workspace tooling is scoped and guarded", () => {
         assert.match(core, new RegExp(name));
     }
     assert.match(core, /CONFIRM_VALUE = "EASYBILL_DEV_WORKSPACE"/);
+    assert.match(core, /loadEnvFiles/);
+    assert.match(core, /\.env\.local/);
+    assert.match(core, /env\.local/);
     assert.match(core, /assertAccountMatches/);
     assert.match(core, /clearWorkspaceRows/);
     assert.match(core, /\.eq\("user_id", userId\)/);
@@ -1284,5 +1287,66 @@ runCase("permanent development workspace tooling is scoped and guarded", () => {
     assert.match(playwright, /supabase-dev-workspace/);
     assert.match(e2e, /DEV_WORKSPACE_SECONDARY_EMAIL/);
     assert.match(e2e, /does not use the primary seeded baseline/);
+});
+runCase("Playwright browser verification framework exposes Supabase confidence gates", () => {
+    const pkg = readFileSync(new URL("../../package.json", import.meta.url), "utf8");
+    const config = readFileSync(new URL("../../playwright.config.ts", import.meta.url), "utf8");
+    const runner = readFileSync(new URL("../../scripts/run-playwright.mjs", import.meta.url), "utf8");
+    const helpers = readFileSync(new URL("../../tests/e2e/supabaseHelpers.ts", import.meta.url), "utf8");
+    const workspaceDocs = readFileSync(new URL("../../docs/PERMANENT-DEVELOPMENT-WORKSPACE.md", import.meta.url), "utf8");
+    const releaseDocs = readFileSync(new URL("../../docs/RELEASE-CHECKLIST.md", import.meta.url), "utf8");
+    for (const command of [
+        "test:e2e:local",
+        "test:e2e:supabase",
+        "test:e2e:supabase:desktop",
+        "test:e2e:supabase:mobile",
+        "test:e2e:supabase:auth",
+        "test:e2e:supabase:invoices",
+        "test:e2e:supabase:pdf",
+        "test:e2e:supabase:templates",
+        "test:e2e:supabase:sync",
+        "test:e2e:supabase:lifecycle",
+        "confidence:deployment",
+    ]) {
+        assert.match(pkg, new RegExp(`"${command}"`));
+    }
+    assert.match(config, /supabaseSpecPattern/);
+    assert.match(config, /mobile-chromium/);
+    assert.match(config, /mobile-webkit/);
+    assert.match(config, /PLAYWRIGHT_USE_EXISTING_SERVER/);
+    assert.match(config, /NEXT_DIST_DIR/);
+    assert.match(runner, /PLAYWRIGHT_AUTH_MODE: mode/);
+    assert.match(runner, /valuesAfter\("--project"\)/);
+    for (const helper of [
+        "installBrowserGuards",
+        "expectNonEmptyPdfDownload",
+        "captureWorkflowScreenshot",
+        "signedInPage",
+        "createTempProduct",
+    ]) {
+        assert.match(helpers, new RegExp(helper));
+    }
+    for (const spec of [
+        "auth.supabase.spec.ts",
+        "dashboard.supabase.spec.ts",
+        "business-profile.supabase.spec.ts",
+        "products.supabase.spec.ts",
+        "customers.supabase.spec.ts",
+        "invoices.supabase.spec.ts",
+        "templates-fonts.supabase.spec.ts",
+        "pdf-downloads.supabase.spec.ts",
+        "sync-cross-device.supabase.spec.ts",
+        "rls-isolation.supabase.spec.ts",
+        "account-lifecycle.disposable.spec.ts",
+        "mobile.supabase.spec.ts",
+    ]) {
+        const source = readFileSync(new URL(`../../tests/e2e/${spec}`, import.meta.url), "utf8");
+        assert.match(source, /installBrowserGuards|signedInPage/);
+        assert.match(source, /captureWorkflowScreenshot|expect|createTempProduct|DEV_WORKSPACE_SECONDARY_EMAIL/);
+    }
+    assert.match(workspaceDocs, /Deployment Confidence Gate/);
+    assert.match(workspaceDocs, /PLAYWRIGHT_USE_EXISTING_SERVER=1/);
+    assert.match(releaseDocs, /Deployment Confidence Gate/);
+    assert.match(releaseDocs, /test:e2e:supabase:\*/);
 });
 console.log("All regression checks passed.");

@@ -2,6 +2,16 @@
 
 Before merging to `main`, verify the preview deployment and walk through each of these checks:
 
+## Deployment Confidence Gate
+
+For changes touching authentication, invoices, PDF generation, templates, fonts, synchronization, or account lifecycle, the change is not deployment-ready until all matching gates pass:
+
+- `npm run verify`
+- `npm run validate-dev-workspace`
+- the relevant `npm run test:e2e:supabase:*` suite
+
+Use `npm run confidence:deployment` for a full release-confidence pass. The browser run must remain clean of uncaught page exceptions, React runtime errors, hydration errors, and unexpected same-origin failed app/API requests.
+
 - Create invoice
 - Edit invoice
 - View invoice

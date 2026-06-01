@@ -9,7 +9,7 @@ Neither account may be used for real business operations.
 
 ## Environment
 
-Configure these values locally or in a trusted CI/dev environment. Do not commit real passwords or service-role keys.
+Configure these values in `.env.local`, `env.local`, or a trusted CI/dev environment. Do not commit real passwords or service-role keys.
 
 ```env
 NEXT_PUBLIC_SUPABASE_URL=
@@ -57,6 +57,27 @@ Run a fast health check before browser-level verification:
 npm run validate-dev-workspace
 ```
 
+Run browser verification against the seeded Supabase workspace:
+
+```bash
+npm run test:e2e:supabase
+npm run test:e2e:supabase:desktop
+npm run test:e2e:supabase:mobile
+```
+
+Target high-risk areas with the focused gates:
+
+```bash
+npm run test:e2e:supabase:auth
+npm run test:e2e:supabase:invoices
+npm run test:e2e:supabase:pdf
+npm run test:e2e:supabase:templates
+npm run test:e2e:supabase:sync
+npm run test:e2e:supabase:lifecycle
+```
+
+If the local Playwright web server cannot start because `next-env.d.ts` is locked by the OS, start the app separately and run with `PLAYWRIGHT_USE_EXISTING_SERVER=1`.
+
 ## Safety Rules
 
 - No global deletes are allowed.
@@ -88,3 +109,20 @@ Future AI agents and developers should use the primary account to validate:
 - desktop and mobile layouts.
 
 Use the secondary account only to prove it cannot see primary rows or storage.
+
+## Deployment Confidence Gate
+
+Changes touching authentication, invoices, PDF generation, templates, fonts, synchronization, or account lifecycle are not deployment-ready until:
+
+- `npm run verify` passes,
+- `npm run validate-dev-workspace` passes,
+- the relevant `npm run test:e2e:supabase:*` suite passes,
+- browser console, page-error, hydration, and same-origin failed-request guards are clean for that suite.
+
+Run the full gate before release candidates:
+
+```bash
+npm run confidence:deployment
+```
+
+Future AI agents must state which confidence gate was run before calling a change deployment-ready.

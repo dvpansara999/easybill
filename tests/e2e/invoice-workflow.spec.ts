@@ -36,7 +36,9 @@ test("settings, invoice create/edit/view, and download flow stay stable", async 
   await chooseDesktopSelectOption(page, "0001 (4 digits)", "001 (3 digits)")
   await chooseDesktopSelectOption(page, "01 of January", "01 of March")
   await page.getByRole("button", { name: "Save Changes" }).click()
-  await expect(page.getByText("Changes saved.")).toBeVisible()
+  await expect(page.getByText("All changes saved")).toBeVisible()
+  await expect(page.getByText("No pending updates right now.")).toBeVisible()
+  await expect(page.getByRole("button", { name: "Save Changes" })).toBeDisabled()
   await expect
     .poll(async () =>
       page.evaluate(() => ({
