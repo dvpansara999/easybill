@@ -12,6 +12,10 @@ export const runtime = "nodejs"
 
 type PdfRequestBody = {
   invoiceId?: string
+  invoiceNumber?: string
+  invoiceDate?: string
+  clientName?: string
+  grandTotal?: number | string
   mode?: "print" | "download"
   templateId?: string
   fontId?: string
@@ -35,6 +39,10 @@ export async function POST(req: Request) {
     supabase,
     {
       invoiceId: body.invoiceId,
+      invoiceNumber: body.invoiceNumber,
+      invoiceDate: body.invoiceDate,
+      clientName: body.clientName,
+      grandTotal: body.grandTotal,
       templateId: body.templateId,
       fontId: body.fontId,
       fontSize: body.fontSize,

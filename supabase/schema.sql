@@ -1,5 +1,22 @@
 -- easyBILL clean-slate relational schema
--- Run in Supabase SQL editor on a fresh project.
+-- Canonical source of truth for a fresh Supabase project.
+--
+-- Fresh Project Setup
+-- 1. Create a new Supabase project.
+-- 2. Run this entire file in the Supabase SQL editor.
+-- 3. Create these private Storage buckets in the Supabase dashboard:
+--    - logos
+--    - invoice-pdfs
+-- 4. Configure the application runtime environment:
+--    - NEXT_PUBLIC_SUPABASE_URL
+--    - NEXT_PUBLIC_SUPABASE_ANON_KEY
+--    - SERVER_DATA_ENCRYPTION_KEY
+--    - SERVER_DATA_HASH_KEY
+--    - SUPABASE_SERVICE_ROLE_KEY
+--    - CRON_SECRET
+--
+-- supabase/schema.sql is canonical. supabase/invoice_pdf_exports.sql is not required
+-- for a fresh project after this file has been applied.
 
 create extension if not exists pgcrypto;
 
@@ -96,6 +113,8 @@ create table if not exists public.profiles (
   logo_shape text not null default 'square' check (logo_shape in ('square', 'round')),
   onboarding_completed boolean not null default false,
   email_change_audit_at timestamptz,
+  sync_status text not null default 'synced' check (sync_status in ('pending', 'syncing', 'synced', 'error', 'conflict')),
+  last_synced_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -123,6 +142,8 @@ create table if not exists public.user_settings (
   subscription_plan_id text not null default 'free',
   invoice_usage_count integer not null default 0,
   invoice_usage_initialized boolean not null default false,
+  sync_status text not null default 'synced' check (sync_status in ('pending', 'syncing', 'synced', 'error', 'conflict')),
+  last_synced_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -130,26 +151,53 @@ create table if not exists public.user_settings (
 drop trigger if exists user_settings_touch on public.user_settings;
 create trigger user_settings_touch before update on public.user_settings for each row execute function public.touch_updated_at();
 
-create table if not exists public.customers (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users(id) on delete cascade,
-  identity_key text not null default '',
-  name text not null default '',
-  phone text not null default '',
-  email text not null default '',
-  gst text not null default '',
-  address text not null default '',
+create table if not exists public.account_lifecycle_locks (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  operation text not null default 'idle' check (operation in ('idle', 'resetting', 'deleting')),
+  account_deleting boolean not null default false,
+  locked_at timestamptz,
+  last_error text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
 
+drop trigger if exists account_lifecycle_locks_touch on public.account_lifecycle_locks;
+create trigger account_lifecycle_locks_touch before update on public.account_lifecycle_locks for each row execute function public.touch_updated_at();
+
+create table if not exists public.customers (
+  id text primary key default ('cust_' || replace(gen_random_uuid()::text, '-', '')),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  identity_key text not null default '',
+  identity_hash text not null default '',
+  name text not null default '',
+  phone text not null default '',
+  phone_hash text,
+  email text not null default '',
+  gst text not null default '',
+  gst_hash text,
+  address text not null default '',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz,
+  sync_status text not null default 'synced' check (sync_status in ('pending', 'syncing', 'synced', 'error', 'conflict')),
+  last_synced_at timestamptz
+);
+
+alter table public.customers alter column id drop default;
+alter table public.customers alter column id type text using id::text;
+alter table public.customers alter column id set default ('cust_' || replace(gen_random_uuid()::text, '-', ''));
+
 create index if not exists customers_user_id_idx on public.customers(user_id);
+create index if not exists customers_deleted_at_idx on public.customers(deleted_at);
+
 create index if not exists customers_identity_key_idx on public.customers(user_id, identity_key);
+create index if not exists customers_phone_hash_idx on public.customers(user_id, phone_hash);
+create index if not exists customers_gst_hash_idx on public.customers(user_id, gst_hash);
 drop trigger if exists customers_touch on public.customers;
 create trigger customers_touch before update on public.customers for each row execute function public.touch_updated_at();
 
 create table if not exists public.products (
-  id uuid primary key default gen_random_uuid(),
+  id text primary key default ('prod_' || replace(gen_random_uuid()::text, '-', '')),
   user_id uuid not null references auth.users(id) on delete cascade,
   name text not null default '',
   hsn text not null default '',
@@ -159,10 +207,19 @@ create table if not exists public.products (
   sgst numeric(8,2) not null default 0,
   igst numeric(8,2) not null default 0,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz,
+  sync_status text not null default 'synced' check (sync_status in ('pending', 'syncing', 'synced', 'error', 'conflict')),
+  last_synced_at timestamptz
 );
 
+alter table public.products alter column id drop default;
+alter table public.products alter column id type text using id::text;
+alter table public.products alter column id set default ('prod_' || replace(gen_random_uuid()::text, '-', ''));
+
 create index if not exists products_user_id_idx on public.products(user_id);
+create index if not exists products_deleted_at_idx on public.products(deleted_at);
+
 drop trigger if exists products_touch on public.products;
 create trigger products_touch before update on public.products for each row execute function public.touch_updated_at();
 
@@ -196,19 +253,28 @@ create table if not exists public.invoices (
   sequence_window_end date,
   client_name text not null default '',
   client_phone text not null default '',
+  client_phone_hash text,
   client_email text not null default '',
   client_gst text not null default '',
+  client_gst_hash text,
+  customer_identity_key text,
   client_address text not null default '',
   custom_details jsonb not null default '[]'::jsonb,
   notes text not null default '',
   status text not null default 'draft' check (status in ('draft', 'issued', 'paid')),
   grand_total numeric(14,2) not null default 0,
   updated_at timestamptz not null default now(),
-  unique (user_id, invoice_number)
+  deleted_at timestamptz,
+  sync_status text not null default 'synced' check (sync_status in ('pending', 'syncing', 'synced', 'error', 'conflict')),
+  last_synced_at timestamptz
 );
 
 create index if not exists invoices_user_id_idx on public.invoices(user_id);
+alter table public.invoices drop constraint if exists invoices_user_id_invoice_number_key;
+create index if not exists invoices_deleted_at_idx on public.invoices(deleted_at);
 create index if not exists invoices_user_date_idx on public.invoices(user_id, invoice_date desc, created_at desc);
+create index if not exists invoices_client_phone_hash_idx on public.invoices(user_id, client_phone_hash);
+create index if not exists invoices_client_gst_hash_idx on public.invoices(user_id, client_gst_hash);
 drop trigger if exists invoices_touch on public.invoices;
 create trigger invoices_touch before update on public.invoices for each row execute function public.touch_updated_at();
 
@@ -224,20 +290,36 @@ create table if not exists public.invoice_items (
   cgst numeric(8,2) not null default 0,
   sgst numeric(8,2) not null default 0,
   igst numeric(8,2) not null default 0,
-  total numeric(14,2) not null default 0
+  total numeric(14,2) not null default 0,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz,
+  sync_status text not null default 'synced' check (sync_status in ('pending', 'syncing', 'synced', 'error', 'conflict')),
+  last_synced_at timestamptz
 );
 
 create index if not exists invoice_items_invoice_id_idx on public.invoice_items(invoice_id, position);
+create index if not exists invoice_items_deleted_at_idx on public.invoice_items(deleted_at);
+drop trigger if exists invoice_items_touch on public.invoice_items;
+create trigger invoice_items_touch before update on public.invoice_items for each row execute function public.touch_updated_at();
 
 create table if not exists public.invoice_history (
   id text primary key,
   invoice_id text not null references public.invoices(id) on delete cascade,
   event_type text not null check (event_type in ('created', 'edited', 'exported', 'status', 'duplicated')),
   label text not null,
-  happened_at timestamptz not null default now()
+  happened_at timestamptz not null default now(),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz,
+  sync_status text not null default 'synced' check (sync_status in ('pending', 'syncing', 'synced', 'error', 'conflict')),
+  last_synced_at timestamptz
 );
 
 create index if not exists invoice_history_invoice_id_idx on public.invoice_history(invoice_id, happened_at asc);
+create index if not exists invoice_history_deleted_at_idx on public.invoice_history(deleted_at);
+drop trigger if exists invoice_history_touch on public.invoice_history;
+create trigger invoice_history_touch before update on public.invoice_history for each row execute function public.touch_updated_at();
 
 create table if not exists public.invoice_pdf_exports (
   id uuid primary key default gen_random_uuid(),
@@ -258,6 +340,7 @@ create index if not exists invoice_pdf_exports_purge_idx on public.invoice_pdf_e
 
 alter table public.profiles enable row level security;
 alter table public.user_settings enable row level security;
+alter table public.account_lifecycle_locks enable row level security;
 alter table public.customers enable row level security;
 alter table public.products enable row level security;
 alter table public.invoice_sequences enable row level security;
@@ -265,6 +348,21 @@ alter table public.invoices enable row level security;
 alter table public.invoice_items enable row level security;
 alter table public.invoice_history enable row level security;
 alter table public.invoice_pdf_exports enable row level security;
+
+-- Base table privileges required before RLS policies can apply.
+grant usage on schema public to authenticated;
+grant select, insert, update, delete on table
+  public.profiles,
+  public.user_settings,
+  public.account_lifecycle_locks,
+  public.customers,
+  public.products,
+  public.invoice_sequences,
+  public.invoices,
+  public.invoice_items,
+  public.invoice_history,
+  public.invoice_pdf_exports
+to authenticated;
 
 drop policy if exists "profiles_select_own" on public.profiles;
 create policy "profiles_select_own" on public.profiles for select using (auth.uid() = user_id);
@@ -279,6 +377,9 @@ drop policy if exists "user_settings_insert_own" on public.user_settings;
 create policy "user_settings_insert_own" on public.user_settings for insert with check (auth.uid() = user_id);
 drop policy if exists "user_settings_update_own" on public.user_settings;
 create policy "user_settings_update_own" on public.user_settings for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+drop policy if exists "account_lifecycle_locks_select_own" on public.account_lifecycle_locks;
+create policy "account_lifecycle_locks_select_own" on public.account_lifecycle_locks for select using (auth.uid() = user_id);
 
 drop policy if exists "customers_select_own" on public.customers;
 create policy "customers_select_own" on public.customers for select using (auth.uid() = user_id);
@@ -356,6 +457,8 @@ drop policy if exists "invoice_pdf_exports_select_own" on public.invoice_pdf_exp
 create policy "invoice_pdf_exports_select_own" on public.invoice_pdf_exports for select using (auth.uid() = user_id);
 drop policy if exists "invoice_pdf_exports_insert_own" on public.invoice_pdf_exports;
 create policy "invoice_pdf_exports_insert_own" on public.invoice_pdf_exports for insert with check (auth.uid() = user_id);
+drop policy if exists "invoice_pdf_exports_update_own" on public.invoice_pdf_exports;
+create policy "invoice_pdf_exports_update_own" on public.invoice_pdf_exports for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
 drop policy if exists "invoice_pdf_exports_delete_own" on public.invoice_pdf_exports;
 create policy "invoice_pdf_exports_delete_own" on public.invoice_pdf_exports for delete using (auth.uid() = user_id);
 
@@ -388,12 +491,26 @@ create policy "invoice_pdfs_delete_own"
 on storage.objects for delete to authenticated
 using (bucket_id = 'invoice-pdfs' and (storage.foldername(name))[1] = (select auth.uid()::text));
 
+alter table public.customers add column if not exists identity_hash text not null default '';
+alter table public.customers add column if not exists phone_hash text;
+alter table public.customers add column if not exists gst_hash text;
+alter table public.invoices add column if not exists client_phone_hash text;
+alter table public.invoices add column if not exists client_gst_hash text;
+alter table public.invoices add column if not exists customer_identity_key text;
+create index if not exists customers_phone_hash_idx on public.customers(user_id, phone_hash);
+create index if not exists customers_gst_hash_idx on public.customers(user_id, gst_hash);
+create index if not exists invoices_client_phone_hash_idx on public.invoices(user_id, client_phone_hash);
+create index if not exists invoices_client_gst_hash_idx on public.invoices(user_id, client_gst_hash);
+
 create or replace function public.upsert_customer_from_invoice(
   p_name text,
   p_phone text,
   p_email text,
   p_gst text,
-  p_address text
+  p_address text,
+  p_identity_key text default null,
+  p_phone_hash text default null,
+  p_gst_hash text default null
 ) returns void
 language plpgsql
 security definer
@@ -401,21 +518,27 @@ set search_path = public
 as $$
 declare
   target_user uuid := auth.uid();
-  identity_key text := concat_ws('|', nullif(trim(coalesce(p_phone, '')), ''), nullif(trim(coalesce(p_gst, '')), ''), lower(trim(coalesce(p_name, ''))));
+  safe_identity_key text := coalesce(nullif(trim(p_identity_key), ''), concat_ws('|', nullif(trim(coalesce(p_phone, '')), ''), nullif(trim(coalesce(p_gst, '')), ''), lower(trim(coalesce(p_name, '')))));
 begin
-  if target_user is null or identity_key = '' then
+  if target_user is null or safe_identity_key = '' then
     return;
   end if;
 
-  insert into public.customers (user_id, identity_key, name, phone, email, gst, address)
-  values (target_user, identity_key, coalesce(p_name, ''), coalesce(p_phone, ''), coalesce(p_email, ''), coalesce(p_gst, ''), coalesce(p_address, ''))
+  insert into public.customers (user_id, identity_key, identity_hash, phone_hash, gst_hash, name, phone, email, gst, address)
+  values (target_user, safe_identity_key, safe_identity_key, nullif(p_phone_hash, ''), nullif(p_gst_hash, ''), coalesce(p_name, ''), coalesce(p_phone, ''), coalesce(p_email, ''), coalesce(p_gst, ''), coalesce(p_address, ''))
   on conflict (user_id, identity_key)
   do update set
+    identity_hash = excluded.identity_hash,
+    phone_hash = excluded.phone_hash,
+    gst_hash = excluded.gst_hash,
     name = excluded.name,
     phone = excluded.phone,
     email = excluded.email,
     gst = excluded.gst,
     address = excluded.address,
+    deleted_at = null,
+    sync_status = 'synced',
+    last_synced_at = now(),
     updated_at = now();
 end;
 $$;
@@ -468,7 +591,7 @@ scope as (
     case when s.reset_yearly then s.reset_month_day else null end as sequence_reset_month_day,
     greatest(s.invoice_start_number - 1, 0)::bigint as sequence_seed,
     case when c.numbering_mode = 'financial-year-reset' then s.reset_month_day else null end as reset_month_day_at_creation,
-    'inv_' || replace(gen_random_uuid()::text, '-', '') as invoice_id_value,
+    coalesce(nullif(p_invoice->>'id', ''), 'inv_' || replace(gen_random_uuid()::text, '-', '')) as invoice_id_value,
     now() as created_at_value
   from settings s
   cross join lateral public.compute_invoice_scope(s.invoice_date_value, s.reset_yearly, s.reset_month_day) c
@@ -527,7 +650,7 @@ inserted_invoice as (
   insert into public.invoices (
     id, user_id, invoice_number, created_at, invoice_date,
     numbering_mode_at_creation, reset_month_day_at_creation, sequence_window_start, sequence_window_end,
-    client_name, client_phone, client_email, client_gst, client_address,
+    client_name, client_phone, client_phone_hash, client_email, client_gst, client_gst_hash, customer_identity_key, client_address,
     custom_details, notes, status, grand_total
   )
   select
@@ -542,8 +665,11 @@ inserted_invoice as (
     bs.window_end,
     coalesce(p_invoice->>'clientName', ''),
     coalesce(p_invoice->>'clientPhone', ''),
+    nullif(p_invoice->>'clientPhoneHash', ''),
     coalesce(p_invoice->>'clientEmail', ''),
     coalesce(p_invoice->>'clientGST', ''),
+    nullif(p_invoice->>'clientGstHash', ''),
+    nullif(p_invoice->>'customerIdentityKey', ''),
     coalesce(p_invoice->>'clientAddress', ''),
     bs.custom_details_value,
     bs.notes_value,
@@ -612,7 +738,10 @@ customer_touch as (
     p_invoice->>'clientPhone',
     p_invoice->>'clientEmail',
     p_invoice->>'clientGST',
-    p_invoice->>'clientAddress'
+    p_invoice->>'clientAddress',
+    p_invoice->>'customerIdentityKey',
+    p_invoice->>'clientPhoneHash',
+    p_invoice->>'clientGstHash'
   )
 )
 select jsonb_build_object(
@@ -645,8 +774,11 @@ updated_invoice as (
   set
     client_name = coalesce(p_invoice->>'clientName', ''),
     client_phone = coalesce(p_invoice->>'clientPhone', ''),
+    client_phone_hash = nullif(p_invoice->>'clientPhoneHash', ''),
     client_email = coalesce(p_invoice->>'clientEmail', ''),
     client_gst = coalesce(p_invoice->>'clientGST', ''),
+    client_gst_hash = nullif(p_invoice->>'clientGstHash', ''),
+    customer_identity_key = nullif(p_invoice->>'customerIdentityKey', ''),
     client_address = coalesce(p_invoice->>'clientAddress', ''),
     custom_details = coalesce(p_invoice->'customDetails', '[]'::jsonb),
     notes = coalesce(p_invoice->>'notes', ''),
@@ -665,7 +797,8 @@ updated_invoice as (
     i.sequence_window_end
 ),
 deleted_items as (
-  delete from public.invoice_items
+  update public.invoice_items
+  set deleted_at = now(), sync_status = 'synced', last_synced_at = now()
   where invoice_id in (select id from updated_invoice)
   returning invoice_id
 ),
@@ -709,7 +842,10 @@ customer_touch as (
     p_invoice->>'clientPhone',
     p_invoice->>'clientEmail',
     p_invoice->>'clientGST',
-    p_invoice->>'clientAddress'
+    p_invoice->>'clientAddress',
+    p_invoice->>'customerIdentityKey',
+    p_invoice->>'clientPhoneHash',
+    p_invoice->>'clientGstHash'
   )
   from updated_invoice
 )
@@ -732,10 +868,35 @@ security definer
 set search_path = public
 as $$
 with deleted_invoice as (
-  delete from public.invoices
+  update public.invoices
+  set deleted_at = now(), sync_status = 'synced', last_synced_at = now()
   where id = p_invoice_id
     and user_id = auth.uid()
   returning id
 )
 select exists(select 1 from deleted_invoice);
 $$;
+
+create or replace function public.soft_delete_invoice_record(p_invoice_id text)
+returns boolean
+language sql
+security definer
+set search_path = public
+as $$
+with soft_deleted_invoice as (
+  update public.invoices
+  set deleted_at = now(), sync_status = 'synced', last_synced_at = now()
+  where id = p_invoice_id
+    and user_id = auth.uid()
+  returning id
+)
+select exists(select 1 from soft_deleted_invoice);
+$$;
+
+grant execute on function public.normalize_reset_month_day(text) to authenticated;
+grant execute on function public.compute_invoice_scope(date, boolean, text) to authenticated;
+grant execute on function public.upsert_customer_from_invoice(text, text, text, text, text, text, text, text) to authenticated;
+grant execute on function public.create_invoice_record(jsonb) to authenticated;
+grant execute on function public.update_invoice_record(jsonb) to authenticated;
+grant execute on function public.delete_invoice_record(text) to authenticated;
+grant execute on function public.soft_delete_invoice_record(text) to authenticated;

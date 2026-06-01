@@ -29,6 +29,10 @@ export type InvoiceHistoryEntry = {
 
 export type InvoiceRecord = {
   id: string
+  updated_at?: string
+  deleted_at?: string
+  sync_status?: string
+  last_synced_at?: string
   invoiceNumber: string
   createdAt?: string
   numberingModeAtCreation?: "continuous" | "financial-year-reset"
@@ -37,8 +41,11 @@ export type InvoiceRecord = {
   sequenceWindowEnd?: string | null
   clientName: string
   clientPhone: string
+  clientPhoneHash?: string
   clientEmail: string
   clientGST: string
+  clientGstHash?: string
+  customerIdentityKey?: string
   clientAddress: string
   date: string
   customDetails: CustomDetail[]
@@ -79,8 +86,20 @@ function normalizeInvoiceId(id: unknown, invoice: InvoiceRecordInput, legacyInde
     invoiceNumber: invoice.invoiceNumber?.trim() || "",
     clientName: invoice.clientName?.trim() || "",
     clientPhone: invoice.clientPhone?.trim() || "",
+    clientPhoneHash:
+      typeof (invoice as InvoiceRecordInput & { clientPhoneHash?: unknown }).clientPhoneHash === "string"
+        ? String((invoice as InvoiceRecordInput & { clientPhoneHash?: string }).clientPhoneHash)
+        : undefined,
     clientEmail: invoice.clientEmail?.trim() || "",
     clientGST: invoice.clientGST?.trim() || "",
+    clientGstHash:
+      typeof (invoice as InvoiceRecordInput & { clientGstHash?: unknown }).clientGstHash === "string"
+        ? String((invoice as InvoiceRecordInput & { clientGstHash?: string }).clientGstHash)
+        : undefined,
+    customerIdentityKey:
+      typeof (invoice as InvoiceRecordInput & { customerIdentityKey?: unknown }).customerIdentityKey === "string"
+        ? String((invoice as InvoiceRecordInput & { customerIdentityKey?: string }).customerIdentityKey)
+        : undefined,
     clientAddress: invoice.clientAddress?.trim() || "",
     date: invoice.date?.trim() || "",
     grandTotal: Number(invoice.grandTotal) || 0,
@@ -227,6 +246,10 @@ export function normalizeInvoiceRecord(invoice: InvoiceRecordInput, legacyIndex 
 
   return {
     id: normalizeInvoiceId(invoice.id, invoice, legacyIndex),
+    updated_at: typeof (invoice as InvoiceRecordInput & { updated_at?: unknown }).updated_at === "string" ? String((invoice as InvoiceRecordInput & { updated_at?: string }).updated_at) : undefined,
+    deleted_at: typeof (invoice as InvoiceRecordInput & { deleted_at?: unknown }).deleted_at === "string" ? String((invoice as InvoiceRecordInput & { deleted_at?: string }).deleted_at) : undefined,
+    sync_status: typeof (invoice as InvoiceRecordInput & { sync_status?: unknown }).sync_status === "string" ? String((invoice as InvoiceRecordInput & { sync_status?: string }).sync_status) : undefined,
+    last_synced_at: typeof (invoice as InvoiceRecordInput & { last_synced_at?: unknown }).last_synced_at === "string" ? String((invoice as InvoiceRecordInput & { last_synced_at?: string }).last_synced_at) : undefined,
     invoiceNumber: invoice.invoiceNumber?.trim() || "",
     createdAt: normalizeInvoiceCreatedAt(invoice),
     numberingModeAtCreation:
@@ -374,6 +397,26 @@ export function findInvoiceByIdentity(invoices: InvoiceRecord[], value: string) 
 }
 
 export function readStoredInvoices() {
+  if (typeof window === "undefined") return [] as InvoiceRecord[]
+
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { getActiveOrGlobalItem, setActiveOrGlobalItem } = require("@/lib/userStore") as UserStoreReader
+  const raw = getActiveOrGlobalItem("invoices")
+  if (!raw) return [] as InvoiceRecord[]
+
+  try {
+    const parsed = JSON.parse(raw) as unknown
+    const { store, changed } = normalizeInvoiceStorePayload(parsed)
+    if (changed) {
+      setActiveOrGlobalItem("invoices", JSON.stringify(store))
+    }
+    return store.invoices.filter((invoice) => !invoice.deleted_at)
+  } catch {
+    return [] as InvoiceRecord[]
+  }
+}
+
+export function readStoredInvoicesWithDeleted() {
   if (typeof window === "undefined") return [] as InvoiceRecord[]
 
   // eslint-disable-next-line @typescript-eslint/no-require-imports

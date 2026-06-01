@@ -22,6 +22,16 @@ import { useWorkspaceValue } from "@/lib/useWorkspaceValue"
 import { useAppAlert } from "@/components/providers/AppAlertProvider"
 import { requestGuardedNavigation, useUnsavedChangesGuard } from "@/lib/unsavedChangesGuard"
 import { downloadAppBackupJson, importAppBackupJson } from "@/lib/appBackup"
+import { workspaceDomain } from "@/lib/workspaceDomain"
+import type { KvKey } from "@/lib/supabase/userKvSync"
+import {
+  deleteAccount,
+  requestAccountLifecycleOtp,
+  resetAccount,
+  verifyLifecyclePassword,
+  type LifecycleAction,
+} from "@/lib/accountLifecycleClient"
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
 
 type EmailChangePolicy = {
   canChange: boolean
@@ -39,25 +49,15 @@ export default function SettingsClient() {
 
   const {
     dateFormat,
-    updateDateFormat,
     amountFormat,
-    updateAmountFormat,
     showDecimals,
-    updateShowDecimals,
     invoicePrefix,
-    updateInvoicePrefix,
     invoicePadding,
-    updateInvoicePadding,
     invoiceStartNumber,
-    updateInvoiceStartNumber,
     resetYearly,
-    updateResetYearly,
     invoiceResetMonthDay,
-    updateInvoiceResetMonthDay,
     currencySymbol,
-    updateCurrencySymbol,
     currencyPosition,
-    updateCurrencyPosition,
   } = useSettings()
 
   const [draftDateFormat, setDraftDateFormat] = useState(dateFormat)
@@ -99,6 +99,13 @@ export default function SettingsClient() {
   const [prefixErrorMessage, setPrefixErrorMessage] = useState("")
   const [savingSettings, setSavingSettings] = useState(false)
   const [backupBusy, setBackupBusy] = useState<null | "export" | "import">(null)
+  const [lifecycleAction, setLifecycleAction] = useState<LifecycleAction | null>(null)
+  const [lifecyclePassword, setLifecyclePassword] = useState("")
+  const [lifecycleOtp, setLifecycleOtp] = useState("")
+  const [lifecyclePhrase, setLifecyclePhrase] = useState("")
+  const [lifecycleBusy, setLifecycleBusy] = useState(false)
+  const [lifecycleError, setLifecycleError] = useState("")
+  const [lifecycleMessage, setLifecycleMessage] = useState("")
   const importInputRef = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => {
@@ -298,18 +305,29 @@ export default function SettingsClient() {
 
     setPrefixErrorMessage("")
     setSavingSettings(true)
-    updateDateFormat(draftDateFormat)
-    updateAmountFormat(draftAmountFormat)
-    updateShowDecimals(draftShowDecimals)
-    updateInvoicePrefix(draftInvoicePrefix)
-    updateInvoicePadding(draftInvoicePadding)
-    updateInvoiceStartNumber(Math.max(1, draftInvoiceStartNumber || 1))
-    updateResetYearly(draftResetYearly)
-    updateInvoiceResetMonthDay(draftInvoiceResetMonthDay)
-    updateCurrencySymbol(draftCurrencySymbol)
-    updateCurrencyPosition(draftCurrencyPosition)
-
-    await new Promise((resolve) => window.setTimeout(resolve, 120))
+    try {
+      await workspaceDomain.saveSettingsPatches([
+        ["dateFormat", draftDateFormat],
+        ["amountFormat", draftAmountFormat],
+        ["showDecimals", String(draftShowDecimals)],
+        ["invoicePrefix", draftInvoicePrefix],
+        ["invoicePadding", String(draftInvoicePadding)],
+        ["invoiceStartNumber", String(Math.max(1, draftInvoiceStartNumber || 1))],
+        ["resetYearly", String(draftResetYearly)],
+        ["invoiceResetMonthDay", draftInvoiceResetMonthDay],
+        ["currencySymbol", draftCurrencySymbol],
+        ["currencyPosition", draftCurrencyPosition],
+      ] satisfies Array<[KvKey, string]>)
+    } catch (error) {
+      setSavingSettings(false)
+      showAlert({
+        tone: "danger",
+        title: "Sync Failed - Retry",
+        actionHint: "Your settings are still on this page. Check your connection and try again.",
+        message: error instanceof Error ? error.message : "Could not save settings to Supabase.",
+      })
+      return false
+    }
 
     if (setupMode && options?.navigateAfterSave !== false) {
       setSavingSettings(false)
@@ -317,7 +335,7 @@ export default function SettingsClient() {
       return true
     }
 
-    setSaveMessage("Changes saved.")
+    setSaveMessage("Saved to Cloud.")
     setSavingSettings(false)
     window.setTimeout(() => setSaveMessage(""), 2000)
     return true
@@ -514,6 +532,80 @@ export default function SettingsClient() {
     setAccountMessage("OTP verified. You can now set a new password.")
   }
 
+  function openLifecycleDialog(action: LifecycleAction) {
+    setLifecycleAction(action)
+    setLifecyclePassword("")
+    setLifecycleOtp("")
+    setLifecyclePhrase("")
+    setLifecycleError("")
+    setLifecycleMessage("")
+  }
+
+  async function sendLifecycleOtp() {
+    if (!lifecycleAction) return
+    setLifecycleBusy(true)
+    setLifecycleError("")
+    setLifecycleMessage("")
+    try {
+      await requestAccountLifecycleOtp(lifecycleAction)
+      setLifecycleMessage("OTP sent to your current account email.")
+    } catch (error) {
+      setLifecycleError(error instanceof Error ? error.message : "Could not send OTP.")
+    } finally {
+      setLifecycleBusy(false)
+    }
+  }
+
+  async function runLifecycleAction() {
+    if (!lifecycleAction) return
+    const expectedPhrase = lifecycleAction === "reset" ? "RESET" : "DELETE"
+    setLifecycleError("")
+    setLifecycleMessage("")
+
+    if (lifecyclePhrase !== expectedPhrase) {
+      setLifecycleError(`Type ${expectedPhrase} to confirm.`)
+      return
+    }
+    if (!lifecyclePassword && !lifecycleOtp) {
+      setLifecycleError("Enter your password or verify with an email OTP before continuing.")
+      return
+    }
+
+    setLifecycleBusy(true)
+    try {
+      if (lifecyclePassword) await verifyLifecyclePassword(lifecyclePassword)
+      if (lifecycleAction === "reset") {
+        await resetAccount({
+          password: lifecyclePassword || undefined,
+          otp: lifecyclePassword ? undefined : lifecycleOtp,
+          phrase: "RESET",
+        })
+        setLifecycleAction(null)
+        showAlert({
+          tone: "success",
+          title: "Account reset complete",
+          actionHint: "Your login is unchanged and your workspace has clean defaults.",
+          message: "Your business data, invoices, products, storage files, and sync state were removed.",
+        })
+        router.replace("/dashboard")
+        router.refresh()
+        return
+      }
+
+      await deleteAccount({
+        password: lifecyclePassword || undefined,
+        otp: lifecyclePassword ? undefined : lifecycleOtp,
+        phrase: "DELETE",
+      })
+      setLifecycleAction(null)
+      router.replace("/")
+    } catch (error) {
+      setLifecycleError(error instanceof Error ? error.message : "Account operation failed.")
+    } finally {
+      setLifecycleBusy(false)
+    }
+  }
+
   if (!ready) {
     return (
       <div className="space-y-6">
@@ -577,6 +669,97 @@ export default function SettingsClient() {
 
   return (
     <div className="space-y-6 pb-24 lg:space-y-8 lg:pb-0">
+      <Dialog open={Boolean(lifecycleAction)} onOpenChange={(open) => !open && !lifecycleBusy && setLifecycleAction(null)}>
+        <DialogContent className="w-[calc(100%-1.5rem)] max-w-lg rounded-[28px] border border-white/60 bg-[rgba(255,255,255,0.92)] p-0 shadow-[0_30px_90px_rgba(31,41,55,0.16)] backdrop-blur-2xl">
+          <div className="p-6">
+            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-rose-600">
+              {lifecycleAction === "delete" ? "Delete Account" : "Reset Account"}
+            </p>
+            <DialogTitle className="mt-3 font-display text-2xl font-semibold text-slate-950">
+              {lifecycleAction === "delete" ? "Permanently delete your easyBILL account?" : "Reset all business data?"}
+            </DialogTitle>
+            <DialogDescription className="mt-3 text-sm leading-6 text-slate-600">
+              {lifecycleAction === "delete"
+                ? "This action permanently deletes your easyBILL account, login identity, business data, invoices, products, customers, PDFs, and logo files."
+                : "This action permanently deletes your business data, invoices, products, customers, PDFs, and logo files. Your login stays active and your workspace opens with clean defaults."}
+            </DialogDescription>
+
+            <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50/80 px-4 py-3 text-sm leading-6 text-amber-900">
+              We recommend exporting your invoices and customer data before continuing.
+            </div>
+
+            <div className="mt-5 grid gap-3">
+              <label className="text-sm font-semibold text-slate-900">
+                Current password
+                <input
+                  type="password"
+                  value={lifecyclePassword}
+                  onChange={(event) => setLifecyclePassword(event.target.value)}
+                  className="app-input mt-2 h-[48px] w-full rounded-2xl px-4 text-sm"
+                  placeholder="Use password, or request OTP below"
+                />
+              </label>
+
+              <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+                <label className="text-sm font-semibold text-slate-900">
+                  Email OTP
+                  <input
+                    value={lifecycleOtp}
+                    onChange={(event) => setLifecycleOtp(event.target.value)}
+                    className="app-input mt-2 h-[48px] w-full rounded-2xl px-4 text-sm"
+                    placeholder="6-digit OTP"
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={() => void sendLifecycleOtp()}
+                  disabled={lifecycleBusy}
+                  className="app-secondary-button mt-auto h-[48px] rounded-2xl px-4 text-sm font-semibold"
+                >
+                  Send OTP
+                </button>
+              </div>
+
+              <label className="text-sm font-semibold text-slate-900">
+                Type {lifecycleAction === "delete" ? "DELETE" : "RESET"} to confirm
+                <input
+                  value={lifecyclePhrase}
+                  onChange={(event) => setLifecyclePhrase(event.target.value.toUpperCase())}
+                  className="app-input mt-2 h-[48px] w-full rounded-2xl px-4 text-sm"
+                  placeholder={lifecycleAction === "delete" ? "DELETE" : "RESET"}
+                />
+              </label>
+            </div>
+
+            {lifecycleMessage ? <p className="mt-4 text-sm font-medium text-emerald-700">{lifecycleMessage}</p> : null}
+            {lifecycleError ? <p className="mt-4 text-sm font-medium text-rose-600">{lifecycleError}</p> : null}
+          </div>
+
+          <div className="grid gap-3 border-t border-white/70 bg-white/55 p-4 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={() => setLifecycleAction(null)}
+              disabled={lifecycleBusy}
+              className="app-secondary-button rounded-2xl px-5 py-3 text-sm font-semibold"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => void runLifecycleAction()}
+              disabled={lifecycleBusy}
+              className="rounded-2xl bg-rose-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-rose-700 disabled:bg-rose-200"
+            >
+              {lifecycleBusy
+                ? "Working..."
+                : lifecycleAction === "delete"
+                  ? "Permanently Delete Account"
+                  : "Confirm Reset"}
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {setupMode && (
         <section className="rounded-[24px] border border-emerald-200 bg-emerald-50/80 p-5">
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-emerald-700">Setup Step 2</p>
@@ -1138,6 +1321,48 @@ export default function SettingsClient() {
           >
             Report bug and feedback
           </button>
+        </div>
+      </div>
+
+      <div className="soft-card rounded-[24px] border border-rose-100 p-4 sm:rounded-[28px] sm:p-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-rose-600">Danger Zone</p>
+            <h2 className="section-title mt-2 text-2xl">Account lifecycle</h2>
+            <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500">
+              Reset your workspace business data or permanently delete your easyBILL account. We recommend exporting your invoices and customer data before continuing.
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-6 grid gap-4 md:grid-cols-2">
+          <div className="app-subtle-panel rounded-[24px] px-5 py-4">
+            <p className="text-sm font-semibold text-slate-900">Reset Account</p>
+            <p className="mt-2 text-sm leading-6 text-slate-500">
+              Deletes invoices, products, customer history, PDFs, logo files, profile data, and sync state. Your login and plan stay active.
+            </p>
+            <button
+              type="button"
+              onClick={() => openLifecycleDialog("reset")}
+              className="app-secondary-button mt-4 rounded-2xl px-5 py-3 text-sm font-semibold text-rose-700"
+            >
+              Reset Account
+            </button>
+          </div>
+
+          <div className="rounded-[24px] border border-rose-200 bg-rose-50/70 px-5 py-4">
+            <p className="text-sm font-semibold text-rose-950">Delete Account</p>
+            <p className="mt-2 text-sm leading-6 text-rose-800">
+              Permanently removes your account, login identity, workspace data, storage files, and active session.
+            </p>
+            <button
+              type="button"
+              onClick={() => openLifecycleDialog("delete")}
+              className="mt-4 rounded-2xl bg-rose-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-rose-700"
+            >
+              Delete Account
+            </button>
+          </div>
         </div>
       </div>
 

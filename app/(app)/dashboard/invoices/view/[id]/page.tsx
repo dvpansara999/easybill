@@ -35,6 +35,7 @@ import { templates } from "@/components/invoiceTemplates"
 import { DEFAULT_TEMPLATE_ID, resolveTemplateId } from "@/lib/templateIds"
 import InvoicePageHeader from "@/components/invoices/InvoicePageHeader"
 import NotFoundRecoveryCard from "@/components/shared/NotFoundRecoveryCard"
+import { ensureInvoiceForPdfViaSupabase } from "@/lib/supabase/invoiceMutations"
 
 /** Must match `A4InvoiceView` inner page width + padding for consistent capture vs on-screen layout. */
 const A4_CAPTURE_WIDTH_PX = 794
@@ -377,6 +378,7 @@ export default function ViewInvoice() {
     const fresh = readInvoiceViewState(invoiceId)
     const templateIdForPdf = fresh.template
     const typoForPdf = fresh.typography
+    await ensureInvoiceForPdfViaSupabase(invoice)
 
     let vectorOk = false
     let res: Response | undefined
@@ -386,6 +388,10 @@ export default function ViewInvoice() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           invoiceId,
+          invoiceNumber: invoice.invoiceNumber,
+          invoiceDate: invoice.date,
+          clientName: invoice.clientName,
+          grandTotal: invoice.grandTotal,
           mode: "download",
           templateId: templateIdForPdf,
           fontId: typoForPdf.fontId,
@@ -545,12 +551,17 @@ export default function ViewInvoice() {
       const fresh = readInvoiceViewState(invoiceId)
       const templateIdForPdf = fresh.template
       const typoForPdf = fresh.typography
+      await ensureInvoiceForPdfViaSupabase(invoice)
 
       const exportRes = await fetch("/api/invoice-pdf-export", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           invoiceId,
+          invoiceNumber: invoice.invoiceNumber,
+          invoiceDate: invoice.date,
+          clientName: invoice.clientName,
+          grandTotal: invoice.grandTotal,
           templateId: templateIdForPdf,
           fontId: typoForPdf.fontId,
           fontSize: typoForPdf.fontSize,

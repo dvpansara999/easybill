@@ -12,10 +12,15 @@ import { normalizeTemplateTypography } from "@/lib/globalTemplateTypography"
 import { DEFAULT_TEMPLATE_ID, resolveTemplateId } from "@/lib/templateIds"
 import type { PdfApiErrorBody } from "@/lib/pdfApiContract"
 import { revealSensitiveFields } from "@/lib/sensitiveData"
+import { openSensitiveFields } from "@/lib/server/sensitiveSeal"
 import type { SupabaseClient } from "@supabase/supabase-js"
 
 export type InvoicePdfRequestBody = {
   invoiceId?: string
+  invoiceNumber?: string
+  invoiceDate?: string
+  clientName?: string
+  grandTotal?: number | string
   templateId?: string
   fontId?: string
   fontSize?: number | string
@@ -108,6 +113,9 @@ function stableSerialize(value: unknown): string {
 function createPdfSourceFingerprint(payload: PdfRenderPayload): string {
   return createHash("sha256").update(stableSerialize(payload)).digest("hex").slice(0, 24)
 }
+
+const INVOICE_PDF_SELECT =
+  "id,invoice_number,created_at,invoice_date,numbering_mode_at_creation,reset_month_day_at_creation,sequence_window_start,sequence_window_end,client_name,client_phone,client_email,client_gst,client_address,custom_details,notes,status,grand_total,invoice_items(deleted_at,position,product,hsn,qty,unit,price,cgst,sgst,igst,total),invoice_history(id,deleted_at,event_type,label,happened_at)"
 
 export async function generateInvoicePdfFromResolvedSource(
   source: ResolvedInvoicePdfSource,
@@ -205,9 +213,7 @@ export async function resolveInvoicePdfSourceForUser(
     supabase.from("user_settings").select("*").eq("user_id", user.id).maybeSingle(),
     supabase
       .from("invoices")
-      .select(
-        "id,invoice_number,created_at,invoice_date,numbering_mode_at_creation,reset_month_day_at_creation,sequence_window_start,sequence_window_end,client_name,client_phone,client_email,client_gst,client_address,custom_details,notes,status,grand_total,invoice_items(position,product,hsn,qty,unit,price,cgst,sgst,igst,total),invoice_history(id,event_type,label,happened_at)"
-      )
+      .select(INVOICE_PDF_SELECT)
       .eq("user_id", user.id)
       .eq("id", String(body.invoiceId))
       .maybeSingle(),
@@ -217,12 +223,17 @@ export async function resolveInvoicePdfSourceForUser(
     return { ok: false, message: "Unable to load your account data.", code: "KV_ERROR", httpStatus: 500 }
   }
 
-  if (!invoiceRes.data) {
+  const invoiceRowData = invoiceRes.data as Record<string, unknown> | null
+
+  if (!invoiceRowData) {
     return { ok: false, message: "Invoice not found.", code: "NOT_FOUND", httpStatus: 404 }
   }
 
-  const invoiceRow = invoiceRes.data as Record<string, unknown>
-  const safeInvoiceRow = revealSensitiveFields(invoiceRow, ["client_phone", "client_gst"])
+  const invoiceRow = invoiceRowData
+  const safeInvoiceRow = openSensitiveFields(revealSensitiveFields(invoiceRow, ["client_phone", "client_gst"]), [
+    "client_phone",
+    "client_gst",
+  ])
   const found = normalizeInvoiceRecord({
     id: String(safeInvoiceRow.id || ""),
     invoiceNumber: String(safeInvoiceRow.invoice_number || ""),
@@ -247,7 +258,9 @@ export async function resolveInvoicePdfSourceForUser(
         ? safeInvoiceRow.invoice_date
         : mapStoredDateToLocalDate(new Date(String(safeInvoiceRow.invoice_date || ""))) || "",
     customDetails: Array.isArray(safeInvoiceRow.custom_details) ? safeInvoiceRow.custom_details : [],
-    items: Array.isArray(safeInvoiceRow.invoice_items) ? safeInvoiceRow.invoice_items : [],
+    items: Array.isArray(safeInvoiceRow.invoice_items)
+      ? safeInvoiceRow.invoice_items.filter((item) => !(item as Record<string, unknown>).deleted_at)
+      : [],
     notes: typeof safeInvoiceRow.notes === "string" ? safeInvoiceRow.notes : "",
     status:
       safeInvoiceRow.status === "paid" || safeInvoiceRow.status === "issued" || safeInvoiceRow.status === "draft"
@@ -255,7 +268,7 @@ export async function resolveInvoicePdfSourceForUser(
         : "draft",
     history:
       Array.isArray(safeInvoiceRow.invoice_history)
-        ? safeInvoiceRow.invoice_history.map((entry) => ({
+        ? safeInvoiceRow.invoice_history.filter((entry) => !(entry as Record<string, unknown>).deleted_at).map((entry) => ({
             id: String((entry as Record<string, unknown>).id || ""),
             type: ((entry as Record<string, unknown>).event_type || "created") as
               | "created"
@@ -273,15 +286,18 @@ export async function resolveInvoicePdfSourceForUser(
   const invoiceData = normalizeInvoiceForPdf(found as Record<string, unknown>)
   const fileInvoiceNumber = String((invoiceData as { invoiceNumber?: string }).invoiceNumber || "invoice")
 
-  const profile = revealSensitiveFields((profileRes.data || {}) as Record<string, unknown>, [
-    "business_name",
-    "phone",
-    "gst",
-    "bank_name",
-    "account_number",
-    "ifsc",
-    "upi",
-  ])
+  const profile = openSensitiveFields(
+    revealSensitiveFields((profileRes.data || {}) as Record<string, unknown>, [
+      "business_name",
+      "phone",
+      "gst",
+      "bank_name",
+      "account_number",
+      "ifsc",
+      "upi",
+    ]),
+    ["business_name", "phone", "gst", "bank_name", "account_number", "ifsc", "upi"]
+  )
   const settings = (settingsRes.data || {}) as Record<string, unknown>
   const logoStoragePath = typeof profile.logo_storage_path === "string" ? profile.logo_storage_path : ""
   let logoSignedUrl: string | null = null

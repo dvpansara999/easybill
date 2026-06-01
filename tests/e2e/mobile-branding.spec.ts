@@ -4,11 +4,11 @@ test("mobile landing and branding assets stay present for share and Safari/iPhon
   await page.goto("/")
   await page.waitForLoadState("domcontentloaded")
 
-  await expect(page.getByRole("heading", { name: "Professional invoices, made easy." })).toBeVisible({
+  await expect(page.getByRole("heading", { name: "Make billing feel beautifully established." })).toBeVisible({
     timeout: 30000,
   })
-  await expect(page.getByText("easyBILL").first()).toBeVisible()
-  await expect(page.getByText("Your invoice").first()).toBeVisible()
+  await expect(page.getByText("Premium billing")).toBeVisible()
+  await expect(page.getByText("Signature preview").first()).toBeVisible()
 
   const appleIcon = page.locator('head link[rel="apple-touch-icon"]')
   const manifest = page.locator('head link[rel="manifest"]')

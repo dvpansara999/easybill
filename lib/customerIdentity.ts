@@ -18,7 +18,7 @@ export function normalizeCustomerPhone(value: string | null | undefined) {
 }
 
 export function normalizeCustomerGstin(value: string | null | undefined) {
-  return normalizeWhitespace(String(value || "")).toUpperCase()
+  return normalizeWhitespace(String(value || "")).toUpperCase().replace(/[^0-9A-Z]/g, "")
 }
 
 function normalizeLegacyValue(value: string | null | undefined) {
@@ -34,7 +34,18 @@ function hashString(input: string) {
   return (hash >>> 0).toString(36)
 }
 
-export function buildCustomerIdentity(invoice: Pick<InvoiceRecord, "clientPhone" | "clientGST" | "clientName" | "clientEmail" | "clientAddress">): CustomerIdentity {
+type CustomerIdentityInput = Pick<InvoiceRecord, "clientPhone" | "clientGST" | "clientName" | "clientEmail" | "clientAddress">
+
+function buildPlainCustomerIdentity(invoice: CustomerIdentityInput): CustomerIdentity {
+  const sealedIdentity = (invoice as Partial<InvoiceRecord>).customerIdentityKey
+  if (typeof sealedIdentity === "string" && /^(phone|gst|legacy):/.test(sealedIdentity)) {
+    return { id: sealedIdentity, kind: sealedIdentity.split(":", 1)[0] as CustomerIdentityKind }
+  }
+
+  return buildLegacyCustomerIdentity(invoice)
+}
+
+function buildLegacyCustomerIdentity(invoice: CustomerIdentityInput): CustomerIdentity {
   const phone = normalizeCustomerPhone(invoice.clientPhone)
   if (phone) {
     return { id: `phone:${phone}`, kind: "phone" }
@@ -54,9 +65,13 @@ export function buildCustomerIdentity(invoice: Pick<InvoiceRecord, "clientPhone"
   return { id: `legacy:${hashString(legacySeed)}`, kind: "legacy" }
 }
 
+export function buildCustomerIdentity(invoice: CustomerIdentityInput): CustomerIdentity {
+  return buildPlainCustomerIdentity(invoice)
+}
+
 export function matchesCustomerIdentity(
-  invoice: Pick<InvoiceRecord, "clientPhone" | "clientGST" | "clientName" | "clientEmail" | "clientAddress">,
+  invoice: CustomerIdentityInput,
   identity: string
 ) {
-  return buildCustomerIdentity(invoice).id === identity
+  return buildCustomerIdentity(invoice).id === identity || buildLegacyCustomerIdentity(invoice).id === identity
 }

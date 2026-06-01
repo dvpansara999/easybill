@@ -20,7 +20,15 @@
     "lib/businessProfile.ts",
     "lib/invoiceNumber.ts",
     "lib/invoicePrefixValidation.ts",
+    "lib/incrementalSync.ts",
     "lib/logoStorage.ts",
+    "lib/syncRetryQueue.ts",
+    "lib/supabase/workspaceRepository.ts",
+    "lib/supabase/relationalSync.ts",
+    "lib/workspaceCacheMerge.ts",
+    "lib/workspaceSecurity.ts",
+    "lib/workspaceTombstones.ts",
+    "lib/workspaceValidation.ts",
     "lib/server/invoicePdfExportCache.ts"
   ]
 }

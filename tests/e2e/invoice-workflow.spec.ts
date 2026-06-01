@@ -62,7 +62,7 @@ test("settings, invoice create/edit/view, and download flow stay stable", async 
   await expect(page.getByText("DOC-001").first()).toBeVisible()
   await page.getByRole("button", { name: "Save Invoice" }).click()
   await expect(page.getByText("Invoice saved")).toBeVisible()
-  await page.getByRole("button", { name: "Go to invoices" }).click()
+  await page.goto("/dashboard/invoices")
 
   const invoiceRow = page.locator("tbody tr", { hasText: "DOC-001" }).first()
   await expect(invoiceRow).toBeVisible()

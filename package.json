@@ -9,7 +9,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit --incremental false",
-    "test:regression": "node -e \"const fs=require('fs');fs.rmSync('.test-dist',{recursive:true,force:true});\" && tsc -p tsconfig.tests.json --incremental false && node -e \"const fs=require('fs');for(const name of ['businessProfile','customerIdentity']){const js='.test-dist/lib/'+name+'.js';const extless='.test-dist/lib/'+name;if(!fs.existsSync(extless)&&fs.existsSync(js))fs.copyFileSync(js,extless);}\" && node .test-dist/tests/run-regressions.js",
+    "test:regression": "node -e \"const fs=require('fs');fs.rmSync('.test-dist',{recursive:true,force:true});\" && tsc -p tsconfig.tests.json --incremental false && node -e \"const fs=require('fs');const path=require('path');function walk(dir){for(const entry of fs.readdirSync(dir,{withFileTypes:true})){const p=path.join(dir,entry.name);if(entry.isDirectory())walk(p);else if(entry.isFile()&&p.endsWith('.js')){const extless=p.slice(0,-3);if(!fs.existsSync(extless))fs.copyFileSync(p,extless);}}}walk('.test-dist/lib');\" && node .test-dist/tests/run-regressions.js",
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
     "verify": "npm run lint && npm run typecheck && npm run test:regression",
@@ -53,4 +53,3 @@
     "typescript": "^5"
   }
 }
-

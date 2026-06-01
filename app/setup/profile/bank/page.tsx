@@ -123,7 +123,7 @@ export default function SetupProfileBankPage() {
                 Add the bank or UPI details clients can pay through.
               </p>
               <p className="mt-1 text-[11px] font-medium text-rose-600">
-                ** all fields on this step are safe with encrypted data
+                ** payment fields use protected storage handling
               </p>
             </div>
 

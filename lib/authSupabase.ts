@@ -8,14 +8,57 @@ export type AuthRecord = {
   email: string
 }
 
+type PublicAuthError = {
+  message?: string
+  status?: number
+  code?: string
+}
+
 const AUTH_ACTIVE_USER_ID_KEY = "authActiveUserId" // sessionStorage (tab)
 const AUTH_LAST_USER_ID_KEY = "authLastUserId" // localStorage (restore)
 const AUTH_LAST_EMAIL_KEY = "authLastEmail"
 
+function isValidSupabaseUserId(userId: string | null | undefined) {
+  return Boolean(userId && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(userId))
+}
+
+function getSignupErrorMessage(error: PublicAuthError) {
+  const rawMessage = (error.message || "").trim()
+  const msg = rawMessage.toLowerCase()
+
+  if (msg.includes("already") || msg.includes("exists") || msg.includes("registered")) {
+    return "User already exists."
+  }
+  if (msg.includes("signup") && msg.includes("disabled")) {
+    return "Email signups are disabled in Supabase Auth settings."
+  }
+  if (msg.includes("invalid email")) {
+    return "Enter a valid email address."
+  }
+  if (msg.includes("password")) {
+    return rawMessage || "Password does not meet the Supabase Auth requirements."
+  }
+  if (msg.includes("confirmation email") || msg.includes("sending email") || msg.includes("send email")) {
+    return "Supabase could not send the confirmation email. Configure Auth SMTP/email settings, or disable email confirmations for local testing."
+  }
+  if (msg.includes("rate limit") || msg.includes("security purposes") || error.status === 429) {
+    return rawMessage || "Too many signup attempts. Please wait and try again."
+  }
+  if (msg.includes("database error") || msg.includes("saving new user")) {
+    return "Supabase could not create the auth user. Check database triggers/functions on the fresh project."
+  }
+
+  return rawMessage || "Unable to create account. Check Supabase Auth settings and try again."
+}
+
 function readSessionActiveUserId(): string | null {
   try {
     const raw = window.sessionStorage.getItem(AUTH_ACTIVE_USER_ID_KEY)
-    return raw?.trim() ? raw.trim() : null
+    const userId = raw?.trim() ? raw.trim() : null
+    if (!userId) return null
+    if (isValidSupabaseUserId(userId)) return userId
+    window.sessionStorage.removeItem(AUTH_ACTIVE_USER_ID_KEY)
+    return null
   } catch {
     return null
   }
@@ -37,10 +80,11 @@ export function getActiveUserId(): string | null {
 }
 
 export function setActiveUserId(userId: string | null) {
-  writeSessionActiveUserId(userId)
+  const safeUserId = isValidSupabaseUserId(userId) ? userId : null
+  writeSessionActiveUserId(safeUserId)
   try {
-    if (!userId) localStorage.removeItem(AUTH_LAST_USER_ID_KEY)
-    else localStorage.setItem(AUTH_LAST_USER_ID_KEY, userId)
+    if (!safeUserId) localStorage.removeItem(AUTH_LAST_USER_ID_KEY)
+    else localStorage.setItem(AUTH_LAST_USER_ID_KEY, safeUserId)
   } catch {
     // ignore
   }
@@ -49,7 +93,11 @@ export function setActiveUserId(userId: string | null) {
 export function getLastUserId(): string | null {
   try {
     const raw = localStorage.getItem(AUTH_LAST_USER_ID_KEY)
-    return raw?.trim() ? raw.trim() : null
+    const userId = raw?.trim() ? raw.trim() : null
+    if (!userId) return null
+    if (isValidSupabaseUserId(userId)) return userId
+    localStorage.removeItem(AUTH_LAST_USER_ID_KEY)
+    return null
   } catch {
     return null
   }
@@ -99,11 +147,7 @@ export async function signUp(email: string, password: string) {
     })
 
     if (error) {
-      const msg = (error.message || "").toLowerCase()
-      if (msg.includes("already") || msg.includes("exists") || msg.includes("registered")) {
-        return { record: null as AuthRecord | null, error: "User already exists." }
-      }
-      return { record: null as AuthRecord | null, error: "Error occurred, try again." }
+      return { record: null as AuthRecord | null, error: getSignupErrorMessage(error) }
     }
     const user = data.user
     if (!user) return { record: null as AuthRecord | null, error: "Unable to create account." }
@@ -120,8 +164,12 @@ export async function signUp(email: string, password: string) {
     setLastEmail(user.email || email.trim())
 
     return { record: { userId: user.id, email: user.email || email.trim() }, error: "" }
-  } catch {
-    return { record: null as AuthRecord | null, error: "Error occurred, try again." }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : ""
+    if (message.includes("NEXT_PUBLIC_SUPABASE_URL") || message.includes("NEXT_PUBLIC_SUPABASE_ANON_KEY")) {
+      return { record: null as AuthRecord | null, error: "Missing Supabase browser environment variables." }
+    }
+    return { record: null as AuthRecord | null, error: "Unable to reach Supabase Auth. Check connection and try again." }
   }
 }
 

@@ -16,6 +16,7 @@ import {
   filterStaleInvoiceExportRows,
 } from "@/lib/server/invoicePdfExportCache"
 import { createSupabaseServerClient } from "@/lib/supabase/server"
+import { assertAccountLifecycleUnlocked } from "@/lib/server/accountLifecycle"
 
 export const maxDuration = 60
 export const dynamic = "force-dynamic"
@@ -23,6 +24,10 @@ export const runtime = "nodejs"
 
 type ExportBody = {
   invoiceId?: string
+  invoiceNumber?: string
+  invoiceDate?: string
+  clientName?: string
+  grandTotal?: number | string
   templateId?: string
   fontId?: string
   fontSize?: number | string
@@ -44,6 +49,11 @@ export async function POST(req: Request) {
   if (!user) {
     return pdfError("Sign in to download invoices.", "UNAUTHORIZED", 401)
   }
+  try {
+    await assertAccountLifecycleUnlocked(supabase, user.id)
+  } catch (error) {
+    return pdfError(error instanceof Error ? error.message : "Account deletion in progress.", "EXPORT_DB", 423)
+  }
 
   const invoiceRecordId = String(body.invoiceId || "").trim()
   if (!invoiceRecordId) {
@@ -62,6 +72,10 @@ export async function POST(req: Request) {
     supabase,
     {
       invoiceId: body.invoiceId,
+      invoiceNumber: body.invoiceNumber,
+      invoiceDate: body.invoiceDate,
+      clientName: body.clientName,
+      grandTotal: body.grandTotal,
       templateId: body.templateId,
       fontId: body.fontId,
       fontSize: body.fontSize,
@@ -219,7 +233,7 @@ export async function POST(req: Request) {
     await supabase.storage.from(INVOICE_PDF_BUCKET).remove([storagePath]).catch(() => {})
     return pdfError(
       insertError?.message?.includes("does not exist") || insertError?.code === "42P01"
-        ? 'Run the SQL in supabase/invoice_pdf_exports.sql (table "invoice_pdf_exports").'
+        ? 'Run the SQL in supabase/schema.sql (table "invoice_pdf_exports").'
         : "Could not save PDF metadata.",
       "EXPORT_DB",
       500

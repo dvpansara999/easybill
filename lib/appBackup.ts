@@ -3,6 +3,7 @@ import { normalizeInvoiceStorePayload, readStoredInvoices, serializeInvoiceStore
 import { DEFAULT_INVOICE_VISIBILITY, type InvoiceVisibilitySettings } from "@/lib/invoiceVisibilityShared"
 import { DEFAULT_RESET_MONTH_DAY, normalizeResetMonthDay } from "@/lib/invoiceResetDate"
 import { getActiveOrGlobalItem, setActiveOrGlobalItem } from "@/lib/userStore"
+import { activeRecords, mergeActiveWithExistingTombstones } from "@/lib/workspaceTombstones"
 
 export type AppBackupPayload = {
   version: 1 | 2
@@ -51,8 +52,8 @@ export function buildAppBackupPayload(): AppBackupPayload {
     data: {
       businessProfile: normalizeBusinessProfile(safeParse(getActiveOrGlobalItem("businessProfile"), {})),
       invoices: readStoredInvoices(),
-      products: safeParse<unknown[]>(getActiveOrGlobalItem("products"), []),
-      customers: safeParse<unknown[]>(getActiveOrGlobalItem("customers"), []),
+      products: activeRecords(safeParse<Array<Record<string, unknown>>>(getActiveOrGlobalItem("products"), [])),
+      customers: activeRecords(safeParse<Array<Record<string, unknown>>>(getActiveOrGlobalItem("customers"), [])),
       settings: {
         dateFormat: getActiveOrGlobalItem("dateFormat") || "YYYY-MM-DD",
         amountFormat: getActiveOrGlobalItem("amountFormat") || "indian",
@@ -104,8 +105,13 @@ export async function importAppBackupJson(file: File) {
 
   setActiveOrGlobalItem("businessProfile", JSON.stringify(normalizedBusiness))
   setActiveOrGlobalItem("invoices", serializeInvoiceStore(normalizedInvoices))
-  setActiveOrGlobalItem("products", JSON.stringify(Array.isArray(parsed.data.products) ? parsed.data.products : []))
-  setActiveOrGlobalItem("customers", JSON.stringify(Array.isArray(parsed.data.customers) ? parsed.data.customers : []))
+  const existingProducts = safeParse<Array<Record<string, unknown>>>(getActiveOrGlobalItem("products"), [])
+  const existingCustomers = safeParse<Array<Record<string, unknown>>>(getActiveOrGlobalItem("customers"), [])
+  const importedProducts = Array.isArray(parsed.data.products) ? (parsed.data.products as Array<Record<string, unknown>>) : []
+  const importedCustomers = Array.isArray(parsed.data.customers) ? (parsed.data.customers as Array<Record<string, unknown>>) : []
+
+  setActiveOrGlobalItem("products", JSON.stringify(mergeActiveWithExistingTombstones(existingProducts, importedProducts, "prod")))
+  setActiveOrGlobalItem("customers", JSON.stringify(mergeActiveWithExistingTombstones(existingCustomers, importedCustomers, "cust")))
   setActiveOrGlobalItem("dateFormat", String(settings.dateFormat || "YYYY-MM-DD"))
   setActiveOrGlobalItem("amountFormat", String(settings.amountFormat || "indian"))
   setActiveOrGlobalItem("showDecimals", String(Boolean(settings.showDecimals ?? true)))

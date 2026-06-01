@@ -211,6 +211,7 @@ function buildDashboardSnapshot(invoices: InvoiceRecord[], products: ProductReco
 
   for (let index = 11; index >= 0; index -= 1) {
     const date = new Date(lastInvoiceDate)
+    date.setDate(1)
     date.setMonth(date.getMonth() - index)
     months.push({
       year: date.getFullYear(),

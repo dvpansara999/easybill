@@ -131,7 +131,7 @@ test("setup finalization persists the saved setup draft into workspace business,
   )
 
   await page.goto("/setup/profile/settings")
-  await expect(page.getByRole("heading", { name: "Set invoice defaults, then launch." })).toBeVisible()
+  await expect(page.getByText("Step 6 - Invoice defaults")).toBeVisible()
   await page.locator('input[value="INV-"]').fill("SB-")
   await page.getByRole("button", { name: "Finish Setup" }).click()
   await expect.poll(() => page.url(), { timeout: 60000 }).toMatch(/\/setup\/profile\/finalizing|\/dashboard/)

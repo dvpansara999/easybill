@@ -1,6 +1,7 @@
 import type { InvoiceRecord } from "@/lib/invoice"
 import { buildCustomerIdentity, normalizeCustomerGstin, normalizeCustomerPhone } from "@/lib/customerIdentity"
 import { compareStoredDates } from "@/lib/dateFormat"
+import { CUSTOMER_MODEL } from "@/lib/customerModel"
 
 export type CustomerRow = {
   identity: string
@@ -94,6 +95,7 @@ export function buildInvoiceRangeSummary(invoices: InvoiceRecord[]) {
 }
 
 export function buildCustomerRows(invoices: InvoiceRecord[]): CustomerRow[] {
+  void CUSTOMER_MODEL
   const map: Record<string, CustomerRow & { latestCreatedAt?: string }> = {}
 
   invoices.forEach((invoice) => {

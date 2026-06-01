@@ -4,11 +4,24 @@ import { useMemo, useState } from "react"
 import { useSettings } from "@/context/SettingsContext"
 import { formatCurrency } from "@/lib/formatCurrency"
 import { ChevronLeft, ChevronRight, PencilLine, Plus, Search, Trash2 } from "lucide-react"
-import { getActiveOrGlobalItem, setActiveOrGlobalItem } from "@/lib/userStore"
+import { getActiveOrGlobalItem } from "@/lib/userStore"
 import { getMaxProducts } from "@/lib/plans"
 import { useAppAlert } from "@/components/providers/AppAlertProvider"
+import { workspaceDomain } from "@/lib/workspaceDomain"
+import {
+  activeRecords,
+  createWorkspaceRecordId,
+  ensureRecordIds,
+  mergeActiveWithExistingTombstones,
+  markRecordDeleted,
+} from "@/lib/workspaceTombstones"
 
 type ProductRecord = {
+  id?: string
+  updated_at?: string
+  deleted_at?: string
+  sync_status?: string
+  last_synced_at?: string
   name: string
   hsn: string
   unit: string
@@ -20,7 +33,7 @@ type ProductRecord = {
 
 const PRODUCTS_PER_PAGE = 10
 
-function readProducts(): ProductRecord[] {
+function readAllProducts(): ProductRecord[] {
   const saved = getActiveOrGlobalItem("products")
   if (!saved) return []
 
@@ -33,6 +46,19 @@ function readProducts(): ProductRecord[] {
   } catch {
     return []
   }
+}
+
+function readProducts(): ProductRecord[] {
+  const all = readAllProducts()
+  const active = activeRecords(all)
+  return ensureRecordIds(active, "prod")
+}
+
+async function persistProducts(activeProducts: ProductRecord[]) {
+  const existing = readAllProducts()
+  const next = mergeActiveWithExistingTombstones(existing, activeProducts, "prod")
+  await workspaceDomain.saveProducts(next)
+  return activeRecords(next) as ProductRecord[]
 }
 
 export default function ProductsPage() {
@@ -55,6 +81,8 @@ export default function ProductsPage() {
   const [editIndex,setEditIndex] = useState<number | null>(null)
   const [query,setQuery] = useState("")
   const [page,setPage] = useState(1)
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "synced" | "error">("idle")
+  const [saveError, setSaveError] = useState("")
   const { showAlert } = useAppAlert()
   const maxProducts = getMaxProducts()
   const filteredProducts = useMemo(() => {
@@ -77,7 +105,7 @@ export default function ProductsPage() {
     return filteredProducts.slice(start, start + PRODUCTS_PER_PAGE)
   }, [filteredProducts, currentPage])
 
-  const saveProduct = () => {
+  const saveProduct = async () => {
     if (editIndex === null && typeof maxProducts === "number" && products.length >= maxProducts) {
       showAlert({
         tone: "warning",
@@ -89,6 +117,9 @@ export default function ProductsPage() {
     }
 
     const product: ProductRecord = {
+      id: editIndex !== null ? products[editIndex]?.id || createWorkspaceRecordId("prod") : createWorkspaceRecordId("prod"),
+      updated_at: new Date().toISOString(),
+      sync_status: "pending",
       name,
       hsn,
       unit,
@@ -102,21 +133,40 @@ export default function ProductsPage() {
 
     if(editIndex !== null){
       updated[editIndex] = product
-      setEditIndex(null)
     }else{
       updated.push(product)
     }
 
-    setProducts(updated)
-    setActiveOrGlobalItem("products",JSON.stringify(updated))
-
-    setName("")
-    setHsn("")
-    setUnit("")
-    setPrice("")
-    setCgst("")
-    setSgst("")
-    setIgst("")
+    setSaveState("saving")
+    setSaveError("")
+    try {
+      const confirmed = await persistProducts(updated)
+      setProducts(confirmed)
+      setEditIndex(null)
+      setName("")
+      setHsn("")
+      setUnit("")
+      setPrice("")
+      setCgst("")
+      setSgst("")
+      setIgst("")
+      setSaveState("synced")
+      showAlert({
+        tone: "success",
+        title: "Saved to Cloud",
+        actionHint: "This product is now available anywhere your account syncs.",
+        message: `${product.name || "Product"} was saved to Supabase.`,
+      })
+    } catch (error) {
+      setSaveState("error")
+      setSaveError(error instanceof Error ? error.message : "Could not save product to the cloud.")
+      showAlert({
+        tone: "danger",
+        title: "Sync Failed - Retry",
+        actionHint: "Your product details are still on this page. Check your connection and try again.",
+        message: error instanceof Error ? error.message : "Could not save product to the cloud.",
+      })
+    }
   }
 
   const editProduct = (index:number) => {
@@ -133,13 +183,34 @@ export default function ProductsPage() {
     setEditIndex(index)
   }
 
-  const deleteProduct = (index:number) => {
+  const deleteProduct = async (index:number) => {
 
-    const updated = [...products]
-    updated.splice(index,1)
-
-    setProducts(updated)
-    setActiveOrGlobalItem("products",JSON.stringify(updated))
+    const target = products[index]
+    if (!target) return
+    const deleted = markRecordDeleted(readAllProducts(), target.id || "", new Date().toISOString())
+    const updated = activeRecords(deleted)
+    setSaveState("saving")
+    setSaveError("")
+    try {
+      await workspaceDomain.saveProducts(deleted)
+      setProducts(updated)
+      setSaveState("synced")
+      showAlert({
+        tone: "success",
+        title: "Saved to Cloud",
+        actionHint: "The product was removed from your synced catalog.",
+        message: `${target.name || "Product"} was deleted in Supabase.`,
+      })
+    } catch (error) {
+      setSaveState("error")
+      setSaveError(error instanceof Error ? error.message : "Could not delete product in the cloud.")
+      showAlert({
+        tone: "danger",
+        title: "Sync Failed - Retry",
+        actionHint: "The product is still visible here. Check your connection and try again.",
+        message: error instanceof Error ? error.message : "Could not delete product in the cloud.",
+      })
+    }
 
   }
 
@@ -229,11 +300,29 @@ export default function ProductsPage() {
             <button
               type="button"
               onClick={saveProduct}
-              className="app-primary-button mt-1 inline-flex w-full touch-manipulation items-center justify-center gap-2 rounded-2xl px-5 py-3.5 text-sm font-semibold active:scale-[0.99] xl:mt-0 xl:w-auto xl:justify-start xl:py-3"
+              disabled={saveState === "saving"}
+              className="app-primary-button mt-1 inline-flex w-full touch-manipulation items-center justify-center gap-2 rounded-2xl px-5 py-3.5 text-sm font-semibold active:scale-[0.99] disabled:cursor-not-allowed disabled:bg-slate-400 xl:mt-0 xl:w-auto xl:justify-start xl:py-3"
             >
               <Plus className="h-4 w-4 shrink-0" />
-              {editIndex !== null ? "Update Product" : "Save Product"}
+              {saveState === "saving" ? "Saving..." : editIndex !== null ? "Update Product" : "Save Product"}
             </button>
+            {saveState !== "idle" ? (
+              <p
+                className={`text-sm font-medium ${
+                  saveState === "synced"
+                    ? "text-emerald-700"
+                    : saveState === "error"
+                      ? "text-rose-600"
+                      : "text-slate-500"
+                }`}
+              >
+                {saveState === "saving"
+                  ? "Saving to Supabase..."
+                  : saveState === "synced"
+                    ? "Saved to Cloud"
+                    : `Sync Failed - Retry${saveError ? `: ${saveError}` : ""}`}
+              </p>
+            ) : null}
           </div>
         </div>
 

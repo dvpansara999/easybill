@@ -78,8 +78,8 @@ const LANDING_FEATURES: { title: string; desc: string; icon: LucideIcon }[] = [
     icon: Package,
   },
   {
-    title: "Encrypted fields",
-    desc: "Sensitive data is protected with end-to-end encryption.",
+    title: "Protected fields",
+    desc: "Sensitive fields use protected handling and authenticated access controls.",
     icon: LockKeyhole,
   },
   {
@@ -719,6 +719,7 @@ export default function Home() {
       setAttemptedSubmit(true)
 
       if (!createFormValid) {
+        setPrimaryBusy(false)
         return
       }
 
@@ -759,6 +760,7 @@ export default function Home() {
           const parsed = JSON.parse(existingDraftRaw) as { businessName?: string; email?: string }
           if (parsed?.businessName && parsed?.email) {
             router.push(resumePath)
+            setPrimaryBusy(false)
             return
           }
         } catch {
@@ -786,6 +788,7 @@ export default function Home() {
       const { error } = await signUp(email.trim(), createPassword)
       if (error) {
         setCreateErrorMessage(error)
+        setPrimaryBusy(false)
         return
       }
 
@@ -794,6 +797,7 @@ export default function Home() {
       setOtpToken("")
       setOtpVerifyError("")
       setCreateOtpMessage("We sent an OTP code to your email. Enter it below to continue setup.")
+      setPrimaryBusy(false)
       return
     }
 

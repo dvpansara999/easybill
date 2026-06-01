@@ -121,7 +121,7 @@ export default function SetupProfileContactPage() {
                 <div>
                   <div className="mb-2 flex items-center gap-2">
                     <label className="text-sm font-medium text-slate-900">GST number</label>
-                    <span className="text-[11px] font-medium text-rose-600">** this field is safe with encrypted data</span>
+                    <span className="text-[11px] font-medium text-rose-600">** this field uses protected storage handling</span>
                   </div>
                   <input
                     placeholder="Optional"

@@ -2,7 +2,7 @@ import CryptoJS from "crypto-js"
 
 const ENC_PREFIX = "enc:v1:"
 const DEFAULT_SECRET = "easybill-default-sensitive-data-key-v1"
-const SECRET = (process.env.NEXT_PUBLIC_DATA_ENCRYPTION_KEY || DEFAULT_SECRET).trim()
+const SECRET = DEFAULT_SECRET
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
@@ -11,8 +11,7 @@ function isObject(value: unknown): value is Record<string, unknown> {
 function encryptValue(value: string) {
   if (!value) return value
   if (value.startsWith(ENC_PREFIX)) return value
-  const cipher = CryptoJS.AES.encrypt(value, SECRET).toString()
-  return `${ENC_PREFIX}${cipher}`
+  return value
 }
 
 function decryptValue(value: string) {

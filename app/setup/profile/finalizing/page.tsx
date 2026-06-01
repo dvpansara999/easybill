@@ -13,6 +13,32 @@ import { flushCloudKeyNow, removeActiveOrGlobalItem } from "@/lib/userStore"
 
 type FinalizingStatus = "syncing" | "error"
 
+const SETUP_SYNC_KEYS = [
+  "accountSetupBundle",
+  "businessProfile",
+  "dateFormat",
+  "amountFormat",
+  "showDecimals",
+  "invoicePrefix",
+  "invoicePadding",
+  "invoiceStartNumber",
+  "resetYearly",
+  "invoiceResetMonthDay",
+  "currencySymbol",
+  "currencyPosition",
+  "invoiceVisibility",
+]
+
+async function ensureWorkspaceSeed(userId: string) {
+  const response = await fetch("/api/workspace", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ op: "ensureSeed", userId }),
+  })
+  const payload = (await response.json().catch(() => ({}))) as { error?: string }
+  if (!response.ok) throw new Error(payload.error || "Workspace seed could not be created.")
+}
+
 function getFinalizingErrorCopy(error: unknown) {
   const offline = typeof navigator !== "undefined" && navigator.onLine === false
   const rawMessage = error instanceof Error ? error.message : typeof error === "string" ? error : ""
@@ -32,7 +58,9 @@ function getFinalizingErrorCopy(error: unknown) {
   return {
     title: "Server is under maintenance.",
     message:
-      "We could not finish saving your workspace right now. Your setup details are still saved on this device, so please try again in a moment.",
+      rawMessage && process.env.NODE_ENV !== "production"
+        ? `We could not finish saving your workspace right now. Details: ${rawMessage}`
+        : "We could not finish saving your workspace right now. Your setup details are still saved on this device, so please try again in a moment.",
     icon: AlertTriangle,
   }
 }
@@ -56,7 +84,8 @@ export default function SetupFinalizingPage() {
         }
 
         setActiveUserId(userId)
-        await Promise.all([flushCloudKeyNow("accountSetupBundle"), flushCloudKeyNow("businessProfile")])
+        await ensureWorkspaceSeed(userId)
+        await Promise.all(SETUP_SYNC_KEYS.map((key) => flushCloudKeyNow(key)))
 
         const [{ data: profile, error: profileError }, { data: settings, error: settingsError }] = await Promise.all([
           supabase
@@ -97,7 +126,7 @@ export default function SetupFinalizingPage() {
   return (
     <main className="app-shell eb-desktop-public min-h-screen bg-transparent px-4 py-10 text-slate-900 sm:px-6 sm:py-12">
       <div className="mx-auto flex min-h-[70vh] w-full max-w-3xl items-center justify-center">
-        <section className="app-hero-panel auth-glass-desktop w-full px-6 py-10 sm:px-8 sm:py-12">
+        <section className="w-full border border-white/70 bg-white/80 px-6 py-10 shadow-[0_28px_70px_rgba(86,94,106,0.14)] backdrop-blur-2xl sm:px-8 sm:py-12">
           <div className="mx-auto max-w-xl text-center">
             {syncing ? (
               <div className="mx-auto flex max-w-sm flex-col items-center gap-3">
@@ -110,11 +139,11 @@ export default function SetupFinalizingPage() {
                 <ErrorIcon className="h-7 w-7" />
               </div>
             )}
-            <p className="app-kicker mt-8">Final setup</p>
-            <h1 className="app-page-title mt-3 text-3xl">
+            <p className="app-kicker mt-8 text-slate-500">Final setup</p>
+            <h1 className="app-page-title mt-3 text-3xl text-slate-950">
               {syncing ? "Preparing your personal easyBILL workspace." : errorCopy.title}
             </h1>
-            <p className="app-page-copy mt-4 text-sm sm:text-base">
+            <p className="app-page-copy mt-4 text-sm text-slate-700 sm:text-base">
               {syncing
                 ? "We are syncing your business profile and workspace settings securely. You will be redirected to your dashboard automatically as soon as everything is ready."
                 : errorCopy.message}

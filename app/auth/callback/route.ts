@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabase/server"
+import { assertAccountLifecycleUnlocked } from "@/lib/server/accountLifecycle"
 
 export async function GET(request: Request) {
   const url = new URL(request.url)
@@ -17,10 +18,15 @@ export async function GET(request: Request) {
       return NextResponse.redirect(new URL("/dashboard", url.origin))
     }
 
-    await Promise.allSettled([
-      supabase.from("profiles").upsert({ user_id: user.id, onboarding_completed: false }, { onConflict: "user_id" }),
-      supabase.from("user_settings").upsert({ user_id: user.id }, { onConflict: "user_id" }),
-    ])
+    try {
+      await assertAccountLifecycleUnlocked(supabase, user.id)
+      await Promise.allSettled([
+        supabase.from("profiles").upsert({ user_id: user.id, onboarding_completed: false }, { onConflict: "user_id" }),
+        supabase.from("user_settings").upsert({ user_id: user.id }, { onConflict: "user_id" }),
+      ])
+    } catch {
+      return NextResponse.redirect(new URL("/", url.origin))
+    }
 
     const { data: profile } = await supabase
       .from("profiles")

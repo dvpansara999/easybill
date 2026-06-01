@@ -16,7 +16,7 @@ import {
 import { getInvoicePrefixError } from "@/lib/invoicePrefixValidation"
 import { formatResetMonthLabel, RESET_MONTH_DAY_OPTIONS } from "@/lib/invoiceResetDate"
 import { readStoredInvoices } from "@/lib/invoice"
-import { flushCloudKeyNow, setActiveOrGlobalItem } from "@/lib/userStore"
+import { setActiveOrGlobalItem } from "@/lib/userStore"
 import { useWorkspaceValue } from "@/lib/useWorkspaceValue"
 
 type InvoiceHistoryRecord = {
@@ -158,21 +158,28 @@ export default function SetupProfileSettingsPage() {
 
     setFinishing(true)
     setPrefixErrorMessage("")
-    updateDateFormat(draftDateFormat)
-    updateAmountFormat(draftAmountFormat)
-    updateShowDecimals(draftShowDecimals)
-    updateInvoicePrefix(draftInvoicePrefix)
-    updateInvoicePadding(draftInvoicePadding)
-    updateInvoiceStartNumber(Math.max(1, draftInvoiceStartNumber || 1))
-    updateResetYearly(draftResetYearly)
-    updateInvoiceResetMonthDay(draftInvoiceResetMonthDay)
-    updateCurrencySymbol(draftCurrencySymbol)
-    updateCurrencyPosition(draftCurrencyPosition)
-
-    setActiveOrGlobalItem("businessProfile", JSON.stringify(draftProfile))
-    setBusiness(draftProfile)
-    await flushCloudKeyNow("businessProfile").catch(() => {})
-    router.push("/setup/profile/finalizing")
+    try {
+      await updateDateFormat(draftDateFormat)
+      await updateAmountFormat(draftAmountFormat)
+      await updateShowDecimals(draftShowDecimals)
+      await updateInvoicePrefix(draftInvoicePrefix)
+      await updateInvoicePadding(draftInvoicePadding)
+      await updateInvoiceStartNumber(Math.max(1, draftInvoiceStartNumber || 1))
+      await updateResetYearly(draftResetYearly)
+      await updateInvoiceResetMonthDay(draftInvoiceResetMonthDay)
+      await updateCurrencySymbol(draftCurrencySymbol)
+      await updateCurrencyPosition(draftCurrencyPosition)
+      await setBusiness(draftProfile)
+      router.push("/setup/profile/finalizing")
+    } catch (error) {
+      setFinishing(false)
+      showAlert({
+        tone: "danger",
+        title: "Sync Failed - Retry",
+        actionHint: "Your setup details are still on this page. Check your connection and try again.",
+        message: error instanceof Error ? error.message : "Could not save setup details to Supabase.",
+      })
+    }
   }
 
   return (

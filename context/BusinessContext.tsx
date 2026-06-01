@@ -1,44 +1,30 @@
 "use client"
 
 import { createContext, useCallback, useContext, useMemo } from "react"
-import { getActiveOrGlobalItem, setActiveOrGlobalItem } from "@/lib/userStore"
 import { useWorkspaceValue } from "@/lib/useWorkspaceValue"
 import {
-  EMPTY_BUSINESS_PROFILE,
-  normalizeBusinessProfile,
   type BusinessProfileRecord,
 } from "@/lib/businessProfile"
+import { workspaceDomain } from "@/lib/workspaceDomain"
 
 export type BusinessType = BusinessProfileRecord
 
 type BusinessContextType = {
   business: BusinessType
-  setBusiness: (data: BusinessType) => void
+  setBusiness: (data: BusinessType) => Promise<void>
 }
-
-const emptyBusiness: BusinessType = EMPTY_BUSINESS_PROFILE
 
 const BusinessContext = createContext<BusinessContextType | undefined>(undefined)
 
 function readBusinessFromStore() {
-  if (typeof window === "undefined") return emptyBusiness
-
-  const stored = getActiveOrGlobalItem("businessProfile")
-  if (!stored) return emptyBusiness
-
-  try {
-    return normalizeBusinessProfile(JSON.parse(stored))
-  } catch {
-    return emptyBusiness
-  }
+  return workspaceDomain.getBusinessProfile()
 }
 
 export function BusinessProvider({ children }: { children: React.ReactNode }) {
   const business = useWorkspaceValue(["businessProfile"], readBusinessFromStore)
 
-  const setBusiness = useCallback((data: BusinessType) => {
-    const normalizedBusiness = normalizeBusinessProfile(data)
-    setActiveOrGlobalItem("businessProfile", JSON.stringify(normalizedBusiness))
+  const setBusiness = useCallback(async (data: BusinessType) => {
+    await workspaceDomain.saveBusinessProfile(data)
   }, [])
 
   const value = useMemo<BusinessContextType>(

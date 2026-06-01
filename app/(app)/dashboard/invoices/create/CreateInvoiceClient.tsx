@@ -28,12 +28,13 @@ import {
   validateBusinessRecord,
   validateInvoiceRecord,
 } from "@/lib/invoice"
-import { buildCustomerIdentity } from "@/lib/customerIdentity"
+import { buildCustomerIdentity, normalizeCustomerGstin } from "@/lib/customerIdentity"
 import { useWorkspaceValue } from "@/lib/useWorkspaceValue"
 import { CirclePlus, Package2, Plus, Save, Trash2, UserRound } from "lucide-react"
 import InvoicePageHeader from "@/components/invoices/InvoicePageHeader"
 
 type ProductRecord = {
+  deleted_at?: string
   name: string
   hsn: string
   unit: string
@@ -65,13 +66,24 @@ function getTodayLocalDate() {
   return `${year}-${month}-${day}`
 }
 
+function productMatchesSuggestion(product: ProductRecord, value: string) {
+  const normalized = value.trim().toLowerCase()
+  if (!normalized) return true
+  return (
+    String(product.name || "").toLowerCase().includes(normalized) ||
+    String(product.hsn || "").toLowerCase().includes(normalized)
+  )
+}
+
 function readCreateInvoiceSnapshot(): CreateInvoiceSnapshot {
   const savedProducts = getActiveOrGlobalItem("products")
   let products: ProductRecord[] = []
   if (savedProducts) {
     try {
       const parsed = JSON.parse(savedProducts) as unknown
-      products = Array.isArray(parsed) ? (parsed as ProductRecord[]) : []
+      products = Array.isArray(parsed)
+        ? (parsed as ProductRecord[]).filter((product) => product && !product.deleted_at)
+        : []
     } catch {
       products = []
     }
@@ -229,13 +241,14 @@ export default function CreateInvoiceClient() {
 
   function searchProduct(index: number, value: string) {
     setActiveRow(index)
-    setSuggestions(products.filter((product) => product.name.toLowerCase().includes(value.toLowerCase())))
+    setSuggestions(products.filter((product) => productMatchesSuggestion(product, value)))
     handleItemChange(index, "product", value)
   }
 
   function searchHSN(index: number, value: string) {
     setActiveRow(index)
-    setSuggestions(products.filter((product) => String(product.hsn).includes(value)))
+    const normalized = value.trim().toLowerCase()
+    setSuggestions(products.filter((product) => !normalized || String(product.hsn || "").toLowerCase().includes(normalized)))
     handleItemChange(index, "hsn", value)
   }
 
@@ -529,7 +542,7 @@ export default function CreateInvoiceClient() {
 
             <div className="min-w-0">
               <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Client GSTIN</label>
-              <input placeholder="Client GSTIN" className="app-input h-[54px] w-full rounded-2xl px-4 py-3.5 text-sm leading-5 outline-none transition" value={clientGST} onChange={(e) => setClientGST(e.target.value)} />
+              <input placeholder="e.g. 24ABCDE1234F1Z5" className="app-input h-[54px] w-full rounded-2xl px-4 py-3.5 text-sm leading-5 outline-none transition" value={clientGST} onChange={(e) => setClientGST(normalizeCustomerGstin(e.target.value))} />
             </div>
 
             <div className="min-w-0">

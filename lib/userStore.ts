@@ -1,12 +1,15 @@
 import { getActiveUserId } from "@/lib/auth"
-import { createSupabaseBrowserClient, getSupabaseUser } from "@/lib/supabase/browser"
-import { KV_KEYS, deleteKvFromSupabase, pushKvToSupabase, type KvKey } from "@/lib/supabase/userKvSync"
+import { getSupabaseUser } from "@/lib/supabase/browser"
+import { KV_KEYS, type KvKey } from "@/lib/supabase/userKvSync";
+import { createSupabaseSyncRepository, createSyncService, type SyncService } from "@/lib/syncService"
+import { clearLocalStorageSyncRetryQueue } from "@/lib/syncRetryQueue"
 import { getAuthMode } from "@/lib/runtimeMode"
 import { scopedKey } from "@/lib/scopedKey"
 import { protectSensitiveDataForStorage, revealSensitiveDataFromStorage } from "@/lib/sensitiveData"
 
 const PUSH_DEBOUNCE_MS = 600
 const pendingTimers = new Map<string, number>()
+let syncService: SyncService | null = null
 const ACCOUNT_SETUP_BUNDLE_KEY = "accountSetupBundle"
 const BUNDLED_KEYS = new Set([
   "businessProfile",
@@ -30,6 +33,10 @@ const hydratedUsers = new Set<string>()
 
 function warmCacheStorageKey(key: string, userId: string) {
   return scopedKey(`warm-cache:${key}`, userId)
+}
+
+function syncWatermarkStorageKey(userId: string) {
+  return scopedKey("sync-watermark", userId)
 }
 
 function readWarmCache(key: string, userId: string) {
@@ -66,6 +73,58 @@ function isCloudKvKey(key: string): key is KvKey {
 
 function cacheId(userId: string, key: string) {
   return `${userId}:${key}`
+}
+
+async function workspaceApi(body: Record<string, unknown>) {
+  const response = await fetch("/api/workspace", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  })
+  const payload = (await response.json().catch(() => ({}))) as { error?: string }
+  if (!response.ok) throw new Error(payload.error || "Workspace sync failed.")
+}
+
+function getSyncService() {
+  if (!syncService) {
+    syncService = createSyncService({
+      cache: {
+        get(key) {
+          const userId = getActiveUserId()
+          return userId ? getUserItem(key, userId) : null
+        },
+        set(key, value) {
+          const userId = getActiveUserId()
+          if (userId) setUserItem(key, value, userId)
+        },
+        remove(key) {
+          const userId = getActiveUserId()
+          if (userId) removeUserItem(key, userId)
+        },
+      },
+      repository: createSupabaseSyncRepository({
+        pushKey(userId, key, rawValue) {
+          return workspaceApi({ op: "pushKey", userId, key, rawValue })
+        },
+        deleteKey(userId, key) {
+          return workspaceApi({ op: "deleteKey", userId, key })
+        },
+      }),
+      logger: {
+        info(message, details) {
+          console.info(message, details)
+        },
+        warn(message, details) {
+          console.warn(message, details)
+        },
+        error(message, details) {
+          console.warn(message, details)
+        },
+      },
+      debounceMs: PUSH_DEBOUNCE_MS,
+    })
+  }
+  return syncService
 }
 
 function parseJson<T>(raw: string | null): T | null {
@@ -105,6 +164,33 @@ export function clearUserKvCache(userId: string) {
   hydratedUsers.delete(userId)
   for (const k of cloudCache.keys()) {
     if (k.startsWith(`${userId}:`)) cloudCache.delete(k)
+  }
+}
+
+export function clearUserWorkspaceLocalState(userId: string) {
+  clearUserKvCache(userId)
+  clearLocalStorageSyncRetryQueue(userId)
+  for (const [id, timer] of pendingTimers.entries()) {
+    if (id.startsWith(`${userId}:`)) {
+      window.clearTimeout(timer)
+      pendingTimers.delete(id)
+    }
+  }
+  try {
+    const suffix = `::${userId}`
+    const toRemove: string[] = []
+    for (let i = 0; i < localStorage.length; i += 1) {
+      const key = localStorage.key(i)
+      if (!key) continue
+      if (key.endsWith(suffix)) toRemove.push(key)
+      if (key.includes(`warm-cache:`) && key.endsWith(suffix)) toRemove.push(key)
+      if (key.startsWith("sync-watermark::") && key.endsWith(suffix)) toRemove.push(key)
+    }
+    for (const key of new Set(toRemove)) localStorage.removeItem(key)
+    localStorage.removeItem("setupProfileDraft")
+    localStorage.removeItem("setupResumePath")
+  } catch {
+    // ignore storage failures
   }
 }
 
@@ -190,13 +276,14 @@ export function setUserItem(key: string, value: string, userId: string) {
       }
       return
     }
-    cloudCache.set(cacheId(userId, key), valueForStorage)
-    writeWarmCache(key, userId, valueForStorage)
-    schedulePush(key, valueForStorage)
+    cloudCache.set(cacheId(userId, key), valueForStorage);
+    writeWarmCache(key, userId, valueForStorage);
+    // Schedule push through the framework-agnostic sync service.
+    schedulePush(key, valueForStorage);
     if (typeof window !== "undefined") {
-      window.dispatchEvent(new CustomEvent("easybill:kv-write", { detail: { key } }))
+      window.dispatchEvent(new CustomEvent("easybill:kv-write", { detail: { key } }));
     }
-    return
+    return;
   }
   localStorage.setItem(scopedKey(key, userId), valueForStorage)
 }
@@ -228,13 +315,14 @@ export function removeUserItem(key: string, userId: string) {
       }
       return
     }
-    cloudCache.delete(cacheId(userId, key))
-    removeWarmCache(key, userId)
-    scheduleDelete(key)
+    cloudCache.delete(cacheId(userId, key));
+    removeWarmCache(key, userId);
+    // Schedule delete through the framework-agnostic sync service.
+    scheduleDelete(key);
     if (typeof window !== "undefined") {
-      window.dispatchEvent(new CustomEvent("easybill:kv-write", { detail: { key } }))
+      window.dispatchEvent(new CustomEvent("easybill:kv-write", { detail: { key } }));
     }
-    return
+    return;
   }
   localStorage.removeItem(scopedKey(key, userId))
 }
@@ -341,7 +429,6 @@ function schedulePush(key: string, value: string) {
   const timer = window.setTimeout(() => {
     pendingTimers.delete(id)
     ;(async () => {
-      const supabase = createSupabaseBrowserClient()
       const { data } = await getSupabaseUser()
       const actualUserId = data.user?.id
       if (!actualUserId) return
@@ -353,14 +440,14 @@ function schedulePush(key: string, value: string) {
 
       try {
         // Only push keys we track in cloud KV.
-        if (!isCloudKvKey(key)) return
-        await pushKvToSupabase(supabase, actualUserId, key, value)
-      } catch (e) {
-        // Prevent unhandled promise rejections from breaking UX.
-        console.error("KV push failed", { key, capturedUserId, actualUserId, e })
-      }
-    })()
-  }, PUSH_DEBOUNCE_MS)
+      if (!isCloudKvKey(key)) return;
+      await getSyncService().flushPush(actualUserId, key, value);
+    } catch (e) {
+      // Prevent unhandled promise rejections from breaking UX.
+      console.warn("KV push failed", { key, capturedUserId, actualUserId, e });
+    }
+  })();
+}, PUSH_DEBOUNCE_MS);
 
   pendingTimers.set(id, timer)
 }
@@ -378,7 +465,6 @@ function scheduleDelete(key: string) {
   const timer = window.setTimeout(() => {
     pendingTimers.delete(id)
     ;(async () => {
-      const supabase = createSupabaseBrowserClient()
       const { data } = await getSupabaseUser()
       const actualUserId = data.user?.id
       if (!actualUserId) return
@@ -391,13 +477,13 @@ function scheduleDelete(key: string) {
       cloudCache.delete(cacheId(capturedUserId, key))
 
       try {
-        if (!isCloudKvKey(key)) return
-        await deleteKvFromSupabase(supabase, actualUserId, key)
-      } catch (e) {
-        console.error("KV delete failed", { key, capturedUserId, actualUserId, e })
-      }
-    })()
-  }, PUSH_DEBOUNCE_MS)
+      if (!isCloudKvKey(key)) return;
+      await getSyncService().flushDelete(actualUserId, key);
+    } catch (e) {
+      console.warn("KV delete failed", { key, capturedUserId, actualUserId, e });
+    }
+  })();
+}, PUSH_DEBOUNCE_MS);
 
   pendingTimers.set(id, timer)
 }
@@ -406,7 +492,6 @@ export async function flushCloudKeyNow(key: string) {
   if (getAuthMode() !== "supabase") return
   const activeUserId = getActiveUserId()
   if (!activeUserId) return
-  const supabase = createSupabaseBrowserClient()
   const { data } = await getSupabaseUser()
   const actualUserId = data.user?.id
   if (!actualUserId) return
@@ -416,7 +501,28 @@ export async function flushCloudKeyNow(key: string) {
   }
 
   const value = cloudCache.get(cacheId(actualUserId, key)) ?? cloudCache.get(cacheId(activeUserId, key))
-  if (value == null) return
-  if (!isCloudKvKey(key)) return
-  await pushKvToSupabase(supabase, actualUserId, key, value)
+  if (value == null) return;
+  if (!isCloudKvKey(key)) return;
+  await getSyncService().flushPush(actualUserId, key, value);
+}
+
+export async function replayQueuedCloudSync(userId?: string) {
+  if (getAuthMode() !== "supabase") return
+  await getSyncService().replayQueued(userId)
+}
+
+export function readUserSyncWatermark(userId: string) {
+  try {
+    return localStorage.getItem(syncWatermarkStorageKey(userId))
+  } catch {
+    return null
+  }
+}
+
+export function writeUserSyncWatermark(userId: string, value: string) {
+  try {
+    localStorage.setItem(syncWatermarkStorageKey(userId), value)
+  } catch {
+    // ignore storage failures
+  }
 }

@@ -24,10 +24,12 @@ import {
 } from "@/lib/invoice"
 import { CirclePlus, Package2, Plus, Save, Trash2, UserRound } from "lucide-react"
 import { canEditInvoices } from "@/lib/plans"
+import { normalizeCustomerGstin } from "@/lib/customerIdentity"
 import InvoicePageHeader from "@/components/invoices/InvoicePageHeader"
 import NotFoundRecoveryCard from "@/components/shared/NotFoundRecoveryCard"
 
 type ProductRecord = {
+  deleted_at?: string
   name: string
   hsn: string
   unit: string
@@ -35,6 +37,15 @@ type ProductRecord = {
   cgst: number
   sgst: number
   igst: number
+}
+
+function productMatchesSuggestion(product: ProductRecord, value: string) {
+  const normalized = value.trim().toLowerCase()
+  if (!normalized) return true
+  return (
+    String(product.name || "").toLowerCase().includes(normalized) ||
+    String(product.hsn || "").toLowerCase().includes(normalized)
+  )
 }
 
 type EditInvoiceSnapshot = {
@@ -58,7 +69,7 @@ function safeParseProducts(raw: string | null): ProductRecord[] {
     const parsed = JSON.parse(raw) as unknown
     if (!Array.isArray(parsed)) return []
     return parsed.filter((product): product is ProductRecord => {
-      return typeof product === "object" && product !== null && "name" in product
+      return typeof product === "object" && product !== null && "name" in product && !(product as ProductRecord).deleted_at
     })
   } catch {
     return []
@@ -195,13 +206,14 @@ function EditInvoiceScreen({
 
   function searchProduct(index: number, value: string) {
     setActiveRow(index)
-    setSuggestions(products.filter((product) => product.name.toLowerCase().includes(value.toLowerCase())))
+    setSuggestions(products.filter((product) => productMatchesSuggestion(product, value)))
     handleItemChange(index, "product", value)
   }
 
   function searchHSN(index: number, value: string) {
     setActiveRow(index)
-    setSuggestions(products.filter((product) => String(product.hsn).includes(value)))
+    const normalized = value.trim().toLowerCase()
+    setSuggestions(products.filter((product) => !normalized || String(product.hsn || "").toLowerCase().includes(normalized)))
     handleItemChange(index, "hsn", value)
   }
 
@@ -417,7 +429,7 @@ function EditInvoiceScreen({
           </div>
           <div className="min-w-0">
             <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Client GSTIN</label>
-            <input placeholder="Client GSTIN" className="app-input h-[54px] w-full rounded-2xl px-4 py-3.5 text-sm outline-none transition" value={clientGST} onChange={(event) => setClientGST(event.target.value)} />
+            <input placeholder="e.g. 24ABCDE1234F1Z5" className="app-input h-[54px] w-full rounded-2xl px-4 py-3.5 text-sm outline-none transition" value={clientGST} onChange={(event) => setClientGST(normalizeCustomerGstin(event.target.value))} />
           </div>
           <div className="min-w-0">
             <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Invoice Date *</label>

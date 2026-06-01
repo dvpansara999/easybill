@@ -73,7 +73,7 @@ export const seoFeatures: SeoPageDefinition = {
   meta: {
     title: "Features | easyBILL — invoices, PDFs, GST, and more",
     description:
-      "Explore easyBILL features: invoice templates, GST-ready taxes, PDF download, catalog, encryption for sensitive fields, and a calm dashboard.",
+      "Explore easyBILL features: invoice templates, GST-ready taxes, PDF download, catalog, protected sensitive-field handling, and a calm dashboard.",
   },
   content: {
     heroEyebrow: "Product tour",

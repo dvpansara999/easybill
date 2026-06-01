@@ -1,5 +1,3 @@
-"use client"
-
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { DEFAULT_INVOICE_VISIBILITY, type InvoiceVisibilitySettings } from "@/lib/invoiceVisibilityShared"
 import { DEFAULT_RESET_MONTH_DAY, normalizeResetMonthDay } from "@/lib/invoiceResetDate"
@@ -57,6 +55,10 @@ export type RelationalSettingsRow = {
 export type RelationalProductRow = {
   id?: string
   user_id?: string
+  updated_at?: string | null
+  deleted_at?: string | null
+  sync_status?: string | null
+  last_synced_at?: string | null
   name: string | null
   hsn: string | null
   unit: string | null
@@ -70,7 +72,14 @@ export type RelationalProductRow = {
 export type RelationalCustomerRow = {
   id?: string
   user_id?: string
+  updated_at?: string | null
+  deleted_at?: string | null
+  sync_status?: string | null
+  last_synced_at?: string | null
   identity_key?: string | null
+  identity_hash?: string | null
+  phone_hash?: string | null
+  gst_hash?: string | null
   name: string | null
   phone: string | null
   email: string | null
@@ -82,6 +91,7 @@ export type RelationalCustomerRow = {
 export type RelationalInvoiceItemRow = {
   id?: string
   invoice_id?: string
+  deleted_at?: string | null
   position?: number | null
   product: string | null
   hsn: string | null
@@ -97,6 +107,7 @@ export type RelationalInvoiceItemRow = {
 export type RelationalInvoiceHistoryRow = {
   id?: string
   invoice_id?: string
+  deleted_at?: string | null
   event_type: InvoiceHistoryEntry["type"] | null
   label: string | null
   happened_at: string | null
@@ -114,13 +125,20 @@ export type RelationalInvoiceRow = {
   sequence_window_end: string | null
   client_name: string | null
   client_phone: string | null
+  client_phone_hash?: string | null
   client_email: string | null
   client_gst: string | null
+  client_gst_hash?: string | null
+  customer_identity_key?: string | null
   client_address: string | null
   custom_details: unknown
   notes: string | null
   status: "draft" | "issued" | "paid" | null
   grand_total: number | null
+  updated_at?: string | null
+  deleted_at?: string | null
+  sync_status?: string | null
+  last_synced_at?: string | null
   invoice_items?: RelationalInvoiceItemRow[] | null
   invoice_history?: RelationalInvoiceHistoryRow[] | null
 }
@@ -208,6 +226,7 @@ function normalizeCustomDetails(value: unknown) {
 
 function mapInvoiceItems(rows: RelationalInvoiceItemRow[] | null | undefined): InvoiceItem[] {
   return (rows || [])
+    .filter((row) => !row.deleted_at)
     .slice()
     .sort((a, b) => Number(a.position || 0) - Number(b.position || 0))
     .map((row) => ({
@@ -225,6 +244,7 @@ function mapInvoiceItems(rows: RelationalInvoiceItemRow[] | null | undefined): I
 
 function mapInvoiceHistory(rows: RelationalInvoiceHistoryRow[] | null | undefined): InvoiceHistoryEntry[] {
   return (rows || [])
+    .filter((row) => !row.deleted_at)
     .slice()
     .sort((a, b) => String(a.happened_at || "").localeCompare(String(b.happened_at || "")))
     .map((row) => ({
@@ -265,8 +285,11 @@ export function mapRelationalInvoicesToRecords(rows: RelationalInvoiceRow[]) {
         sequenceWindowEnd: row.sequence_window_end || null,
         clientName: String(safeRow.client_name || ""),
         clientPhone: String(safeRow.client_phone || ""),
+        clientPhoneHash: row.client_phone_hash || undefined,
         clientEmail: String(safeRow.client_email || ""),
         clientGST: String(safeRow.client_gst || ""),
+        clientGstHash: row.client_gst_hash || undefined,
+        customerIdentityKey: row.customer_identity_key || undefined,
         clientAddress: String(safeRow.client_address || ""),
         date: row.invoice_date,
         customDetails: normalizeCustomDetails(row.custom_details),
@@ -347,6 +370,11 @@ export function buildRelationalCacheEntries(payload: RelationalSyncPayload) {
   const businessProfile = buildBusinessProfileCache(payload.profile, payload.logoSignedUrl)
   const invoices = mapRelationalInvoicesToRecords(payload.invoices)
   const products = payload.products.map((row) => ({
+    id: row.id || undefined,
+    updated_at: row.updated_at || undefined,
+    deleted_at: row.deleted_at || undefined,
+    sync_status: row.sync_status || undefined,
+    last_synced_at: row.last_synced_at || undefined,
     name: row.name || "",
     hsn: row.hsn || "",
     unit: row.unit || "",
@@ -356,6 +384,15 @@ export function buildRelationalCacheEntries(payload: RelationalSyncPayload) {
     igst: Number(row.igst || 0),
   }))
   const customers = payload.customers.map((row) => ({
+    id: row.id || undefined,
+    updated_at: row.updated_at || undefined,
+    deleted_at: row.deleted_at || undefined,
+    sync_status: row.sync_status || undefined,
+    last_synced_at: row.last_synced_at || undefined,
+    identity_key: row.identity_key || undefined,
+    identity_hash: row.identity_hash || undefined,
+    phone_hash: row.phone_hash || undefined,
+    gst_hash: row.gst_hash || undefined,
     name: row.name || "",
     phone: row.phone || "",
     email: row.email || "",

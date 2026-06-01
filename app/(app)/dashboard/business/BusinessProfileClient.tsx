@@ -11,7 +11,6 @@ import { Building2, Check, Circle, Landmark, ScrollText, Square, Upload } from "
 import { useBusiness } from "@/context/BusinessContext"
 import { useAppAlert } from "@/components/providers/AppAlertProvider"
 import { deleteLogoFromSupabase, uploadLogoToSupabase } from "@/lib/logoUpload"
-import { flushCloudKeyNow } from "@/lib/userStore"
 import { useUnsavedChangesGuard } from "@/lib/unsavedChangesGuard"
 import { getLogoUploadRuleText, validateLogoFile } from "@/lib/logoValidation"
 import { EMPTY_BUSINESS_PROFILE, type BusinessProfileRecord } from "@/lib/businessProfile"
@@ -98,7 +97,7 @@ export default function BusinessProfileClient() {
 type BusinessProfileFormProps = {
   initialProfile: BusinessProfile
   setupMode: boolean
-  setBusiness: (data: BusinessProfile) => void
+  setBusiness: (data: BusinessProfile) => Promise<void>
 }
 
 function BusinessProfileForm({
@@ -220,27 +219,37 @@ function BusinessProfileForm({
       nextProfile = { ...nextProfile, logoStoragePath: "" }
     }
 
-    setBusiness(nextProfile)
-    await flushCloudKeyNow("businessProfile").catch(() => {})
+    try {
+      await setBusiness(nextProfile)
+    } catch (error) {
+      setSavingProfile(false)
+      showAlert({
+        tone: "danger",
+        title: "Could not save business profile",
+        actionHint: "Your changes are still on this page. Check your connection and try again.",
+        message: error instanceof Error ? error.message : "Unable to save your profile to the cloud.",
+      })
+      return false
+    }
     setSavedProfileSnapshot(nextProfile)
     setProfile(nextProfile)
     setLogoSource("")
     setSavingProfile(false)
 
     if (setupMode && options?.navigateAfterSave !== false) {
-      setSaveMessage("Profile saved. Opening settings...")
+      setSaveMessage("Saved to Cloud. Opening settings...")
       router.push("/dashboard/settings?setup=1")
       return true
     }
 
-    setSaveMessage("Profile saved and applied across invoices, templates, and exports.")
+    setSaveMessage("Saved to Cloud and applied across invoices, templates, and exports.")
     window.setTimeout(() => setSaveMessage(""), 2500)
 
     showAlert({
       tone: "success",
       title: "Business profile saved",
       actionHint: "You can keep editing or continue invoicing - changes apply everywhere.",
-      message: "Your business details are saved and will be used across templates, print, and PDF exports.",
+      message: "Your business details are saved to Supabase and will be used across templates, print, and PDF exports.",
     })
     return true
   }
@@ -262,7 +271,7 @@ function BusinessProfileForm({
             Start by saving your business profile. Once this is done, we&apos;ll take you to settings so you can finalize invoice behavior like numbering, currency, and decimals.
           </p>
           <p className="mt-2 text-xs leading-6 text-emerald-800">
-            Sensitive profile fields, including bank details, are stored with encrypted handling so your business data stays protected.
+            Sensitive profile fields, including bank details, use protected handling so your business data stays safer.
           </p>
         </section>
       )}
@@ -277,7 +286,7 @@ function BusinessProfileForm({
             easyBILL will use the information below only for generating your invoices.
           </p>
           <p className="mt-2 text-xs leading-6 text-slate-500">
-            Sensitive data including bank details, are end-to-end encrypted.
+            Sensitive data including bank details uses protected handling and authenticated access controls.
           </p>
         </div>
       </section>
@@ -460,7 +469,7 @@ function BusinessProfileForm({
               <div>
                 <h2 className="section-title text-2xl">Bank Details</h2>
                 <p className="text-sm text-slate-500">
-                  Payment details available inside invoice templates. Bank fields are protected with encrypted storage handling.
+                  Payment details available inside invoice templates. Bank fields use protected storage handling.
                 </p>
               </div>
             </div>

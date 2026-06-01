@@ -77,6 +77,7 @@ export default function InvoiceVisibilityClient() {
   const { invoiceVisibility, updateInvoiceVisibility } = useSettings()
   const [draft, setDraft] = useState<InvoiceVisibilitySettings>(() => normalizeVisibility(invoiceVisibility))
   const [message, setMessage] = useState("")
+  const [saving, setSaving] = useState(false)
 
   const hasChanges = useMemo(() => JSON.stringify(draft) !== JSON.stringify(invoiceVisibility), [draft, invoiceVisibility])
 
@@ -84,10 +85,18 @@ export default function InvoiceVisibilityClient() {
     setDraft((prev) => ({ ...prev, [key]: value }))
   }
 
-  function apply() {
-    updateInvoiceVisibility(normalizeVisibility(draft))
-    setMessage("Applied to all invoices.")
-    window.setTimeout(() => setMessage(""), 1800)
+  async function apply() {
+    setSaving(true)
+    setMessage("")
+    try {
+      await updateInvoiceVisibility(normalizeVisibility(draft))
+      setMessage("Saved to Cloud.")
+      window.setTimeout(() => setMessage(""), 1800)
+    } catch (error) {
+      setMessage(error instanceof Error ? `Sync Failed - Retry: ${error.message}` : "Sync Failed - Retry")
+    } finally {
+      setSaving(false)
+    }
   }
 
   function resetAllOn() {
@@ -167,10 +176,10 @@ export default function InvoiceVisibilityClient() {
           <button
             type="button"
             onClick={apply}
-            disabled={!hasChanges}
+            disabled={!hasChanges || saving}
             className="app-primary-button w-full rounded-2xl px-6 py-3 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:bg-slate-300 sm:w-auto"
           >
-            Apply
+            {saving ? "Saving..." : "Apply"}
           </button>
         </div>
       </div>

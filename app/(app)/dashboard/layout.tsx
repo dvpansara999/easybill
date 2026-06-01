@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Sidebar from "@/components/sidebar"
 import EasyBillLogoMark from "@/components/brand/EasyBillLogoMark"
+import WorkspaceSyncStatusIndicator from "@/components/WorkspaceSyncStatusIndicator"
 import { getSupabaseUser } from "@/lib/supabase/browser"
 import { getActiveAuthRecord } from "@/lib/auth"
 import { enforceFreeRestrictions, getActivePlanId, type PlanId } from "@/lib/plans"
@@ -125,17 +126,23 @@ export default function DashboardLayout({
               </button>
 
               {planId === "plus" ? (
-                <div className="hidden rounded-full border border-emerald-200/70 bg-emerald-50/90 px-4 py-2 text-sm font-semibold text-emerald-800 sm:inline-flex">
-                  Plus active
+                <div className="hidden items-center gap-2 sm:inline-flex">
+                  <WorkspaceSyncStatusIndicator />
+                  <div className="rounded-full border border-emerald-200/70 bg-emerald-50/90 px-4 py-2 text-sm font-semibold text-emerald-800">
+                    Plus active
+                  </div>
                 </div>
               ) : (
-                <button
-                  type="button"
-                  onClick={() => router.push("/dashboard/upgrade")}
-                  className="app-secondary-button hidden rounded-full px-4 py-2 text-sm font-semibold sm:inline-flex"
-                >
-                  Upgrade
-                </button>
+                <div className="hidden items-center gap-2 sm:inline-flex">
+                  <WorkspaceSyncStatusIndicator />
+                  <button
+                    type="button"
+                    onClick={() => router.push("/dashboard/upgrade")}
+                    className="app-secondary-button rounded-full px-4 py-2 text-sm font-semibold"
+                  >
+                    Upgrade
+                  </button>
+                </div>
               )}
             </div>
             <div className="eb-page-transition-root">{children}</div>
