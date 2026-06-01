@@ -1683,6 +1683,36 @@ runCase("Playwright browser verification framework exposes Supabase confidence g
   assert.match(releaseDocs, /test:e2e:supabase:\*/)
 })
 
+runCase("workspace hydration gate requires Supabase-backed readiness before dashboard render", () => {
+  const runtime = readFileSync(new URL("../../lib/workspaceRuntime.ts", import.meta.url), "utf8")
+  const login = readFileSync(new URL("../../app/page.tsx", import.meta.url), "utf8")
+  const dashboardLayout = readFileSync(new URL("../../app/(app)/dashboard/layout.tsx", import.meta.url), "utf8")
+  const callback = readFileSync(new URL("../../app/auth/callback/route.ts", import.meta.url), "utf8")
+  const hydrating = readFileSync(new URL("../../app/auth/hydrating/page.tsx", import.meta.url), "utf8")
+  const userStore = readFileSync(new URL("../../lib/userStore.ts", import.meta.url), "utf8")
+
+  assert.match(runtime, /ensureWorkspaceReadyForNavigation/)
+  assert.match(runtime, /fetchWorkspaceReady/)
+  assert.match(runtime, /WORKSPACE_READY_TIMEOUT_MS = 60_000/)
+  assert.match(runtime, /primeUserWorkspaceCache/)
+  assert.match(runtime, /readUserSyncWatermark/)
+  assert.match(runtime, /isWorkspaceReadyForNavigation/)
+  assert.doesNotMatch(runtime, /hasUserWarmCache/)
+
+  assert.match(login, /await ensureWorkspaceReadyForNavigation\(userId\)/)
+  assert.match(login, /Creating your workspace/)
+  assert.match(dashboardLayout, /await ensureWorkspaceReadyForNavigation\(data\.user\.id\)/)
+  assert.doesNotMatch(dashboardLayout, /hasUserWarmCache/)
+  assert.match(callback, /\/auth\/hydrating\?next=\/dashboard/)
+  assert.match(hydrating, /Retry/)
+  assert.match(hydrating, /Sign Out/)
+
+  assert.match(userStore, /workspaceReadyUsers/)
+  assert.match(userStore, /COLLECTION_KEYS/)
+  assert.match(userStore, /primeUserWorkspaceCache/)
+  assert.match(userStore, /COLLECTION_KEYS\.has\(key\) && !hydratedUsers\.has\(userId\)/)
+})
+
 console.log("All regression checks passed.")
 
 

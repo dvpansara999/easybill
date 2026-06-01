@@ -48,7 +48,7 @@ export async function GET(request: Request) {
         profile?.email
     )
 
-    return NextResponse.redirect(new URL(hasBusinessProfile ? "/dashboard" : "/setup/profile", url.origin))
+    return NextResponse.redirect(new URL(hasBusinessProfile ? "/auth/hydrating?next=/dashboard" : "/setup/profile", url.origin))
   }
-  return NextResponse.redirect(new URL("/dashboard", url.origin))
+  return NextResponse.redirect(new URL("/auth/hydrating?next=/dashboard", url.origin))
 }

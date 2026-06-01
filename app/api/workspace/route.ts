@@ -7,6 +7,7 @@ import {
 import {
   createSealedInvoiceRecord,
   ensureSealedWorkspaceSeed,
+  fetchOpenedWorkspaceReadyEntries,
   fetchOpenedWorkspaceChanges,
   fetchOpenedWorkspaceSnapshotEntries,
   listOpenedInvoiceRecords,
@@ -28,6 +29,7 @@ export const runtime = "nodejs"
 
 type WorkspaceRequest =
   | { op: "ensureSeed"; userId?: string }
+  | { op: "fetchWorkspaceReady"; userId?: string }
   | { op: "fetchSnapshot"; userId?: string }
   | {
       op: "fetchChanges"
@@ -104,6 +106,9 @@ export async function POST(req: Request) {
 
       case "fetchSnapshot":
         return NextResponse.json({ entries: await fetchOpenedWorkspaceSnapshotEntries(supabase, userId) })
+
+      case "fetchWorkspaceReady":
+        return NextResponse.json({ entries: await fetchOpenedWorkspaceReadyEntries(supabase, userId) })
 
       case "fetchChanges": {
         const currentValues = body.currentValues || {}

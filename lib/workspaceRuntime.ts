@@ -11,8 +11,10 @@ import {
   clearUserKvCache,
   getActiveOrGlobalItem,
   getUserItem,
+  isUserWorkspaceReady,
   isUserKvHydrated,
   primeUserKvCache,
+  primeUserWorkspaceCache,
   readUserSyncWatermark,
   removeActiveOrGlobalItem,
   replayQueuedCloudSync,
@@ -26,6 +28,19 @@ import type { InvoiceRecord } from "@/lib/invoice"
 
 let syncService: SyncService | null = null
 let dataAccess: WorkspaceDataAccess | null = null
+let syncCoordinator: ReturnType<typeof createWorkspaceSyncCoordinator> | null = null
+let syncCoordinatorAlerts: BrowserWorkspaceSyncAlerts = {
+  accountChanged() {},
+  signedOut() {},
+}
+
+type BrowserWorkspaceSyncAlerts = {
+  accountChanged(): void
+  signedOut(): void
+}
+
+const WORKSPACE_READY_KEYS: KvKey[] = ["accountSetupBundle", "businessProfile"]
+const WORKSPACE_READY_TIMEOUT_MS = 60_000
 
 async function workspaceApi<T>(body: Record<string, unknown>): Promise<T> {
   const response = await fetch("/api/workspace", {
@@ -174,12 +189,68 @@ export async function ensureInvoiceRecordForPdf(invoice: InvoiceRecord) {
   await workspaceApi<void>({ op: "upsertInvoice", userId, invoice })
 }
 
-export function createBrowserWorkspaceSyncCoordinator(alerts: {
-  accountChanged(): void
-  signedOut(): void
-}) {
+function hasWorkspaceReadyEntries(userId: string) {
+  return WORKSPACE_READY_KEYS.every((key) => getUserItem(key, userId) != null)
+}
+
+function createWorkspaceLoadTimeout(timeoutMs: number) {
+  return new Promise<never>((_, reject) => {
+    window.setTimeout(() => {
+      reject(new Error("Unable to load workspace. Check your connection and try again."))
+    }, timeoutMs)
+  })
+}
+
+async function fetchWorkspaceReadyEntries(userId: string) {
+  const { entries } = await workspaceApi<{ entries: Array<{ key: KvKey; value: string }> }>({
+    op: "fetchWorkspaceReady",
+    userId,
+  })
+  return entries
+}
+
+async function loadWorkspaceReady(userId: string) {
+  await workspaceApi<void>({ op: "ensureSeed", userId })
+  const entries = await fetchWorkspaceReadyEntries(userId)
+  primeUserWorkspaceCache(userId, entries)
+  writeUserSyncWatermark(userId, new Date().toISOString())
+  window.dispatchEvent(new Event("easybill:workspace-ready"))
+  window.dispatchEvent(new Event("easybill:cloud-sync"))
+  publishWorkspaceSyncStatus({ state: "syncing", label: "Loading Data", key: "workspace" })
+  void createBrowserWorkspaceSyncCoordinator().sync(userId).catch((error: unknown) => {
+    publishWorkspaceSyncStatus({
+      state: "error",
+      label: "Sync Failed - Retry",
+      key: "workspace",
+      detail: error instanceof Error ? error.message : String(error),
+    })
+  })
+}
+
+export function isWorkspaceReadyForNavigation(userId: string) {
+  return isUserWorkspaceReady(userId) && hasWorkspaceReadyEntries(userId) && Boolean(readUserSyncWatermark(userId))
+}
+
+export async function ensureWorkspaceReadyForNavigation(
+  userId: string,
+  options: { timeoutMs?: number } = {}
+) {
+  if (getAuthMode() !== "supabase") return
+  setActiveUserId(userId)
+  const timeoutMs = options.timeoutMs ?? WORKSPACE_READY_TIMEOUT_MS
+  if (isWorkspaceReadyForNavigation(userId)) return
+  await Promise.race([loadWorkspaceReady(userId), createWorkspaceLoadTimeout(timeoutMs)])
+  if (!isWorkspaceReadyForNavigation(userId)) {
+    throw new Error("Workspace data was not confirmed by the server.")
+  }
+}
+
+export function createBrowserWorkspaceSyncCoordinator(alerts?: BrowserWorkspaceSyncAlerts) {
+  if (alerts) syncCoordinatorAlerts = alerts
+  if (syncCoordinator) return syncCoordinator
+
   const supabase = createSupabaseBrowserClient()
-  return createWorkspaceSyncCoordinator({
+  syncCoordinator = createWorkspaceSyncCoordinator({
     auth: {
       async getCurrentUser() {
         const { data } = await getSupabaseUser()
@@ -228,22 +299,30 @@ export function createBrowserWorkspaceSyncCoordinator(alerts: {
     syncService: {
       replayQueued: replayQueuedCloudSync,
     },
-      events: {
-        emitCloudSync() {
-          window.dispatchEvent(new Event("easybill:cloud-sync"))
-        },
-        emitAuthSyncInitialized() {
-          window.dispatchEvent(new Event("easybill:auth-sync-initialized"))
-        },
-        emitWorkspaceSyncStatus: publishWorkspaceSyncStatus,
-        onFocus(callback) {
-          window.addEventListener("focus", callback)
+    events: {
+      emitCloudSync() {
+        window.dispatchEvent(new Event("easybill:cloud-sync"))
+      },
+      emitAuthSyncInitialized() {
+        window.dispatchEvent(new Event("easybill:auth-sync-initialized"))
+      },
+      emitWorkspaceSyncStatus: publishWorkspaceSyncStatus,
+      onFocus(callback) {
+        window.addEventListener("focus", callback)
         return () => window.removeEventListener("focus", callback)
       },
       isVisible() {
         return document.visibilityState === "visible"
       },
     },
-    alerts,
+    alerts: {
+      accountChanged() {
+        syncCoordinatorAlerts.accountChanged()
+      },
+      signedOut() {
+        syncCoordinatorAlerts.signedOut()
+      },
+    },
   })
+  return syncCoordinator
 }

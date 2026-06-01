@@ -11,6 +11,7 @@ import { runSeedAndScopeMigration } from "@/lib/seedDataMigration"
 import { emptySetupProfileDraft, saveSetupProfileDraft } from "@/lib/setupProfileDraft"
 import { createSupabaseBrowserClient, getSupabaseUser } from "@/lib/supabase/browser"
 import { getActiveOrGlobalItem, setActiveOrGlobalItem } from "@/lib/userStore"
+import { ensureWorkspaceReadyForNavigation } from "@/lib/workspaceRuntime"
 import { cn } from "@/lib/utils"
 import {
   ArrowRight,
@@ -584,12 +585,14 @@ export default function Home() {
   const [createErrorMessage, setCreateErrorMessage] = useState("")
   const [createOtpMessage, setCreateOtpMessage] = useState("")
   const [primaryBusy, setPrimaryBusy] = useState(false)
+  const [signinBusyLabel, setSigninBusyLabel] = useState("Signing in...")
   const [oauthBusy, setOauthBusy] = useState(false)
   const [otpMode, setOtpMode] = useState<"create" | "signin" | null>(null)
   const [otpEmail, setOtpEmail] = useState("")
   const [otpToken, setOtpToken] = useState("")
   const [otpVerifyError, setOtpVerifyError] = useState("")
   const [otpBusy, setOtpBusy] = useState(false)
+  const [otpBusyLabel, setOtpBusyLabel] = useState("Verifying...")
   const [showSigninPassword, setShowSigninPassword] = useState(false)
   const [showCreatePassword, setShowCreatePassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
@@ -710,6 +713,7 @@ export default function Home() {
   async function handlePrimaryAction() {
     if (primaryBusy) return
     setPrimaryBusy(true)
+    setSigninBusyLabel("Signing in...")
     setSigninError("")
     setCreateErrorMessage("")
     setCreateOtpMessage("")
@@ -828,53 +832,59 @@ export default function Home() {
 
     // After sign-in, check onboarding completion from the relational profile row.
     const navigate = async () => {
-      const supabase = createSupabaseBrowserClient()
-      const userId = await waitForSignedInUser()
-      if (!userId) {
-        router.push("/dashboard")
-        return
-      }
+      try {
+        const supabase = createSupabaseBrowserClient()
+        const userId = await waitForSignedInUser()
+        if (!userId) {
+          throw new Error("Unable to confirm your signed-in session. Please try again.")
+        }
 
-      const [profileSeed, settingsSeed] = await Promise.all([
-        supabase.from("profiles").select("user_id").eq("user_id", userId).maybeSingle(),
-        supabase.from("user_settings").select("user_id").eq("user_id", userId).maybeSingle(),
-      ])
-      await Promise.allSettled([
-        profileSeed.data ? Promise.resolve() : supabase.from("profiles").insert({ user_id: userId, onboarding_completed: false }),
-        settingsSeed.data ? Promise.resolve() : supabase.from("user_settings").insert({ user_id: userId }),
-      ])
+        const [profileSeed, settingsSeed] = await Promise.all([
+          supabase.from("profiles").select("user_id").eq("user_id", userId).maybeSingle(),
+          supabase.from("user_settings").select("user_id").eq("user_id", userId).maybeSingle(),
+        ])
+        await Promise.allSettled([
+          profileSeed.data ? Promise.resolve() : supabase.from("profiles").insert({ user_id: userId, onboarding_completed: false }),
+          settingsSeed.data ? Promise.resolve() : supabase.from("user_settings").insert({ user_id: userId }),
+        ])
 
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("onboarding_completed,business_name,address,phone,email")
-        .eq("user_id", userId)
-        .maybeSingle()
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("onboarding_completed,business_name,address,phone,email")
+          .eq("user_id", userId)
+          .maybeSingle()
 
-      const hasBusinessProfile = Boolean(
-        profile?.onboarding_completed ||
-          profile?.business_name ||
-          profile?.address ||
-          profile?.phone ||
-          profile?.email
-      )
-
-      if (!hasBusinessProfile) {
-        // Prepare Step-1 locally (email locked, business name blank until user edits).
-        setActiveOrGlobalItem(
-          "setupProfileDraft",
-          JSON.stringify({
-            ...emptySetupProfileDraft,
-            businessName: "",
-            email: signinEmail.trim(),
-            emailLocked: false,
-          })
+        const hasBusinessProfile = Boolean(
+          profile?.onboarding_completed ||
+            profile?.business_name ||
+            profile?.address ||
+            profile?.phone ||
+            profile?.email
         )
-        setActiveOrGlobalItem("setupResumePath", "/setup/profile")
-        router.push(`/setup/profile?businessName=&email=${encodeURIComponent(signinEmail.trim())}`)
-        return
-      }
 
-      router.push("/dashboard")
+        if (!hasBusinessProfile) {
+          // Prepare Step-1 locally (email locked, business name blank until user edits).
+          setActiveOrGlobalItem(
+            "setupProfileDraft",
+            JSON.stringify({
+              ...emptySetupProfileDraft,
+              businessName: "",
+              email: signinEmail.trim(),
+              emailLocked: false,
+            })
+          )
+          setActiveOrGlobalItem("setupResumePath", "/setup/profile")
+          router.push(`/setup/profile?businessName=&email=${encodeURIComponent(signinEmail.trim())}`)
+          return
+        }
+
+        setSigninBusyLabel("Creating your workspace...")
+        await ensureWorkspaceReadyForNavigation(userId)
+        router.push("/dashboard")
+      } catch (error) {
+        setSigninError(error instanceof Error ? error.message : "Unable to load workspace. Please try again.")
+        setPrimaryBusy(false)
+      }
     }
 
     void navigate()
@@ -906,6 +916,7 @@ export default function Home() {
     }
 
     setOtpBusy(true)
+    setOtpBusyLabel("Verifying...")
     setOtpVerifyError("")
 
     const currentOtpMode = otpMode
@@ -929,26 +940,36 @@ export default function Home() {
     }
 
     async function navigate() {
-      await waitForSignedInUser()
-      const resumePath = getActiveOrGlobalItem("setupResumePath")
-      const businessProfileRaw = getActiveOrGlobalItem("businessProfile")
-      const hasBusinessProfile = Boolean(businessProfileRaw)
+      try {
+        const userId = await waitForSignedInUser()
+        const resumePath = getActiveOrGlobalItem("setupResumePath")
+        const businessProfileRaw = getActiveOrGlobalItem("businessProfile")
+        const hasBusinessProfile = Boolean(businessProfileRaw)
 
-      const resumeIsSetup = typeof resumePath === "string" && resumePath.startsWith("/setup/profile")
+        const resumeIsSetup = typeof resumePath === "string" && resumePath.startsWith("/setup/profile")
 
-      if (currentOtpMode === "create") {
-        if (resumeIsSetup && resumePath) router.push(resumePath)
-        else
-          router.push(
-            `/setup/profile?businessName=${encodeURIComponent(businessName.trim())}&email=${encodeURIComponent(currentEmail)}`
-          )
-        return
+        if (currentOtpMode === "create") {
+          if (resumeIsSetup && resumePath) router.push(resumePath)
+          else
+            router.push(
+              `/setup/profile?businessName=${encodeURIComponent(businessName.trim())}&email=${encodeURIComponent(currentEmail)}`
+            )
+          return
+        }
+
+        // signin
+        if (hasBusinessProfile) {
+          if (!userId) throw new Error("Unable to confirm your signed-in session. Please try again.")
+          setOtpBusyLabel("Creating your workspace...")
+          await ensureWorkspaceReadyForNavigation(userId)
+          router.push("/dashboard")
+        }
+        else if (resumeIsSetup && resumePath) router.push(resumePath)
+        else router.push("/setup/profile")
+      } catch (error) {
+        setOtpVerifyError(error instanceof Error ? error.message : "Unable to load workspace. Please try again.")
+        setOtpBusy(false)
       }
-
-      // signin
-      if (hasBusinessProfile) router.push("/dashboard")
-      else if (resumeIsSetup && resumePath) router.push(resumePath)
-      else router.push("/setup/profile")
     }
 
     void navigate()
@@ -1675,7 +1696,7 @@ export default function Home() {
                     disabled={otpBusy || otpToken.trim().length < 6}
                     className="mt-4 inline-flex min-h-[52px] w-full touch-manipulation items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3.5 text-[15px] font-semibold text-white shadow-[0_18px_44px_rgba(15,23,42,0.18)] transition-[opacity,background-color] duration-200 ease-[cubic-bezier(0.4,0,0.2,1)] hover:bg-slate-800 hover:opacity-[0.96] disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-indigo-200/90 md:min-h-0 md:py-3 md:text-sm md:focus-visible:ring-4 md:focus-visible:ring-indigo-100 lg:min-h-[52px] lg:px-6 lg:py-3.5 lg:text-base lg:shadow-[0_2px_16px_rgba(15,23,42,0.11)]"
                   >
-                    {otpBusy ? "Verifying..." : "Verify & continue"}
+                    {otpBusy ? otpBusyLabel : "Verify & continue"}
                   </button>
                 </div>
                 </div>
@@ -1701,7 +1722,7 @@ export default function Home() {
                         : "min-h-[52px] bg-slate-950 text-white shadow-[0_18px_44px_rgba(15,23,42,0.2)] hover:bg-slate-800 hover:opacity-[0.96] active:scale-[0.99] md:min-h-[48px] lg:bg-[#241a13] lg:shadow-[0_16px_34px_rgba(36,26,19,0.18)] lg:hover:bg-[#35261b]"
                     )}
                   >
-                    {primaryBusy ? (mode === "create" ? "Creating account..." : "Signing in...") : panelCopy.primary}
+                    {primaryBusy ? (mode === "create" ? "Creating account..." : signinBusyLabel) : panelCopy.primary}
                     <ArrowRight className="h-[18px] w-[18px] shrink-0 md:h-4 md:w-4 lg:h-[1.125rem] lg:w-[1.125rem]" />
                   </button>
 

@@ -356,6 +356,32 @@ export async function fetchWorkspaceSnapshot(supabase: SupabaseClient, userId: s
   }
 }
 
+export async function fetchWorkspaceBasics(supabase: SupabaseClient, userId: string) {
+  const [profileRes, settingsRes] = await Promise.all([
+    supabase.from("profiles").select("*").eq("user_id", userId).maybeSingle(),
+    supabase.from("user_settings").select("*").eq("user_id", userId).maybeSingle(),
+  ])
+
+  if (profileRes.error) throw profileRes.error
+  if (settingsRes.error) throw settingsRes.error
+
+  const logoSignedUrl = await getSignedStorageUrl(
+    supabase,
+    LOGO_BUCKET,
+    (profileRes.data as { logo_storage_path?: string | null } | null)?.logo_storage_path || null,
+    60 * 60 * 24 * 7
+  )
+
+  return {
+    profile: profileRes.data,
+    settings: settingsRes.data,
+    products: [],
+    customers: [],
+    invoices: [],
+    logoSignedUrl,
+  }
+}
+
 export async function fetchWorkspaceSnapshotEntries(supabase: SupabaseClient, userId: string) {
   return buildRelationalCacheEntries(await fetchWorkspaceSnapshot(supabase, userId))
 }

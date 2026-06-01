@@ -8,6 +8,7 @@ import {
 } from "@/lib/invoice"
 import {
   buildRelationalCacheEntries,
+  buildRelationalWorkspaceReadyEntries,
   mapRelationalInvoicesToRecords,
   syncInvoiceSequencesFromRecords,
   type RelationalCustomerRow,
@@ -15,6 +16,7 @@ import {
   type RelationalSyncPayload,
 } from "@/lib/supabase/relationalSync"
 import {
+  fetchWorkspaceBasics,
   fetchWorkspaceChanges,
   fetchWorkspaceSnapshot,
   upsertEmailChangeAudit,
@@ -193,6 +195,10 @@ export function openWorkspaceSnapshot(payload: RelationalSyncPayload): Relationa
 
 export async function fetchOpenedWorkspaceSnapshotEntries(supabase: SupabaseClient, userId: string) {
   return buildRelationalCacheEntries(openWorkspaceSnapshot(await fetchWorkspaceSnapshot(supabase, userId)))
+}
+
+export async function fetchOpenedWorkspaceReadyEntries(supabase: SupabaseClient, userId: string) {
+  return buildRelationalWorkspaceReadyEntries(openWorkspaceSnapshot(await fetchWorkspaceBasics(supabase, userId)))
 }
 
 export async function fetchOpenedWorkspaceChanges(

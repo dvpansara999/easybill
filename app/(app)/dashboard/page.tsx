@@ -7,7 +7,8 @@ import { formatDate, getStoredDateParts, parseStoredDate, storedDatePartsToDate 
 import { formatCurrency } from "@/lib/formatCurrency"
 import { compareInvoicesNewestFirst, sortInvoicesNewestFirst } from "@/lib/invoiceCollections"
 import { buildCustomerIdentity } from "@/lib/customerIdentity"
-import { getActiveOrGlobalItem } from "@/lib/userStore"
+import { getActiveOrGlobalItem, isActiveUserKvHydrated } from "@/lib/userStore"
+import { getAuthMode } from "@/lib/runtimeMode"
 import { readStoredInvoices, type InvoiceRecord } from "@/lib/invoice"
 import { useWorkspaceValue } from "@/lib/useWorkspaceValue"
 import {
@@ -264,7 +265,7 @@ export default function Dashboard() {
   const invoices = useWorkspaceValue(["invoices"], readStoredInvoices)
   const products = useWorkspaceValue(["products"], () => safeParseProducts(getActiveOrGlobalItem("products")))
   const snapshot = useMemo(() => buildDashboardSnapshot(invoices, products), [invoices, products])
-  const loadingSnapshot = false
+  const loadingSnapshot = getAuthMode() === "supabase" && !isActiveUserKvHydrated()
 
   useEffect(() => {
     router.prefetch("/dashboard/invoices")

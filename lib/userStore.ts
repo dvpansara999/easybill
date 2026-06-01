@@ -29,7 +29,9 @@ const BUNDLED_KEYS = new Set([
 // Supabase-first cache: avoids localStorage as the primary store in cloud mode.
 // Keyed as `${userId}:${key}`.
 const cloudCache = new Map<string, string>()
+const workspaceReadyUsers = new Set<string>()
 const hydratedUsers = new Set<string>()
+const COLLECTION_KEYS = new Set(["products", "customers", "invoices"])
 
 function warmCacheStorageKey(key: string, userId: string) {
   return scopedKey(`warm-cache:${key}`, userId)
@@ -152,6 +154,7 @@ function readBundledValue(userId: string, key: string): string | null {
 
 export function primeUserKvCache(userId: string, entries: Array<{ key: string; value: string }>) {
   if (getAuthMode() !== "supabase") return
+  workspaceReadyUsers.add(userId)
   hydratedUsers.add(userId)
   for (const row of entries) {
     if (!row?.key) continue
@@ -160,7 +163,18 @@ export function primeUserKvCache(userId: string, entries: Array<{ key: string; v
   }
 }
 
+export function primeUserWorkspaceCache(userId: string, entries: Array<{ key: string; value: string }>) {
+  if (getAuthMode() !== "supabase") return
+  workspaceReadyUsers.add(userId)
+  for (const row of entries) {
+    if (!row?.key) continue
+    cloudCache.set(cacheId(userId, row.key), row.value)
+    writeWarmCache(row.key, userId, row.value)
+  }
+}
+
 export function clearUserKvCache(userId: string) {
+  workspaceReadyUsers.delete(userId)
   hydratedUsers.delete(userId)
   for (const k of cloudCache.keys()) {
     if (k.startsWith(`${userId}:`)) cloudCache.delete(k)
@@ -196,6 +210,10 @@ export function clearUserWorkspaceLocalState(userId: string) {
 
 export function isUserKvHydrated(userId: string) {
   return hydratedUsers.has(userId)
+}
+
+export function isUserWorkspaceReady(userId: string) {
+  return workspaceReadyUsers.has(userId)
 }
 
 export function isActiveUserKvHydrated() {
@@ -238,7 +256,12 @@ export function getUserItem(key: string, userId: string) {
   if (getAuthMode() === "supabase") {
     const bundled = readBundledValue(userId, key)
     if (bundled != null) return revealSensitiveDataFromStorage(key, bundled)
-    const raw = cloudCache.get(cacheId(userId, key)) ?? readWarmCache(key, userId)
+    const inMemoryRaw = cloudCache.get(cacheId(userId, key))
+    const raw =
+      inMemoryRaw ??
+      (COLLECTION_KEYS.has(key) && !hydratedUsers.has(userId)
+        ? null
+        : readWarmCache(key, userId))
     return raw == null ? null : revealSensitiveDataFromStorage(key, raw)
   }
   const raw = localStorage.getItem(scopedKey(key, userId))

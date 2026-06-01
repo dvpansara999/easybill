@@ -365,9 +365,53 @@ function buildSettingsSnapshot(settings: RelationalSettingsRow | null) {
   }
 }
 
-export function buildRelationalCacheEntries(payload: RelationalSyncPayload) {
+export function buildRelationalWorkspaceReadyEntries(payload: RelationalSyncPayload) {
   const settings = buildSettingsSnapshot(payload.settings)
   const businessProfile = buildBusinessProfileCache(payload.profile, payload.logoSignedUrl)
+
+  const bundle = {
+    businessProfile,
+    dateFormat: settings.dateFormat,
+    amountFormat: settings.amountFormat,
+    showDecimals: settings.showDecimals,
+    invoicePrefix: settings.invoicePrefix,
+    invoicePadding: settings.invoicePadding,
+    invoiceStartNumber: settings.invoiceStartNumber,
+    resetYearly: settings.resetYearly,
+    invoiceResetMonthDay: settings.invoiceResetMonthDay,
+    currencySymbol: settings.currencySymbol,
+    currencyPosition: settings.currencyPosition,
+    invoiceVisibility: settings.invoiceVisibility,
+  }
+
+  const emailAudit = payload.profile?.email_change_audit_at ? "1" : ""
+
+  return [
+    { key: "accountSetupBundle", value: JSON.stringify(bundle) },
+    { key: "businessProfile", value: JSON.stringify(businessProfile) },
+    { key: "invoiceTemplate", value: settings.invoiceTemplate },
+    { key: "invoiceVisibility", value: JSON.stringify(settings.invoiceVisibility) },
+    { key: "subscriptionPlanId", value: settings.subscriptionPlanId },
+    { key: "invoiceUsageCount", value: String(settings.invoiceUsageCount) },
+    { key: "invoiceUsageInitialized:v1", value: String(settings.invoiceUsageInitialized) },
+    { key: "templateTypography", value: settings.templateTypography },
+    { key: "invoiceTemplateFontId", value: settings.templateFontId },
+    { key: "invoiceTemplateFontSize", value: String(settings.templateFontSize) },
+    { key: "dateFormat", value: settings.dateFormat },
+    { key: "amountFormat", value: settings.amountFormat },
+    { key: "showDecimals", value: String(settings.showDecimals) },
+    { key: "invoicePrefix", value: settings.invoicePrefix },
+    { key: "invoicePadding", value: String(settings.invoicePadding) },
+    { key: "invoiceStartNumber", value: String(settings.invoiceStartNumber) },
+    { key: "resetYearly", value: String(settings.resetYearly) },
+    { key: "invoiceResetMonthDay", value: settings.invoiceResetMonthDay },
+    { key: "currencySymbol", value: settings.currencySymbol },
+    { key: "currencyPosition", value: settings.currencyPosition },
+    { key: "emailChangeAudit", value: emailAudit },
+  ] as Array<{ key: RelationalCacheKey; value: string }>
+}
+
+export function buildRelationalCacheEntries(payload: RelationalSyncPayload) {
   const invoices = mapRelationalInvoicesToRecords(payload.invoices)
   const products = payload.products.map((row) => ({
     id: row.id || undefined,
@@ -400,48 +444,11 @@ export function buildRelationalCacheEntries(payload: RelationalSyncPayload) {
     address: row.address || "",
   }))
 
-  const bundle = {
-    businessProfile,
-    dateFormat: settings.dateFormat,
-    amountFormat: settings.amountFormat,
-    showDecimals: settings.showDecimals,
-    invoicePrefix: settings.invoicePrefix,
-    invoicePadding: settings.invoicePadding,
-    invoiceStartNumber: settings.invoiceStartNumber,
-    resetYearly: settings.resetYearly,
-    invoiceResetMonthDay: settings.invoiceResetMonthDay,
-    currencySymbol: settings.currencySymbol,
-    currencyPosition: settings.currencyPosition,
-    invoiceVisibility: settings.invoiceVisibility,
-  }
-
-  const emailAudit = payload.profile?.email_change_audit_at ? "1" : ""
-
   return [
-    { key: "accountSetupBundle", value: JSON.stringify(bundle) },
-    { key: "businessProfile", value: JSON.stringify(businessProfile) },
+    ...buildRelationalWorkspaceReadyEntries(payload),
     { key: "invoices", value: serializeInvoiceStore(invoices) },
     { key: "products", value: JSON.stringify(products) },
     { key: "customers", value: JSON.stringify(customers) },
-    { key: "invoiceTemplate", value: settings.invoiceTemplate },
-    { key: "invoiceVisibility", value: JSON.stringify(settings.invoiceVisibility) },
-    { key: "subscriptionPlanId", value: settings.subscriptionPlanId },
-    { key: "invoiceUsageCount", value: String(settings.invoiceUsageCount) },
-    { key: "invoiceUsageInitialized:v1", value: String(settings.invoiceUsageInitialized) },
-    { key: "templateTypography", value: settings.templateTypography },
-    { key: "invoiceTemplateFontId", value: settings.templateFontId },
-    { key: "invoiceTemplateFontSize", value: String(settings.templateFontSize) },
-    { key: "dateFormat", value: settings.dateFormat },
-    { key: "amountFormat", value: settings.amountFormat },
-    { key: "showDecimals", value: String(settings.showDecimals) },
-    { key: "invoicePrefix", value: settings.invoicePrefix },
-    { key: "invoicePadding", value: String(settings.invoicePadding) },
-    { key: "invoiceStartNumber", value: String(settings.invoiceStartNumber) },
-    { key: "resetYearly", value: String(settings.resetYearly) },
-    { key: "invoiceResetMonthDay", value: settings.invoiceResetMonthDay },
-    { key: "currencySymbol", value: settings.currencySymbol },
-    { key: "currencyPosition", value: settings.currencyPosition },
-    { key: "emailChangeAudit", value: emailAudit },
   ] as Array<{ key: RelationalCacheKey; value: string }>
 }
 

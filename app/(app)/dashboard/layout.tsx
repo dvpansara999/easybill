@@ -6,11 +6,11 @@ import Sidebar from "@/components/sidebar"
 import EasyBillLogoMark from "@/components/brand/EasyBillLogoMark"
 import WorkspaceSyncStatusIndicator from "@/components/WorkspaceSyncStatusIndicator"
 import { getSupabaseUser } from "@/lib/supabase/browser"
-import { getActiveAuthRecord } from "@/lib/auth"
+import { getActiveAuthRecord, signOut } from "@/lib/auth"
 import { enforceFreeRestrictions, getActivePlanId, type PlanId } from "@/lib/plans"
 import { getAuthMode } from "@/lib/runtimeMode"
-import { hasUserWarmCache, isUserKvHydrated } from "@/lib/userStore"
 import { useWorkspaceValue } from "@/lib/useWorkspaceValue"
+import { ensureWorkspaceReadyForNavigation, isWorkspaceReadyForNavigation } from "@/lib/workspaceRuntime"
 import { Menu } from "lucide-react"
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
 
@@ -21,10 +21,12 @@ export default function DashboardLayout({
 }) {
   const router = useRouter()
   const [ready, setReady] = useState(false)
+  const [loadError, setLoadError] = useState("")
   const [menuOpen, setMenuOpen] = useState(false)
   const planId = useWorkspaceValue<PlanId>(["subscriptionPlanId"], () => getActivePlanId())
 
   useEffect(() => {
+    let cancelled = false
     async function guard() {
       const mode = getAuthMode()
 
@@ -34,7 +36,7 @@ export default function DashboardLayout({
           return
         }
         enforceFreeRestrictions()
-        setReady(true)
+        if (!cancelled) setReady(true)
         return
       }
 
@@ -44,22 +46,21 @@ export default function DashboardLayout({
         router.replace("/")
         return
       }
-      const applyPlanAndRestrictions = () => {
-        enforceFreeRestrictions()
-      }
 
-      if (mode !== "supabase" || isUserKvHydrated(data.user.id) || hasUserWarmCache(data.user.id)) {
-        applyPlanAndRestrictions()
-      } else {
-        const onCloud = () => {
-          window.removeEventListener("easybill:cloud-sync", onCloud as EventListener)
-          applyPlanAndRestrictions()
-        }
-        window.addEventListener("easybill:cloud-sync", onCloud as EventListener)
+      if (!isWorkspaceReadyForNavigation(data.user.id)) {
+        await ensureWorkspaceReadyForNavigation(data.user.id)
       }
+      if (cancelled) return
+      enforceFreeRestrictions()
       setReady(true)
     }
-    void guard()
+    void guard().catch((error) => {
+      if (cancelled) return
+      setLoadError(error instanceof Error ? error.message : "Unable to load workspace. Please try again.")
+    })
+    return () => {
+      cancelled = true
+    }
   }, [router])
 
   useEffect(() => {
@@ -81,8 +82,33 @@ export default function DashboardLayout({
             </div>
             <p className="mt-5 text-xs font-semibold uppercase tracking-[0.28em] text-emerald-700">Loading workspace</p>
             <p className="mt-3 text-sm leading-7 text-slate-500">
-              Syncing your account, settings, and plan details so the dashboard opens in the right state.
+              {loadError || "Syncing your account, settings, and plan details so the dashboard opens in the right state."}
             </p>
+            {loadError ? (
+              <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLoadError("")
+                    setReady(false)
+                    window.location.reload()
+                  }}
+                  className="app-primary-button rounded-2xl px-5 py-3 text-sm font-semibold text-white"
+                >
+                  Retry
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await signOut()
+                    router.replace("/")
+                  }}
+                  className="app-secondary-button rounded-2xl px-5 py-3 text-sm font-semibold text-slate-700"
+                >
+                  Sign Out
+                </button>
+              </div>
+            ) : null}
           </div>
         </div>
       </div>
