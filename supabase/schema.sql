@@ -350,7 +350,7 @@ alter table public.invoice_history enable row level security;
 alter table public.invoice_pdf_exports enable row level security;
 
 -- Base table privileges required before RLS policies can apply.
-grant usage on schema public to authenticated;
+grant usage on schema public to authenticated, service_role;
 grant select, insert, update, delete on table
   public.profiles,
   public.user_settings,
@@ -363,6 +363,18 @@ grant select, insert, update, delete on table
   public.invoice_history,
   public.invoice_pdf_exports
 to authenticated;
+grant select, insert, update, delete on table
+  public.profiles,
+  public.user_settings,
+  public.account_lifecycle_locks,
+  public.customers,
+  public.products,
+  public.invoice_sequences,
+  public.invoices,
+  public.invoice_items,
+  public.invoice_history,
+  public.invoice_pdf_exports
+to service_role;
 
 drop policy if exists "profiles_select_own" on public.profiles;
 create policy "profiles_select_own" on public.profiles for select using (auth.uid() = user_id);

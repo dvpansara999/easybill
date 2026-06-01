@@ -1,0 +1,394 @@
+import { DEFAULT_INVOICE_VISIBILITY } from "@/lib/invoiceVisibilityShared";
+import { DEFAULT_RESET_MONTH_DAY, normalizeResetMonthDay } from "@/lib/invoiceResetDate";
+import { normalizeBusinessProfile } from "@/lib/businessProfile";
+import { extractLogoStoragePath } from "@/lib/logoStorage";
+import { normalizeInvoiceRecord, serializeInvoiceStore, } from "@/lib/invoice";
+import { revealSensitiveFields } from "@/lib/sensitiveData";
+export const RELATIONAL_CACHE_KEYS = [
+    "accountSetupBundle",
+    "businessProfile",
+    "invoices",
+    "products",
+    "customers",
+    "invoiceTemplate",
+    "invoiceVisibility",
+    "subscriptionPlanId",
+    "invoiceUsageCount",
+    "invoiceUsageInitialized:v1",
+    "templateTypography",
+    "invoiceTemplateFontId",
+    "invoiceTemplateFontSize",
+    "dateFormat",
+    "amountFormat",
+    "showDecimals",
+    "invoicePrefix",
+    "invoicePadding",
+    "invoiceStartNumber",
+    "resetYearly",
+    "invoiceResetMonthDay",
+    "currencySymbol",
+    "currencyPosition",
+    "emailChangeAudit",
+];
+const defaultSettings = {
+    dateFormat: "YYYY-MM-DD",
+    amountFormat: "indian",
+    showDecimals: true,
+    invoicePrefix: "INV-",
+    invoicePadding: 4,
+    invoiceStartNumber: 1,
+    resetYearly: true,
+    invoiceResetMonthDay: DEFAULT_RESET_MONTH_DAY,
+    currencySymbol: "₹",
+    currencyPosition: "before",
+    invoiceVisibility: DEFAULT_INVOICE_VISIBILITY,
+    invoiceTemplate: "",
+    templateTypography: "",
+    templateFontId: "",
+    templateFontSize: 10,
+    subscriptionPlanId: "free",
+    invoiceUsageCount: 0,
+    invoiceUsageInitialized: false,
+};
+function safeJsonParse(raw, fallback) {
+    if (!raw)
+        return fallback;
+    try {
+        return JSON.parse(raw);
+    }
+    catch {
+        return fallback;
+    }
+}
+function normalizeCustomDetails(value) {
+    if (!Array.isArray(value))
+        return [];
+    return value
+        .map((detail) => {
+        const parsed = typeof detail === "object" && detail !== null ? detail : {};
+        return {
+            label: typeof parsed.label === "string" ? parsed.label : "",
+            value: typeof parsed.value === "string" ? parsed.value : "",
+        };
+    })
+        .filter((detail) => detail.label || detail.value);
+}
+function mapInvoiceItems(rows) {
+    return (rows || [])
+        .filter((row) => !row.deleted_at)
+        .slice()
+        .sort((a, b) => Number(a.position || 0) - Number(b.position || 0))
+        .map((row) => ({
+        product: row.product || "",
+        hsn: row.hsn || "",
+        qty: Number(row.qty || 0),
+        unit: row.unit || "",
+        price: Number(row.price || 0),
+        cgst: Number(row.cgst || 0),
+        sgst: Number(row.sgst || 0),
+        igst: Number(row.igst || 0),
+        total: Number(row.total || 0),
+    }));
+}
+function mapInvoiceHistory(rows) {
+    return (rows || [])
+        .filter((row) => !row.deleted_at)
+        .slice()
+        .sort((a, b) => String(a.happened_at || "").localeCompare(String(b.happened_at || "")))
+        .map((row) => ({
+        id: row.id || "",
+        type: row.event_type === "edited" ||
+            row.event_type === "exported" ||
+            row.event_type === "status" ||
+            row.event_type === "duplicated"
+            ? row.event_type
+            : "created",
+        label: row.label || "Invoice updated",
+        at: row.happened_at || new Date().toISOString(),
+    }));
+}
+export function mapRelationalInvoicesToRecords(rows) {
+    return rows.map((row) => {
+        const safeRow = revealSensitiveFields({
+            client_name: row.client_name || "",
+            client_phone: row.client_phone || "",
+            client_email: row.client_email || "",
+            client_gst: row.client_gst || "",
+            client_address: row.client_address || "",
+        }, ["client_phone", "client_gst"]);
+        return normalizeInvoiceRecord({
+            id: row.id,
+            invoiceNumber: row.invoice_number,
+            createdAt: row.created_at || undefined,
+            numberingModeAtCreation: row.numbering_mode_at_creation || "continuous",
+            resetMonthDayAtCreation: row.reset_month_day_at_creation || null,
+            sequenceWindowStart: row.sequence_window_start || null,
+            sequenceWindowEnd: row.sequence_window_end || null,
+            clientName: String(safeRow.client_name || ""),
+            clientPhone: String(safeRow.client_phone || ""),
+            clientPhoneHash: row.client_phone_hash || undefined,
+            clientEmail: String(safeRow.client_email || ""),
+            clientGST: String(safeRow.client_gst || ""),
+            clientGstHash: row.client_gst_hash || undefined,
+            customerIdentityKey: row.customer_identity_key || undefined,
+            clientAddress: String(safeRow.client_address || ""),
+            date: row.invoice_date,
+            customDetails: normalizeCustomDetails(row.custom_details),
+            items: mapInvoiceItems(row.invoice_items),
+            notes: row.notes || "",
+            status: row.status || "draft",
+            history: mapInvoiceHistory(row.invoice_history),
+            grandTotal: Number(row.grand_total || 0),
+        });
+    });
+}
+export function buildBusinessProfileCache(profile, logoSignedUrl) {
+    const safeProfile = revealSensitiveFields({
+        business_name: profile?.business_name || "",
+        phone: profile?.phone || "",
+        email: profile?.email || "",
+        gst: profile?.gst || "",
+        address: profile?.address || "",
+        bank_name: profile?.bank_name || "",
+        account_number: profile?.account_number || "",
+        ifsc: profile?.ifsc || "",
+        upi: profile?.upi || "",
+        terms: profile?.terms || "",
+    }, ["business_name", "phone", "gst", "bank_name", "account_number", "ifsc", "upi"]);
+    return normalizeBusinessProfile({
+        businessName: String(safeProfile.business_name || ""),
+        phone: String(safeProfile.phone || ""),
+        email: String(safeProfile.email || ""),
+        gst: String(safeProfile.gst || ""),
+        address: String(safeProfile.address || ""),
+        bankName: String(safeProfile.bank_name || ""),
+        accountNumber: String(safeProfile.account_number || ""),
+        ifsc: String(safeProfile.ifsc || ""),
+        upi: String(safeProfile.upi || ""),
+        terms: String(safeProfile.terms || ""),
+        logo: logoSignedUrl || "",
+        logoShape: profile?.logo_shape === "round" ? "round" : "square",
+        logoStoragePath: profile?.logo_storage_path || "",
+    });
+}
+function buildSettingsSnapshot(settings) {
+    const invoiceVisibility = {
+        ...DEFAULT_INVOICE_VISIBILITY,
+        ...(settings?.invoice_visibility || {}),
+    };
+    return {
+        dateFormat: settings?.date_format || defaultSettings.dateFormat,
+        amountFormat: settings?.amount_format || defaultSettings.amountFormat,
+        showDecimals: settings?.show_decimals ?? defaultSettings.showDecimals,
+        invoicePrefix: settings?.invoice_prefix || defaultSettings.invoicePrefix,
+        invoicePadding: Number(settings?.invoice_padding ?? defaultSettings.invoicePadding),
+        invoiceStartNumber: Number(settings?.invoice_start_number ?? defaultSettings.invoiceStartNumber),
+        resetYearly: settings?.reset_yearly ?? defaultSettings.resetYearly,
+        invoiceResetMonthDay: normalizeResetMonthDay(settings?.invoice_reset_month_day || DEFAULT_RESET_MONTH_DAY),
+        currencySymbol: settings?.currency_symbol || defaultSettings.currencySymbol,
+        currencyPosition: settings?.currency_position === "after" ? "after" : "before",
+        invoiceVisibility,
+        invoiceTemplate: settings?.invoice_template || defaultSettings.invoiceTemplate,
+        templateTypography: settings?.template_typography || defaultSettings.templateTypography,
+        templateFontId: settings?.template_font_id || defaultSettings.templateFontId,
+        templateFontSize: Number(settings?.template_font_size ?? defaultSettings.templateFontSize),
+        subscriptionPlanId: settings?.subscription_plan_id || defaultSettings.subscriptionPlanId,
+        invoiceUsageCount: Number(settings?.invoice_usage_count ?? defaultSettings.invoiceUsageCount),
+        invoiceUsageInitialized: settings?.invoice_usage_initialized ?? defaultSettings.invoiceUsageInitialized,
+    };
+}
+export function buildRelationalCacheEntries(payload) {
+    const settings = buildSettingsSnapshot(payload.settings);
+    const businessProfile = buildBusinessProfileCache(payload.profile, payload.logoSignedUrl);
+    const invoices = mapRelationalInvoicesToRecords(payload.invoices);
+    const products = payload.products.map((row) => ({
+        id: row.id || undefined,
+        updated_at: row.updated_at || undefined,
+        deleted_at: row.deleted_at || undefined,
+        sync_status: row.sync_status || undefined,
+        last_synced_at: row.last_synced_at || undefined,
+        name: row.name || "",
+        hsn: row.hsn || "",
+        unit: row.unit || "",
+        price: Number(row.price || 0),
+        cgst: Number(row.cgst || 0),
+        sgst: Number(row.sgst || 0),
+        igst: Number(row.igst || 0),
+    }));
+    const customers = payload.customers.map((row) => ({
+        id: row.id || undefined,
+        updated_at: row.updated_at || undefined,
+        deleted_at: row.deleted_at || undefined,
+        sync_status: row.sync_status || undefined,
+        last_synced_at: row.last_synced_at || undefined,
+        identity_key: row.identity_key || undefined,
+        identity_hash: row.identity_hash || undefined,
+        phone_hash: row.phone_hash || undefined,
+        gst_hash: row.gst_hash || undefined,
+        name: row.name || "",
+        phone: row.phone || "",
+        email: row.email || "",
+        gst: row.gst || "",
+        address: row.address || "",
+    }));
+    const bundle = {
+        businessProfile,
+        dateFormat: settings.dateFormat,
+        amountFormat: settings.amountFormat,
+        showDecimals: settings.showDecimals,
+        invoicePrefix: settings.invoicePrefix,
+        invoicePadding: settings.invoicePadding,
+        invoiceStartNumber: settings.invoiceStartNumber,
+        resetYearly: settings.resetYearly,
+        invoiceResetMonthDay: settings.invoiceResetMonthDay,
+        currencySymbol: settings.currencySymbol,
+        currencyPosition: settings.currencyPosition,
+        invoiceVisibility: settings.invoiceVisibility,
+    };
+    const emailAudit = payload.profile?.email_change_audit_at ? "1" : "";
+    return [
+        { key: "accountSetupBundle", value: JSON.stringify(bundle) },
+        { key: "businessProfile", value: JSON.stringify(businessProfile) },
+        { key: "invoices", value: serializeInvoiceStore(invoices) },
+        { key: "products", value: JSON.stringify(products) },
+        { key: "customers", value: JSON.stringify(customers) },
+        { key: "invoiceTemplate", value: settings.invoiceTemplate },
+        { key: "invoiceVisibility", value: JSON.stringify(settings.invoiceVisibility) },
+        { key: "subscriptionPlanId", value: settings.subscriptionPlanId },
+        { key: "invoiceUsageCount", value: String(settings.invoiceUsageCount) },
+        { key: "invoiceUsageInitialized:v1", value: String(settings.invoiceUsageInitialized) },
+        { key: "templateTypography", value: settings.templateTypography },
+        { key: "invoiceTemplateFontId", value: settings.templateFontId },
+        { key: "invoiceTemplateFontSize", value: String(settings.templateFontSize) },
+        { key: "dateFormat", value: settings.dateFormat },
+        { key: "amountFormat", value: settings.amountFormat },
+        { key: "showDecimals", value: String(settings.showDecimals) },
+        { key: "invoicePrefix", value: settings.invoicePrefix },
+        { key: "invoicePadding", value: String(settings.invoicePadding) },
+        { key: "invoiceStartNumber", value: String(settings.invoiceStartNumber) },
+        { key: "resetYearly", value: String(settings.resetYearly) },
+        { key: "invoiceResetMonthDay", value: settings.invoiceResetMonthDay },
+        { key: "currencySymbol", value: settings.currencySymbol },
+        { key: "currencyPosition", value: settings.currencyPosition },
+        { key: "emailChangeAudit", value: emailAudit },
+    ];
+}
+export async function getSignedStorageUrl(supabase, bucket, path, expiresInSeconds = 60 * 60 * 24) {
+    if (!path)
+        return null;
+    const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, expiresInSeconds);
+    if (error)
+        return null;
+    return data.signedUrl || null;
+}
+function invoiceScopeParts(invoice) {
+    const scopeStart = invoice.sequenceWindowStart || "continuous";
+    const resetMonthDay = invoice.resetMonthDayAtCreation || "none";
+    const numberingMode = invoice.numberingModeAtCreation || "continuous";
+    return {
+        scopeKey: `${numberingMode}:${scopeStart}:${resetMonthDay}`,
+        numberingMode,
+        scopeStart,
+        scopeEnd: invoice.sequenceWindowEnd || null,
+        resetMonthDay,
+    };
+}
+function extractTrailingSequence(invoiceNumber) {
+    const match = /(\d+)$/.exec(invoiceNumber);
+    if (!match)
+        return null;
+    const parsed = Number(match[1]);
+    return Number.isFinite(parsed) ? parsed : null;
+}
+export async function syncInvoiceSequencesFromRecords(supabase, userId, invoices) {
+    const maxByScope = new Map();
+    for (const invoice of invoices) {
+        const sequenceValue = extractTrailingSequence(invoice.invoiceNumber);
+        if (!sequenceValue)
+            continue;
+        const scope = invoiceScopeParts(invoice);
+        const existing = maxByScope.get(scope.scopeKey);
+        if (!existing || sequenceValue > existing.last_value) {
+            maxByScope.set(scope.scopeKey, {
+                numbering_mode: scope.numberingMode,
+                scope_start: scope.scopeStart,
+                scope_end: scope.scopeEnd,
+                reset_month_day: scope.resetMonthDay === "none" ? null : scope.resetMonthDay,
+                last_value: sequenceValue,
+            });
+        }
+    }
+    const rows = Array.from(maxByScope.entries()).map(([scopeKey, row]) => ({
+        user_id: userId,
+        scope_key: scopeKey,
+        ...row,
+    }));
+    if (!rows.length)
+        return;
+    await supabase.from("invoice_sequences").upsert(rows, { onConflict: "user_id,scope_key" });
+}
+export function buildProfileUpsertFromCache(rawValue) {
+    const profile = normalizeBusinessProfile(safeJsonParse(rawValue, {}));
+    const logoStoragePath = profile.logoStoragePath ||
+        extractLogoStoragePath(profile.logo) ||
+        null;
+    return {
+        business_name: profile.businessName || null,
+        phone: profile.phone || null,
+        email: profile.email || null,
+        gst: profile.gst || null,
+        address: profile.address || null,
+        bank_name: profile.bankName || null,
+        account_number: profile.accountNumber || null,
+        ifsc: profile.ifsc || null,
+        upi: profile.upi || null,
+        terms: profile.terms || null,
+        logo_storage_path: logoStoragePath,
+        logo_shape: profile.logoShape === "round" ? "round" : "square",
+    };
+}
+export function buildSettingsUpsertPatch(key, rawValue) {
+    const invoiceVisibility = safeJsonParse(rawValue, DEFAULT_INVOICE_VISIBILITY);
+    switch (key) {
+        case "invoiceTemplate":
+            return { invoice_template: rawValue || "" };
+        case "invoiceVisibility":
+            return { invoice_visibility: invoiceVisibility };
+        case "subscriptionPlanId":
+            return { subscription_plan_id: rawValue || "free" };
+        case "invoiceUsageCount":
+            return { invoice_usage_count: Number(rawValue || 0) };
+        case "invoiceUsageInitialized:v1":
+            return { invoice_usage_initialized: rawValue === "true" };
+        case "templateTypography":
+            return { template_typography: rawValue || "" };
+        case "invoiceTemplateFontId":
+            return { template_font_id: rawValue || "" };
+        case "invoiceTemplateFontSize":
+            return { template_font_size: Number(rawValue || 10) };
+        case "dateFormat":
+            return { date_format: rawValue || defaultSettings.dateFormat };
+        case "amountFormat":
+            return { amount_format: rawValue || defaultSettings.amountFormat };
+        case "showDecimals":
+            return { show_decimals: rawValue === "true" };
+        case "invoicePrefix":
+            return { invoice_prefix: rawValue || defaultSettings.invoicePrefix };
+        case "invoicePadding":
+            return { invoice_padding: Number(rawValue || defaultSettings.invoicePadding) };
+        case "invoiceStartNumber":
+            return { invoice_start_number: Number(rawValue || defaultSettings.invoiceStartNumber) };
+        case "resetYearly":
+            return { reset_yearly: rawValue === "true" };
+        case "invoiceResetMonthDay":
+            return { invoice_reset_month_day: normalizeResetMonthDay(rawValue) };
+        case "currencySymbol":
+            return { currency_symbol: rawValue || defaultSettings.currencySymbol };
+        case "currencyPosition":
+            return { currency_position: rawValue === "after" ? "after" : "before" };
+        case "emailChangeAudit":
+            return rawValue ? { email_change_audit_at: new Date().toISOString() } : {};
+        default:
+            return {};
+    }
+}

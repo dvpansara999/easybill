@@ -401,6 +401,14 @@ runCase("SettingsProvider does not write workspace defaults before Supabase auth
   assert.doesNotMatch(source, /if \(!supabaseNeedsHydration\) writeMissingDefaults\(\)/)
 })
 
+runCase("Auth bootstrap preserves reset-completed onboarding state", () => {
+  for (const sourcePath of ["../../app/auth/callback/route.ts", "../../app/page.tsx"]) {
+    const source = readFileSync(new URL(sourcePath, import.meta.url), "utf8")
+    assert.match(source, /profiles"\)\.select\("user_id"\)\.eq\("user_id"/)
+    assert.doesNotMatch(source, /profiles"\)\.upsert\(\{ user_id: [^}]+onboarding_completed: false/)
+  }
+})
+
 runCase("Supabase signup exposes actionable errors and recovers the create form busy state", () => {
   const authSource = readFileSync(new URL("../../lib/authSupabase.ts", import.meta.url), "utf8")
   const pageSource = readFileSync(new URL("../../app/page.tsx", import.meta.url), "utf8")
@@ -783,8 +791,9 @@ runCase("fresh Supabase bootstrap schema is canonical and complete", () => {
   assert.doesNotMatch(schema, /create table if not exists public\.customers \(\s+id uuid primary key/)
   assert.doesNotMatch(schema, /create table if not exists public\.products \(\s+id uuid primary key/)
   assert.match(schema, /create policy "invoice_pdf_exports_update_own" on public\.invoice_pdf_exports for update using \(auth\.uid\(\) = user_id\) with check \(auth\.uid\(\) = user_id\)/)
-  assert.match(schema, /grant usage on schema public to authenticated/)
+  assert.match(schema, /grant usage on schema public to authenticated, service_role/)
   assert.match(schema, /grant select, insert, update, delete on table\s+public\.profiles,\s+public\.user_settings,\s+public\.account_lifecycle_locks,\s+public\.customers,\s+public\.products,\s+public\.invoice_sequences,\s+public\.invoices,\s+public\.invoice_items,\s+public\.invoice_history,\s+public\.invoice_pdf_exports\s+to authenticated;/)
+  assert.match(schema, /grant select, insert, update, delete on table\s+public\.profiles,\s+public\.user_settings,\s+public\.account_lifecycle_locks,\s+public\.customers,\s+public\.products,\s+public\.invoice_sequences,\s+public\.invoices,\s+public\.invoice_items,\s+public\.invoice_history,\s+public\.invoice_pdf_exports\s+to service_role;/)
   assert.match(schema, /grant execute on function public\.create_invoice_record\(jsonb\) to authenticated;/)
   assert.match(schema, /grant execute on function public\.update_invoice_record\(jsonb\) to authenticated;/)
   assert.match(schema, /coalesce\(nullif\(p_invoice->>'id', ''\), 'inv_' \|\| replace\(gen_random_uuid\(\)::text, '-', ''\)\) as invoice_id_value/)

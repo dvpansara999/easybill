@@ -16,9 +16,13 @@ async function assertLifecycleUnlocked(supabase: SupabaseClient, userId: string)
 
 export async function ensureRelationalSetupRows(supabase: SupabaseClient, userId: string) {
   await assertLifecycleUnlocked(supabase, userId)
+  const [profileSeed, settingsSeed] = await Promise.all([
+    supabase.from("profiles").select("user_id").eq("user_id", userId).maybeSingle(),
+    supabase.from("user_settings").select("user_id").eq("user_id", userId).maybeSingle(),
+  ])
   const results = await Promise.allSettled([
-    supabase.from("profiles").upsert({ user_id: userId, onboarding_completed: false }, { onConflict: "user_id" }),
-    supabase.from("user_settings").upsert({ user_id: userId }, { onConflict: "user_id" }),
+    profileSeed.data ? Promise.resolve({ error: null }) : supabase.from("profiles").insert({ user_id: userId, onboarding_completed: false }),
+    settingsSeed.data ? Promise.resolve({ error: null }) : supabase.from("user_settings").insert({ user_id: userId }),
   ])
 
   for (const result of results) {

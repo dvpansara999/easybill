@@ -1,0 +1,8 @@
+[00:00:01.483] Server  LOG     
+[00:00:01.484] Server  LOG       We detected TypeScript in your project and reconfigured your tsconfig.json file for you.
+[00:00:01.484] Server  LOG       The following suggested values were added to your tsconfig.json. These values can be changed to fit your project's needs:
+
+[00:00:01.484] Server  LOG       	- include was updated to add '.next-playwright-e2e-4052-mpurfnse/types/**/*.ts'
+[00:00:01.484] Server  LOG       	- include was updated to add '.next-playwright-e2e-4052-mpurfnse/dev/types/**/*.ts'
+[00:00:01.484] Server  LOG     
+[00:00:01.501] Server  ERROR   Unhandled Rejection: Error: EPERM: operation not permitted, open 'D:\Projects\invoice-app\next-env.d.ts'

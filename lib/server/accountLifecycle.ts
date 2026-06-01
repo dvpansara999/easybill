@@ -130,23 +130,36 @@ async function markLifecycleFailure(admin: SupabaseClient, userId: string, error
 }
 
 async function listUserStoragePaths(admin: SupabaseClient, bucket: string, userId: string) {
-  const rows: Array<{ name: string }> = []
-  let from = 0
-  for (;;) {
-    const to = from + 999
-    const { data, error } = await admin
-      .schema("storage")
-      .from("objects")
-      .select("name")
-      .eq("bucket_id", bucket)
-      .like("name", `${userId}/%`)
-      .range(from, to)
-    if (error) throw error
-    rows.push(...((data || []) as Array<{ name: string }>))
-    if (!data || data.length < 1000) break
-    from += 1000
+  const paths: string[] = []
+
+  async function listPrefix(prefix: string) {
+    let offset = 0
+    for (;;) {
+      const { data, error } = await admin.storage.from(bucket).list(prefix, {
+        limit: 1000,
+        offset,
+        sortBy: { column: "name", order: "asc" },
+      })
+      if (error) throw error
+
+      const entries = data || []
+      for (const entry of entries) {
+        if (!entry.name) continue
+        const path = `${prefix}/${entry.name}`
+        if (entry.id || entry.metadata) {
+          paths.push(path)
+        } else {
+          await listPrefix(path)
+        }
+      }
+
+      if (entries.length < 1000) break
+      offset += 1000
+    }
   }
-  return rows.map((row) => row.name).filter(Boolean)
+
+  await listPrefix(userId)
+  return paths
 }
 
 async function deleteUserStorage(admin: SupabaseClient, userId: string) {
