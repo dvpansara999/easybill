@@ -31,6 +31,11 @@ import jsPDF from "jspdf"
 import { appendCanvasToPdfPages } from "@/lib/canvasRasterPdf"
 import { cn } from "@/lib/utils"
 import { extractPdfBufferFromResponse, parsePdfApiErrorMessage } from "@/lib/pdfApiContract"
+import {
+  validatePdfCaptureCanvas,
+  waitForFallbackCaptureReadiness,
+  waitForServerPdfReadiness,
+} from "@/lib/pdfReadiness"
 import { templates } from "@/components/invoiceTemplates"
 import { DEFAULT_TEMPLATE_ID, resolveTemplateId } from "@/lib/templateIds"
 import InvoicePageHeader from "@/components/invoices/InvoicePageHeader"
@@ -271,6 +276,11 @@ export default function ViewInvoice() {
       throw new Error("Invoice preview is not ready. Refresh the page and try again.")
     }
 
+    const readiness = await waitForFallbackCaptureReadiness({ invoiceId, captureRef })
+    if (!readiness.ok) {
+      throw new Error(readiness.message)
+    }
+
     const nodes = element.querySelectorAll<HTMLElement>("*")
     const prev: Array<{
       el: HTMLElement
@@ -303,12 +313,6 @@ export default function ViewInvoice() {
     })
 
     try {
-      try {
-        await document.fonts.ready
-      } catch {
-        // ignore - not all browsers expose FontFaceSet
-      }
-
       const dpr = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1
       const rasterScale = Math.min(3, Math.max(2, dpr))
 
@@ -328,8 +332,9 @@ export default function ViewInvoice() {
         },
       })
 
-      if (canvas.width < 4 || canvas.height < 4) {
-        throw new Error("Invoice capture was empty")
+      const canvasReadiness = validatePdfCaptureCanvas(canvas)
+      if (!canvasReadiness.ok) {
+        throw new Error(canvasReadiness.message)
       }
 
       const pdf = new jsPDF({
@@ -371,9 +376,11 @@ export default function ViewInvoice() {
   async function downloadInvoiceDirect() {
     if (!invoice) return
 
-    await new Promise<void>((resolve) => {
-      requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
-    })
+    const readiness = await waitForServerPdfReadiness({ invoiceId })
+    if (!readiness.ok) {
+      setDownloadError(readiness.message)
+      return
+    }
 
     const fresh = readInvoiceViewState(invoiceId)
     const templateIdForPdf = fresh.template
@@ -544,9 +551,11 @@ export default function ViewInvoice() {
     setExportSheetBusy(null)
 
     try {
-      await new Promise<void>((resolve) => {
-        requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
-      })
+      const readiness = await waitForServerPdfReadiness({ invoiceId })
+      if (!readiness.ok) {
+        setDownloadError(readiness.message)
+        return
+      }
 
       const fresh = readInvoiceViewState(invoiceId)
       const templateIdForPdf = fresh.template
@@ -649,7 +658,7 @@ export default function ViewInvoice() {
               }`}
             >
               <Download className="h-4 w-4" />
-              {downloadingPdf ? "Preparing PDF..." : "Download PDF"}
+              {downloadingPdf ? (isNarrowViewport ? "Preparing PDF..." : "Preparing invoice assets...") : "Download PDF"}
             </button>
           </>
         }

@@ -21,10 +21,10 @@ export default function SupabaseAuthSync() {
         showAlert({
           tone: "warning",
           eyebrow: "Account changed",
-          title: "This browser session switched to another account.",
-          actionHint: "This tab now follows the account that was signed in most recently in this browser.",
+          title: "Account changed in another tab.",
+          actionHint: "One easyBILL account is supported per browser profile.",
           message:
-            "Using two different easyBILL accounts side by side in the same browser session is not fully isolated yet. Use a different browser profile or private window if you need both open at the same time.",
+            "Use a separate browser profile, private window, or different browser for another account. This tab can only open the account that is currently signed in for this browser profile.",
           primaryLabel: "Open current workspace",
           onPrimary: () => router.replace("/dashboard"),
         })

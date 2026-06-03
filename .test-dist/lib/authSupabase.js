@@ -1,6 +1,6 @@
 "use client";
 import { createSupabaseBrowserClient, getSupabaseUser } from "@/lib/supabase/browser";
-import { clearUserKvCache } from "@/lib/userStore";
+import { clearUserWorkspaceLocalState } from "@/lib/userStore";
 const AUTH_ACTIVE_USER_ID_KEY = "authActiveUserId"; // sessionStorage (tab)
 const AUTH_LAST_USER_ID_KEY = "authLastUserId"; // localStorage (restore)
 const AUTH_LAST_EMAIL_KEY = "authLastEmail";
@@ -325,7 +325,7 @@ export async function signOut() {
     }
     finally {
         if (activeUserId) {
-            clearUserKvCache(activeUserId);
+            clearUserWorkspaceLocalState(activeUserId);
         }
         setActiveUserId(null);
         setLastEmail(null);

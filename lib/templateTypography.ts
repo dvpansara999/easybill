@@ -36,13 +36,15 @@ export function getStoredTemplateTypography() {
   // Lazy import to avoid SSR issues.
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { getActiveOrGlobalItem } = require("@/lib/userStore") as typeof import("@/lib/userStore")
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { getAuthMode } = require("@/lib/runtimeMode") as typeof import("@/lib/runtimeMode")
 
   let fontId = getActiveOrGlobalItem("invoiceTemplateFontId")
   let storedSizeRaw = getActiveOrGlobalItem("invoiceTemplateFontSize")
 
-  // Unauthenticated / edge reads: `userStore` can return null in Supabase mode.
-  // Use localStorage fallback only when KV values are missing (do not override valid KV state).
-  if (!fontId || !storedSizeRaw) {
+  // Local safety mode can still read legacy global typography keys.
+  // Supabase mode must not read unscoped business display settings.
+  if (getAuthMode() !== "supabase" && (!fontId || !storedSizeRaw)) {
     try {
       const rawFontId = localStorage.getItem("invoiceTemplateFontId")
       const rawFontSize = localStorage.getItem("invoiceTemplateFontSize")

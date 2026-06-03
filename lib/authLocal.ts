@@ -183,8 +183,8 @@ export async function signOut() {
   const activeUserId = getActiveUserId()
   if (activeUserId) {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { clearUserKvCache } = require("@/lib/userStore") as typeof import("@/lib/userStore")
-    clearUserKvCache(activeUserId)
+    const { clearUserWorkspaceLocalState } = require("@/lib/userStore") as typeof import("@/lib/userStore")
+    clearUserWorkspaceLocalState(activeUserId)
   }
   setActiveUserId(null)
   if (typeof window !== "undefined") {

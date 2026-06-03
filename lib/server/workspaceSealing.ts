@@ -2,6 +2,7 @@ import "server-only"
 
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { normalizeBusinessProfile } from "@/lib/businessProfile"
+import { normalizeProfileLogoShape, normalizeProfileTextPatch } from "@/lib/profilePersistence"
 import {
   normalizeInvoiceStorePayload,
   type InvoiceRecord,
@@ -230,20 +231,23 @@ export async function listOpenedInvoiceRecords(supabase: SupabaseClient, userId:
 
 export async function upsertSealedProfileFromCache(supabase: SupabaseClient, userId: string, rawValue: string) {
   const profile = normalizeBusinessProfile(safeJsonParse(revealSensitiveDataFromStorage("businessProfile", rawValue), {}))
+  const textPatch = normalizeProfileTextPatch({
+    business_name: profile.businessName,
+    phone: profile.phone,
+    email: profile.email,
+    gst: profile.gst,
+    address: profile.address,
+    bank_name: profile.bankName,
+    account_number: profile.accountNumber,
+    ifsc: profile.ifsc,
+    upi: profile.upi,
+    terms: profile.terms,
+  })
   const patch = sealSensitiveFields(
     {
-      business_name: profile.businessName || null,
-      phone: profile.phone || null,
-      email: profile.email || null,
-      gst: profile.gst || null,
-      address: profile.address || null,
-      bank_name: profile.bankName || null,
-      account_number: profile.accountNumber || null,
-      ifsc: profile.ifsc || null,
-      upi: profile.upi || null,
-      terms: profile.terms || null,
+      ...textPatch,
       logo_storage_path: profile.logoStoragePath || null,
-      logo_shape: profile.logoShape === "round" ? "round" : "square",
+      logo_shape: normalizeProfileLogoShape(profile.logoShape),
       sync_status: "synced",
       last_synced_at: new Date().toISOString(),
     },

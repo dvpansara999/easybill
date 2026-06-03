@@ -1,7 +1,7 @@
 "use client"
 
 import { createSupabaseBrowserClient, getSupabaseUser } from "@/lib/supabase/browser"
-import { clearUserKvCache } from "@/lib/userStore"
+import { clearUserWorkspaceLocalState } from "@/lib/userStore"
 
 export type AuthRecord = {
   userId: string
@@ -337,7 +337,7 @@ export async function signOut() {
     await supabase.auth.signOut()
   } finally {
     if (activeUserId) {
-      clearUserKvCache(activeUserId)
+      clearUserWorkspaceLocalState(activeUserId)
     }
     setActiveUserId(null)
     setLastEmail(null)

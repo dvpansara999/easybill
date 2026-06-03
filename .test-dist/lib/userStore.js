@@ -10,6 +10,7 @@ const PUSH_DEBOUNCE_MS = 600;
 const pendingTimers = new Map();
 let syncService = null;
 const ACCOUNT_SETUP_BUNDLE_KEY = "accountSetupBundle";
+const TEMP_SETUP_KEY_PREFIX = "easybill:preauth:";
 const BUNDLED_KEYS = new Set([
     "businessProfile",
     "dateFormat",
@@ -27,7 +28,9 @@ const BUNDLED_KEYS = new Set([
 // Supabase-first cache: avoids localStorage as the primary store in cloud mode.
 // Keyed as `${userId}:${key}`.
 const cloudCache = new Map();
+const workspaceReadyUsers = new Set();
 const hydratedUsers = new Set();
+const COLLECTION_KEYS = new Set(["products", "customers", "invoices"]);
 function warmCacheStorageKey(key, userId) {
     return scopedKey(`warm-cache:${key}`, userId);
 }
@@ -60,6 +63,42 @@ function removeWarmCache(key, userId) {
 }
 function isSetupKey(key) {
     return key === "setupProfileDraft" || key === "setupResumePath";
+}
+function tempSetupKey(key) {
+    return `${TEMP_SETUP_KEY_PREFIX}${key}`;
+}
+function readTempSetupKey(key) {
+    try {
+        return sessionStorage.getItem(tempSetupKey(key));
+    }
+    catch {
+        return null;
+    }
+}
+function writeTempSetupKey(key, value) {
+    try {
+        sessionStorage.setItem(tempSetupKey(key), value);
+    }
+    catch {
+        // ignore storage failures
+    }
+}
+function removeTempSetupKey(key) {
+    try {
+        sessionStorage.removeItem(tempSetupKey(key));
+    }
+    catch {
+        // ignore storage failures
+    }
+}
+function removeLegacySetupFallbacks() {
+    try {
+        localStorage.removeItem("setupProfileDraft");
+        localStorage.removeItem("setupResumePath");
+    }
+    catch {
+        // ignore storage failures
+    }
 }
 function isCloudKvKey(key) {
     return KV_KEYS.includes(key);
@@ -148,6 +187,7 @@ function readBundledValue(userId, key) {
 export function primeUserKvCache(userId, entries) {
     if (getAuthMode() !== "supabase")
         return;
+    workspaceReadyUsers.add(userId);
     hydratedUsers.add(userId);
     for (const row of entries) {
         if (!row?.key)
@@ -156,7 +196,19 @@ export function primeUserKvCache(userId, entries) {
         writeWarmCache(row.key, userId, row.value);
     }
 }
+export function primeUserWorkspaceCache(userId, entries) {
+    if (getAuthMode() !== "supabase")
+        return;
+    workspaceReadyUsers.add(userId);
+    for (const row of entries) {
+        if (!row?.key)
+            continue;
+        cloudCache.set(cacheId(userId, row.key), row.value);
+        writeWarmCache(row.key, userId, row.value);
+    }
+}
 export function clearUserKvCache(userId) {
+    workspaceReadyUsers.delete(userId);
     hydratedUsers.delete(userId);
     for (const k of cloudCache.keys()) {
         if (k.startsWith(`${userId}:`))
@@ -190,6 +242,8 @@ export function clearUserWorkspaceLocalState(userId) {
             localStorage.removeItem(key);
         localStorage.removeItem("setupProfileDraft");
         localStorage.removeItem("setupResumePath");
+        removeTempSetupKey("setupProfileDraft");
+        removeTempSetupKey("setupResumePath");
     }
     catch {
         // ignore storage failures
@@ -197,6 +251,9 @@ export function clearUserWorkspaceLocalState(userId) {
 }
 export function isUserKvHydrated(userId) {
     return hydratedUsers.has(userId);
+}
+export function isUserWorkspaceReady(userId) {
+    return workspaceReadyUsers.has(userId);
 }
 export function isActiveUserKvHydrated() {
     const userId = getActiveUserId();
@@ -232,7 +289,13 @@ export function getUserItem(key, userId) {
             const scoped = localStorage.getItem(scopedKey(key, userId));
             if (scoped != null)
                 return scoped;
-            return localStorage.getItem(key); // pre-OTP fallback
+            const pending = readTempSetupKey(key);
+            if (pending != null) {
+                localStorage.setItem(scopedKey(key, userId), pending);
+                removeTempSetupKey(key);
+                removeLegacySetupFallbacks();
+            }
+            return pending;
         }
         catch {
             return null;
@@ -242,7 +305,11 @@ export function getUserItem(key, userId) {
         const bundled = readBundledValue(userId, key);
         if (bundled != null)
             return revealSensitiveDataFromStorage(key, bundled);
-        const raw = cloudCache.get(cacheId(userId, key)) ?? readWarmCache(key, userId);
+        const inMemoryRaw = cloudCache.get(cacheId(userId, key));
+        const raw = inMemoryRaw ??
+            (COLLECTION_KEYS.has(key) && !hydratedUsers.has(userId)
+                ? null
+                : readWarmCache(key, userId));
         return raw == null ? null : revealSensitiveDataFromStorage(key, raw);
     }
     const raw = localStorage.getItem(scopedKey(key, userId));
@@ -252,9 +319,8 @@ export function setUserItem(key, value, userId) {
     if (getAuthMode() === "supabase" && isSetupKey(key)) {
         try {
             localStorage.setItem(scopedKey(key, userId), value);
-            // Keep a global fallback during the OTP step. We'll clear it
-            // whenever users start a new signup flow.
-            localStorage.setItem(key, value);
+            removeTempSetupKey(key);
+            removeLegacySetupFallbacks();
         }
         catch {
             // ignore storage failures
@@ -293,7 +359,8 @@ export function removeUserItem(key, userId) {
     if (getAuthMode() === "supabase" && isSetupKey(key)) {
         try {
             localStorage.removeItem(scopedKey(key, userId));
-            localStorage.removeItem(key);
+            removeTempSetupKey(key);
+            removeLegacySetupFallbacks();
         }
         catch {
             // ignore
@@ -347,7 +414,7 @@ export function getActiveOrGlobalItem(key) {
     // In Supabase mode we must avoid reading global sample keys (data leakage).
     if (getAuthMode() === "supabase") {
         if (key === "setupProfileDraft" || key === "setupResumePath") {
-            return localStorage.getItem(key);
+            return readTempSetupKey(key);
         }
         return null;
     }
@@ -372,6 +439,11 @@ export function setActiveOrGlobalItem(key, value) {
         setUserItem(key, value, userId);
         return;
     }
+    if (getAuthMode() === "supabase" && isSetupKey(key)) {
+        writeTempSetupKey(key, value);
+        removeLegacySetupFallbacks();
+        return;
+    }
     localStorage.setItem(key, value);
 }
 export function removeActiveUserItem(key) {
@@ -390,17 +462,17 @@ export function removeActiveOrGlobalItem(key) {
         if (!userId)
             return;
         removeUserItem(key, userId);
-        // Setup draft/resume are temporary and must never be re-seeded for a different account.
         if (getAuthMode() === "supabase") {
             if (key === "setupProfileDraft" || key === "setupResumePath") {
-                try {
-                    localStorage.removeItem(key);
-                }
-                catch {
-                    // ignore
-                }
+                removeTempSetupKey(key);
+                removeLegacySetupFallbacks();
             }
         }
+        return;
+    }
+    if (getAuthMode() === "supabase" && isSetupKey(key)) {
+        removeTempSetupKey(key);
+        removeLegacySetupFallbacks();
         return;
     }
     localStorage.removeItem(key);

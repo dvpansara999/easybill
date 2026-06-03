@@ -36,36 +36,24 @@ function measureMeaningfulHeight(container: HTMLElement) {
   return Math.ceil(maxBottom + 2)
 }
 
-function waitForAnimationFrames(count = 2) {
-  return new Promise<void>((resolve) => {
-    const step = (remaining: number) => {
-      if (remaining <= 0) {
-        resolve()
-        return
-      }
-      requestAnimationFrame(() => step(remaining - 1))
-    }
-    step(count)
-  })
-}
-
 async function waitForImageAsset(url: string) {
-  if (!url.startsWith("http://") && !url.startsWith("https://")) return
+  if (!url.startsWith("http://") && !url.startsWith("https://")) return true
 
-  await new Promise<void>((resolve) => {
+  return new Promise<boolean>((resolve) => {
     const img = new Image()
-    const finish = () => resolve()
+    const finish = () => resolve(img.naturalWidth > 0 && img.naturalHeight > 0)
+    const fail = () => resolve(false)
     img.onload = finish
-    img.onerror = finish
+    img.onerror = fail
     img.src = url
 
     if (img.complete) {
-      resolve()
+      finish()
       return
     }
 
     if (typeof img.decode === "function") {
-      img.decode().then(finish).catch(finish)
+      img.decode().then(finish).catch(fail)
     }
   })
 }
@@ -113,6 +101,7 @@ export default function InvoicePdfRenderPage() {
   const [contentHeight, setContentHeight] = useState(A4_HEIGHT_PX)
   const [dedicatedTermsPage, setDedicatedTermsPage] = useState(false)
   const [assetsReady, setAssetsReady] = useState(false)
+  const [layoutMeasured, setLayoutMeasured] = useState(false)
 
   const templateData = useMemo<TemplateComponentProps | null>(() => {
     if (!payload) return null
@@ -160,6 +149,7 @@ export default function InvoicePdfRenderPage() {
 
     async function prepareAssets() {
       setAssetsReady(false)
+      setLayoutMeasured(false)
       if (!templateData) return
 
       try {
@@ -170,10 +160,9 @@ export default function InvoicePdfRenderPage() {
 
       const logo = String(payload?.business?.logo || "").trim()
       if (logo) {
-        await waitForImageAsset(logo)
+        const logoReady = await waitForImageAsset(logo)
+        if (!logoReady) return
       }
-
-      await waitForAnimationFrames(4)
 
       if (!cancelled) {
         setAssetsReady(true)
@@ -215,13 +204,14 @@ export default function InvoicePdfRenderPage() {
       const next = Math.max(A4_HEIGHT_PX, measureMeaningfulHeight(el))
       setContentHeight(next)
       setDedicatedTermsPage(Boolean(el.querySelector(".eb-terms-fullpage")))
+      setLayoutMeasured(next >= A4_HEIGHT_PX)
     }
 
     const ro = new ResizeObserver(() => {
-      requestAnimationFrame(updateHeight)
+      updateHeight()
     })
     ro.observe(el)
-    requestAnimationFrame(updateHeight)
+    updateHeight()
 
     return () => {
       ro.disconnect()
@@ -234,7 +224,7 @@ export default function InvoicePdfRenderPage() {
     if (overflowPx <= OVERFLOW_EPSILON_PX) return 1
     return Math.max(1, Math.ceil(contentHeight / A4_HEIGHT_PX))
   }, [contentHeight, dedicatedTermsPage])
-  const pdfReady = Boolean(templateData) && assetsReady
+  const pdfReady = Boolean(templateData) && assetsReady && layoutMeasured && contentHeight >= A4_HEIGHT_PX
 
   return (
     <main style={{ margin: 0, padding: 0, background: "#fff" }}>

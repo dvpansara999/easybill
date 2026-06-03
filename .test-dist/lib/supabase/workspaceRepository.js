@@ -288,6 +288,25 @@ export async function fetchWorkspaceSnapshot(supabase, userId) {
         logoSignedUrl,
     };
 }
+export async function fetchWorkspaceBasics(supabase, userId) {
+    const [profileRes, settingsRes] = await Promise.all([
+        supabase.from("profiles").select("*").eq("user_id", userId).maybeSingle(),
+        supabase.from("user_settings").select("*").eq("user_id", userId).maybeSingle(),
+    ]);
+    if (profileRes.error)
+        throw profileRes.error;
+    if (settingsRes.error)
+        throw settingsRes.error;
+    const logoSignedUrl = await getSignedStorageUrl(supabase, LOGO_BUCKET, profileRes.data?.logo_storage_path || null, 60 * 60 * 24 * 7);
+    return {
+        profile: profileRes.data,
+        settings: settingsRes.data,
+        products: [],
+        customers: [],
+        invoices: [],
+        logoSignedUrl,
+    };
+}
 export async function fetchWorkspaceSnapshotEntries(supabase, userId) {
     return buildRelationalCacheEntries(await fetchWorkspaceSnapshot(supabase, userId));
 }

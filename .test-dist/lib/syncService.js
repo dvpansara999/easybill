@@ -3,7 +3,7 @@ import { createLocalStorageSyncRetryQueue } from "./syncRetryQueue";
 export function createSupabaseSyncRepository(repository) {
     return repository;
 }
-export function createSyncService({ cache, repository, validators = {}, clock = () => Date.now(), logger = consoleSyncLogger, debounceMs = 600, maxRetries = 2, retryQueue = createLocalStorageSyncRetryQueue(), }) {
+export function createSyncService({ cache, repository, validators = {}, auth, clock = () => Date.now(), logger = consoleSyncLogger, debounceMs = 600, maxRetries = 2, retryQueue = createLocalStorageSyncRetryQueue(), }) {
     const timers = new Map();
     function timerId(userId, key) {
         return `${userId}:${key}`;
@@ -61,6 +61,12 @@ export function createSyncService({ cache, repository, validators = {}, clock = 
         validateOrThrow(key, rawValue);
         await repository.pushKey(userId, key, rawValue);
     }
+    async function assertReplayUserMatches(itemUserId) {
+        const currentUserId = await auth?.getCurrentUserId?.();
+        if (currentUserId && currentUserId !== itemUserId) {
+            throw new Error("Queued workspace sync skipped after auth drift.");
+        }
+    }
     return {
         schedulePush(userId, key, rawValue) {
             resetTimer(userId, key, "push", rawValue, () => push(userId, key, rawValue));
@@ -94,6 +100,7 @@ export function createSyncService({ cache, repository, validators = {}, clock = 
             const queued = retryQueue.list(userId);
             for (const item of queued) {
                 try {
+                    await assertReplayUserMatches(item.userId);
                     if (item.operation === "push") {
                         validateOrThrow(item.key, item.rawValue || "");
                         await repository.pushKey(item.userId, item.key, item.rawValue || "");

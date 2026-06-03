@@ -3,6 +3,7 @@ import { DEFAULT_INVOICE_VISIBILITY, type InvoiceVisibilitySettings } from "@/li
 import { DEFAULT_RESET_MONTH_DAY, normalizeResetMonthDay } from "@/lib/invoiceResetDate"
 import { normalizeBusinessProfile, type BusinessProfileRecord } from "@/lib/businessProfile"
 import { extractLogoStoragePath } from "@/lib/logoStorage"
+import { normalizeProfileLogoShape, normalizeProfileTextPatch } from "@/lib/profilePersistence"
 import {
   normalizeInvoiceRecord,
   serializeInvoiceStore,
@@ -528,18 +529,20 @@ export function buildProfileUpsertFromCache(rawValue: string) {
     extractLogoStoragePath(profile.logo) ||
     null
   return {
-    business_name: profile.businessName || null,
-    phone: profile.phone || null,
-    email: profile.email || null,
-    gst: profile.gst || null,
-    address: profile.address || null,
-    bank_name: profile.bankName || null,
-    account_number: profile.accountNumber || null,
-    ifsc: profile.ifsc || null,
-    upi: profile.upi || null,
-    terms: profile.terms || null,
+    ...normalizeProfileTextPatch({
+      business_name: profile.businessName,
+      phone: profile.phone,
+      email: profile.email,
+      gst: profile.gst,
+      address: profile.address,
+      bank_name: profile.bankName,
+      account_number: profile.accountNumber,
+      ifsc: profile.ifsc,
+      upi: profile.upi,
+      terms: profile.terms,
+    }),
     logo_storage_path: logoStoragePath,
-    logo_shape: profile.logoShape === "round" ? "round" : "square",
+    logo_shape: normalizeProfileLogoShape(profile.logoShape),
   }
 }
 

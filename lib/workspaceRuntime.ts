@@ -124,6 +124,12 @@ export function getBrowserWorkspaceSyncService() {
           return valid()
         },
       },
+      auth: {
+        async getCurrentUserId() {
+          const { data } = await getSupabaseUser()
+          return data.user?.id || null
+        },
+      },
       logger: {
         info(message, details) {
           console.info(message, details)

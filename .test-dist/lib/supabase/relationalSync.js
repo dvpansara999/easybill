@@ -2,6 +2,7 @@ import { DEFAULT_INVOICE_VISIBILITY } from "@/lib/invoiceVisibilityShared";
 import { DEFAULT_RESET_MONTH_DAY, normalizeResetMonthDay } from "@/lib/invoiceResetDate";
 import { normalizeBusinessProfile } from "@/lib/businessProfile";
 import { extractLogoStoragePath } from "@/lib/logoStorage";
+import { normalizeProfileLogoShape, normalizeProfileTextPatch } from "@/lib/profilePersistence";
 import { normalizeInvoiceRecord, serializeInvoiceStore, } from "@/lib/invoice";
 import { revealSensitiveFields } from "@/lib/sensitiveData";
 export const RELATIONAL_CACHE_KEYS = [
@@ -197,9 +198,49 @@ function buildSettingsSnapshot(settings) {
         invoiceUsageInitialized: settings?.invoice_usage_initialized ?? defaultSettings.invoiceUsageInitialized,
     };
 }
-export function buildRelationalCacheEntries(payload) {
+export function buildRelationalWorkspaceReadyEntries(payload) {
     const settings = buildSettingsSnapshot(payload.settings);
     const businessProfile = buildBusinessProfileCache(payload.profile, payload.logoSignedUrl);
+    const bundle = {
+        businessProfile,
+        dateFormat: settings.dateFormat,
+        amountFormat: settings.amountFormat,
+        showDecimals: settings.showDecimals,
+        invoicePrefix: settings.invoicePrefix,
+        invoicePadding: settings.invoicePadding,
+        invoiceStartNumber: settings.invoiceStartNumber,
+        resetYearly: settings.resetYearly,
+        invoiceResetMonthDay: settings.invoiceResetMonthDay,
+        currencySymbol: settings.currencySymbol,
+        currencyPosition: settings.currencyPosition,
+        invoiceVisibility: settings.invoiceVisibility,
+    };
+    const emailAudit = payload.profile?.email_change_audit_at ? "1" : "";
+    return [
+        { key: "accountSetupBundle", value: JSON.stringify(bundle) },
+        { key: "businessProfile", value: JSON.stringify(businessProfile) },
+        { key: "invoiceTemplate", value: settings.invoiceTemplate },
+        { key: "invoiceVisibility", value: JSON.stringify(settings.invoiceVisibility) },
+        { key: "subscriptionPlanId", value: settings.subscriptionPlanId },
+        { key: "invoiceUsageCount", value: String(settings.invoiceUsageCount) },
+        { key: "invoiceUsageInitialized:v1", value: String(settings.invoiceUsageInitialized) },
+        { key: "templateTypography", value: settings.templateTypography },
+        { key: "invoiceTemplateFontId", value: settings.templateFontId },
+        { key: "invoiceTemplateFontSize", value: String(settings.templateFontSize) },
+        { key: "dateFormat", value: settings.dateFormat },
+        { key: "amountFormat", value: settings.amountFormat },
+        { key: "showDecimals", value: String(settings.showDecimals) },
+        { key: "invoicePrefix", value: settings.invoicePrefix },
+        { key: "invoicePadding", value: String(settings.invoicePadding) },
+        { key: "invoiceStartNumber", value: String(settings.invoiceStartNumber) },
+        { key: "resetYearly", value: String(settings.resetYearly) },
+        { key: "invoiceResetMonthDay", value: settings.invoiceResetMonthDay },
+        { key: "currencySymbol", value: settings.currencySymbol },
+        { key: "currencyPosition", value: settings.currencyPosition },
+        { key: "emailChangeAudit", value: emailAudit },
+    ];
+}
+export function buildRelationalCacheEntries(payload) {
     const invoices = mapRelationalInvoicesToRecords(payload.invoices);
     const products = payload.products.map((row) => ({
         id: row.id || undefined,
@@ -231,46 +272,11 @@ export function buildRelationalCacheEntries(payload) {
         gst: row.gst || "",
         address: row.address || "",
     }));
-    const bundle = {
-        businessProfile,
-        dateFormat: settings.dateFormat,
-        amountFormat: settings.amountFormat,
-        showDecimals: settings.showDecimals,
-        invoicePrefix: settings.invoicePrefix,
-        invoicePadding: settings.invoicePadding,
-        invoiceStartNumber: settings.invoiceStartNumber,
-        resetYearly: settings.resetYearly,
-        invoiceResetMonthDay: settings.invoiceResetMonthDay,
-        currencySymbol: settings.currencySymbol,
-        currencyPosition: settings.currencyPosition,
-        invoiceVisibility: settings.invoiceVisibility,
-    };
-    const emailAudit = payload.profile?.email_change_audit_at ? "1" : "";
     return [
-        { key: "accountSetupBundle", value: JSON.stringify(bundle) },
-        { key: "businessProfile", value: JSON.stringify(businessProfile) },
+        ...buildRelationalWorkspaceReadyEntries(payload),
         { key: "invoices", value: serializeInvoiceStore(invoices) },
         { key: "products", value: JSON.stringify(products) },
         { key: "customers", value: JSON.stringify(customers) },
-        { key: "invoiceTemplate", value: settings.invoiceTemplate },
-        { key: "invoiceVisibility", value: JSON.stringify(settings.invoiceVisibility) },
-        { key: "subscriptionPlanId", value: settings.subscriptionPlanId },
-        { key: "invoiceUsageCount", value: String(settings.invoiceUsageCount) },
-        { key: "invoiceUsageInitialized:v1", value: String(settings.invoiceUsageInitialized) },
-        { key: "templateTypography", value: settings.templateTypography },
-        { key: "invoiceTemplateFontId", value: settings.templateFontId },
-        { key: "invoiceTemplateFontSize", value: String(settings.templateFontSize) },
-        { key: "dateFormat", value: settings.dateFormat },
-        { key: "amountFormat", value: settings.amountFormat },
-        { key: "showDecimals", value: String(settings.showDecimals) },
-        { key: "invoicePrefix", value: settings.invoicePrefix },
-        { key: "invoicePadding", value: String(settings.invoicePadding) },
-        { key: "invoiceStartNumber", value: String(settings.invoiceStartNumber) },
-        { key: "resetYearly", value: String(settings.resetYearly) },
-        { key: "invoiceResetMonthDay", value: settings.invoiceResetMonthDay },
-        { key: "currencySymbol", value: settings.currencySymbol },
-        { key: "currencyPosition", value: settings.currencyPosition },
-        { key: "emailChangeAudit", value: emailAudit },
     ];
 }
 export async function getSignedStorageUrl(supabase, bucket, path, expiresInSeconds = 60 * 60 * 24) {
@@ -333,18 +339,20 @@ export function buildProfileUpsertFromCache(rawValue) {
         extractLogoStoragePath(profile.logo) ||
         null;
     return {
-        business_name: profile.businessName || null,
-        phone: profile.phone || null,
-        email: profile.email || null,
-        gst: profile.gst || null,
-        address: profile.address || null,
-        bank_name: profile.bankName || null,
-        account_number: profile.accountNumber || null,
-        ifsc: profile.ifsc || null,
-        upi: profile.upi || null,
-        terms: profile.terms || null,
+        ...normalizeProfileTextPatch({
+            business_name: profile.businessName,
+            phone: profile.phone,
+            email: profile.email,
+            gst: profile.gst,
+            address: profile.address,
+            bank_name: profile.bankName,
+            account_number: profile.accountNumber,
+            ifsc: profile.ifsc,
+            upi: profile.upi,
+            terms: profile.terms,
+        }),
         logo_storage_path: logoStoragePath,
-        logo_shape: profile.logoShape === "round" ? "round" : "square",
+        logo_shape: normalizeProfileLogoShape(profile.logoShape),
     };
 }
 export function buildSettingsUpsertPatch(key, rawValue) {

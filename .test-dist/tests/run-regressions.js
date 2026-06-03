@@ -8,6 +8,7 @@ import { generateInvoiceNumber, getFirstRepeatedInvoiceNumberWarning, getInvoice
 import { getInvoicePrefixError } from "../lib/invoicePrefixValidation.js";
 import { buildIncrementalSyncPlan, isLocalRecordDirty, resolveLastWriteWins, } from "../lib/incrementalSync.js";
 import { buildLogoStoragePath, getOwnedLogoStoragePath } from "../lib/logoStorage.js";
+import { normalizeProfileLogoShape, normalizeProfileTextPatch, normalizeProfileTextValue, PROFILE_REQUIRED_TEXT_FIELDS, } from "../lib/profilePersistence.js";
 import { extractFingerprintFromStoragePath, filterDuplicateInvoiceExportRows, findMatchingCachedInvoiceExport, filterStaleInvoiceExportRows, } from "../lib/server/invoicePdfExportCache.js";
 import { createMemorySyncRetryQueue } from "../lib/syncRetryQueue.js";
 import { createSyncService } from "../lib/syncService.js";
@@ -577,6 +578,57 @@ runCase("schema stores sealed contact values with non-reversible lookup hashes",
     assert.match(schema, /p_identity_key text default null/);
     assert.doesNotMatch(schema, /identity_key text := concat_ws\('\|'/);
 });
+runCase("profile persistence matches schema nullability for optional onboarding fields", () => {
+    const schema = readFileSync(new URL("../../supabase/schema.sql", import.meta.url), "utf8");
+    const relationalSync = readFileSync(new URL("../../lib/supabase/relationalSync.ts", import.meta.url), "utf8");
+    const workspaceSealing = readFileSync(new URL("../../lib/server/workspaceSealing.ts", import.meta.url), "utf8");
+    for (const field of PROFILE_REQUIRED_TEXT_FIELDS) {
+        assert.match(schema, new RegExp(`${field} text not null default ''`));
+    }
+    assert.match(schema, /logo_storage_path text,\s+logo_shape text not null default 'square' check \(logo_shape in \('square', 'round'\)\)/);
+    assert.equal(normalizeProfileTextValue(undefined), "");
+    assert.equal(normalizeProfileTextValue(null), "");
+    assert.equal(normalizeProfileTextValue(123), "");
+    assert.equal(normalizeProfileTextValue("9876543210"), "9876543210");
+    assert.equal(normalizeProfileLogoShape(undefined), "square");
+    assert.equal(normalizeProfileLogoShape("round"), "round");
+    assert.equal(normalizeProfileLogoShape("circle"), "square");
+    const textPatch = normalizeProfileTextPatch({
+        business_name: null,
+        phone: undefined,
+        email: 123,
+        gst: "",
+        address: "Vadodara",
+        bank_name: null,
+        account_number: undefined,
+        ifsc: null,
+        upi: undefined,
+        terms: null,
+    });
+    assert.deepEqual(textPatch, {
+        business_name: "",
+        phone: "",
+        email: "",
+        gst: "",
+        address: "Vadodara",
+        bank_name: "",
+        account_number: "",
+        ifsc: "",
+        upi: "",
+        terms: "",
+    });
+    assert.match(relationalSync, /normalizeProfileTextPatch/);
+    assert.match(relationalSync, /\.\.\.normalizeProfileTextPatch\(\{/);
+    assert.match(relationalSync, /logo_storage_path: logoStoragePath/);
+    assert.match(relationalSync, /logo_shape: normalizeProfileLogoShape\(profile\.logoShape\)/);
+    assert.match(workspaceSealing, /normalizeProfileTextPatch/);
+    assert.match(workspaceSealing, /const textPatch = normalizeProfileTextPatch\(\{/);
+    assert.match(workspaceSealing, /\.\.\.textPatch/);
+    assert.match(workspaceSealing, /logo_storage_path: profile\.logoStoragePath \|\| null/);
+    assert.match(workspaceSealing, /logo_shape: normalizeProfileLogoShape\(profile\.logoShape\)/);
+    assert.doesNotMatch(relationalSync, /phone: profile\.phone \|\| null/);
+    assert.doesNotMatch(workspaceSealing, /phone: profile\.phone \|\| null/);
+});
 runCase("fresh Supabase bootstrap schema is canonical and complete", () => {
     const schema = readFileSync(new URL("../../supabase/schema.sql", import.meta.url), "utf8");
     const pdfExportRoute = readFileSync(new URL("../../app/api/invoice-pdf-export/route.ts", import.meta.url), "utf8");
@@ -653,6 +705,8 @@ runCase("invoice PDF export is resilient to repeated invoice numbers", () => {
     const schema = readFileSync(new URL("../../supabase/schema.sql", import.meta.url), "utf8");
     const viewPage = readFileSync(new URL("../../app/(app)/dashboard/invoices/view/[id]/page.tsx", import.meta.url), "utf8");
     const core = readFileSync(new URL("../../lib/server/invoicePdfGenerationCore.ts", import.meta.url), "utf8");
+    const exportRoute = readFileSync(new URL("../../app/api/invoice-pdf-export/route.ts", import.meta.url), "utf8");
+    const readiness = readFileSync(new URL("../../lib/pdfReadiness.ts", import.meta.url), "utf8");
     const workspaceRoute = readFileSync(new URL("../../app/api/workspace/route.ts", import.meta.url), "utf8");
     const runtime = readFileSync(new URL("../../lib/workspaceRuntime.ts", import.meta.url), "utf8");
     assert.match(schema, /coalesce\(nullif\(p_invoice->>'id', ''\), 'inv_' \|\| replace\(gen_random_uuid\(\)::text, '-', ''\)\) as invoice_id_value/);
@@ -663,9 +717,21 @@ runCase("invoice PDF export is resilient to repeated invoice numbers", () => {
     assert.match(viewPage, /invoiceDate: invoice\.date/);
     assert.match(viewPage, /clientName: invoice\.clientName/);
     assert.match(viewPage, /grandTotal: invoice\.grandTotal/);
+    assert.match(viewPage, /waitForServerPdfReadiness\(\{ invoiceId \}\)/);
+    assert.match(viewPage, /waitForFallbackCaptureReadiness\(\{\s*invoiceId,\s*captureRef\s*\}\)/);
+    assert.doesNotMatch(viewPage, /requestAnimationFrame\(\(\) => requestAnimationFrame/);
+    assert.match(readiness, /export async function waitForServerPdfReadiness/);
+    assert.match(readiness, /export async function waitForFallbackCaptureReadiness/);
+    assert.doesNotMatch(readiness, /businessProfile/);
+    assert.doesNotMatch(readiness, /invoiceTemplate/);
     assert.match(core, /\.eq\("id", String\(body\.invoiceId\)\)/);
     assert.doesNotMatch(core, /pickInvoiceFallbackMatch/);
     assert.doesNotMatch(core, /\.eq\("invoice_number", cleanLookupString\(body\.invoiceNumber\)\)/);
+    assert.match(exportRoute, /findMatchingCachedInvoiceExport\(cachedRows, resolvedSource\.source\.invoiceRecordId\)/);
+    assert.match(exportRoute, /cachedFingerprint === resolvedSource\.source\.sourceFingerprint/);
+    assert.match(exportRoute, /generateInvoicePdfFromResolvedSource/);
+    assert.match(exportRoute, /filterStaleInvoiceExportRows/);
+    assert.match(exportRoute, /source_fingerprint: gen\.sourceFingerprint/);
     assert.match(workspaceRoute, /op: "upsertInvoice"/);
     assert.match(workspaceRoute, /upsertSealedInvoiceRecord\(supabase, userId, body\.invoice\)/);
     assert.match(runtime, /ensureInvoiceRecordForPdf/);
@@ -981,6 +1047,44 @@ await runCaseAsync("sync service reads latest cache value and validates before p
     await assert.rejects(() => service.flushPush("user_1", "products"), /bad payload/);
     assert.deepEqual(pushed, [{ key: "products", value: "cached-value" }]);
     assert.equal(retryQueue.list("user_1").length, 1);
+});
+await runCaseAsync("sync retry replay rejects queued writes after auth drift", async () => {
+    const pushed = [];
+    const retryQueue = createMemorySyncRetryQueue([
+        {
+            id: "queued_a",
+            userId: "user_a",
+            key: "products",
+            operation: "push",
+            rawValue: '[{"id":"prod_a","name":"Account A"}]',
+            attempts: 0,
+            createdAt: "2026-03-10T10:00:00.000Z",
+            updatedAt: "2026-03-10T10:00:00.000Z",
+        },
+    ]);
+    const service = createSyncService({
+        cache: {
+            get: () => null,
+            set: () => { },
+            remove: () => { },
+        },
+        repository: {
+            pushKey: async (userId, key, rawValue) => {
+                pushed.push({ userId, key, value: rawValue });
+            },
+            deleteKey: async () => { },
+        },
+        auth: {
+            getCurrentUserId: () => "user_b",
+        },
+        retryQueue,
+        maxRetries: 0,
+    });
+    await service.replayQueued("user_a");
+    assert.deepEqual(pushed, []);
+    assert.equal(retryQueue.list("user_a").length, 1);
+    assert.equal(retryQueue.list("user_a")[0]?.attempts, 1);
+    assert.match(retryQueue.list("user_a")[0]?.lastError || "", /auth drift/i);
 });
 runCase("workspace tombstones hide deleted records while preserving deletion intent", () => {
     const active = ensureRecordIds([{ name: "One" }, { name: "Two" }], "prod");
@@ -1367,5 +1471,75 @@ runCase("Playwright browser verification framework exposes Supabase confidence g
     assert.match(workspaceDocs, /PLAYWRIGHT_USE_EXISTING_SERVER=1/);
     assert.match(releaseDocs, /Deployment Confidence Gate/);
     assert.match(releaseDocs, /test:e2e:supabase:\*/);
+});
+runCase("workspace hydration gate requires Supabase-backed readiness before dashboard render", () => {
+    const runtime = readFileSync(new URL("../../lib/workspaceRuntime.ts", import.meta.url), "utf8");
+    const login = readFileSync(new URL("../../app/page.tsx", import.meta.url), "utf8");
+    const dashboardLayout = readFileSync(new URL("../../app/(app)/dashboard/layout.tsx", import.meta.url), "utf8");
+    const callback = readFileSync(new URL("../../app/auth/callback/route.ts", import.meta.url), "utf8");
+    const hydrating = readFileSync(new URL("../../app/auth/hydrating/page.tsx", import.meta.url), "utf8");
+    const userStore = readFileSync(new URL("../../lib/userStore.ts", import.meta.url), "utf8");
+    assert.match(runtime, /ensureWorkspaceReadyForNavigation/);
+    assert.match(runtime, /fetchWorkspaceReady/);
+    assert.match(runtime, /WORKSPACE_READY_TIMEOUT_MS = 60_000/);
+    assert.match(runtime, /primeUserWorkspaceCache/);
+    assert.match(runtime, /readUserSyncWatermark/);
+    assert.match(runtime, /isWorkspaceReadyForNavigation/);
+    assert.doesNotMatch(runtime, /hasUserWarmCache/);
+    assert.match(login, /await ensureWorkspaceReadyForNavigation\(userId\)/);
+    assert.match(login, /Creating your workspace/);
+    assert.match(dashboardLayout, /await ensureWorkspaceReadyForNavigation\(data\.user\.id\)/);
+    assert.doesNotMatch(dashboardLayout, /hasUserWarmCache/);
+    assert.match(callback, /\/auth\/hydrating\?next=\/dashboard/);
+    assert.match(hydrating, /Retry/);
+    assert.match(hydrating, /Sign Out/);
+    assert.match(userStore, /workspaceReadyUsers/);
+    assert.match(userStore, /COLLECTION_KEYS/);
+    assert.match(userStore, /primeUserWorkspaceCache/);
+    assert.match(userStore, /COLLECTION_KEYS\.has\(key\) && !hydratedUsers\.has\(userId\)/);
+});
+runCase("session isolation hardening removes unscoped Supabase business storage", () => {
+    const authSupabase = readFileSync(new URL("../../lib/authSupabase.ts", import.meta.url), "utf8");
+    const authLocal = readFileSync(new URL("../../lib/authLocal.ts", import.meta.url), "utf8");
+    const userStore = readFileSync(new URL("../../lib/userStore.ts", import.meta.url), "utf8");
+    const typography = readFileSync(new URL("../../lib/templateTypography.ts", import.meta.url), "utf8");
+    const syncService = readFileSync(new URL("../../lib/syncService.ts", import.meta.url), "utf8");
+    const runtime = readFileSync(new URL("../../lib/workspaceRuntime.ts", import.meta.url), "utf8");
+    const authSyncProvider = readFileSync(new URL("../../components/providers/SupabaseAuthSync.tsx", import.meta.url), "utf8");
+    const docs = readFileSync(new URL("../../docs/SESSION-CACHE-HARDENING.md", import.meta.url), "utf8");
+    assert.match(authSupabase, /clearUserWorkspaceLocalState\(activeUserId\)/);
+    assert.match(authLocal, /clearUserWorkspaceLocalState\(activeUserId\)/);
+    assert.doesNotMatch(authSupabase, /clearUserKvCache\(activeUserId\)/);
+    assert.doesNotMatch(authLocal, /clearUserKvCache\(activeUserId\)/);
+    assert.match(userStore, /TEMP_SETUP_KEY_PREFIX = "easybill:preauth:"/);
+    assert.match(userStore, /sessionStorage\.setItem\(tempSetupKey\(key\), value\)/);
+    assert.match(userStore, /localStorage\.setItem\(scopedKey\(key, userId\), pending\)/);
+    assert.doesNotMatch(userStore, /localStorage\.getItem\(key\) \/\/ pre-OTP fallback/);
+    assert.doesNotMatch(userStore, /Keep a global fallback during the OTP step/);
+    const supabaseSetupWriteStart = userStore.indexOf('if (getAuthMode() === "supabase" && isSetupKey(key)) {');
+    assert.notEqual(supabaseSetupWriteStart, -1);
+    const supabaseSetupWriteEnd = userStore.indexOf("localStorage.setItem(key, value)", supabaseSetupWriteStart);
+    const supabaseSetupWriteBranch = userStore.slice(supabaseSetupWriteStart, supabaseSetupWriteEnd);
+    assert.match(supabaseSetupWriteBranch, /writeTempSetupKey\(key, value\)/);
+    assert.match(supabaseSetupWriteBranch, /removeLegacySetupFallbacks\(\)/);
+    assert.doesNotMatch(supabaseSetupWriteBranch, /localStorage\.setItem\(key, value\)/);
+    assert.match(typography, /getAuthMode\(\) !== "supabase"/);
+    assert.doesNotMatch(typography, /Use localStorage fallback only when KV values are missing/);
+    assert.match(syncService, /assertReplayUserMatches/);
+    assert.match(syncService, /Queued workspace sync skipped after auth drift/);
+    assert.match(runtime, /getCurrentUserId\(\)/);
+    assert.match(authSyncProvider, /One easyBILL account is supported per browser profile/);
+    assert.match(authSyncProvider, /separate browser profile, private window, or different browser/);
+    for (const storageKey of [
+        "authActiveUserId",
+        "authLastUserId",
+        "authLastEmail",
+        "warm-cache:<workspaceKey>::<userId>",
+        "sync-watermark::<userId>",
+        "easybill:sync-retry-queue:v1",
+        "easybill:preauth:setupProfileDraft",
+    ]) {
+        assert.match(docs, new RegExp(storageKey.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+    }
 });
 console.log("All regression checks passed.");
